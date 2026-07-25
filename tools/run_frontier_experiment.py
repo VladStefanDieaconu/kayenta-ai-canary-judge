@@ -167,7 +167,7 @@ def main() -> int:
     base_millis = ed.aligned_base_millis()
 
     print("=" * 78)
-    print(f"canaryLLM frontier-model experiment  model={args.model} modes={modes} "
+    print(f"kayenta-ai-canary-judge frontier-model experiment  model={args.model} modes={modes} "
           f"n={args.n}/family seed={args.seed} scenarios={len(scenarios)} cache={use_cache}")
     print("=" * 78)
 

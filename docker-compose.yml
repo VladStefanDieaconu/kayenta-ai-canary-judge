@@ -1,4 +1,4 @@
-# canaryLLM: Dockerized Kayenta canary-judge testing framework.
+# kayenta-ai-canary-judge: Dockerized Kayenta canary-judge testing framework.
 # Services: redis, minio (+ one-shot bucket init), victoriametrics, litellm,
 # judge-service (configurable remote judge), kayenta, referee (UI). See README.md.
 

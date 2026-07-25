@@ -30,7 +30,7 @@ logging.basicConfig(
 log = logging.getLogger("judge-service")
 
 app = FastAPI(
-    title="canaryLLM remote judge",
+    title="kayenta-ai-canary-judge remote judge",
     description="Configurable implementation of Kayenta's Remote Judge (RemoteJudge-v1.0): dummy | AI (summary/raw/plot) | hybrid.",
     version="1.0.0",
 )
@@ -43,7 +43,7 @@ def health():
 
 @app.get("/")
 def root():
-    return {"service": "canaryLLM-judge-service", "judge": "RemoteJudge-v1.0", "stub": True}
+    return {"service": "kayenta-ai-canary-judge service", "judge": "RemoteJudge-v1.0", "stub": True}
 
 
 @app.post("/judge")

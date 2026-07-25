@@ -107,7 +107,7 @@ def main() -> int:
     client = KayentaClient(args.kayenta_url)
 
     print("=" * 72)
-    print("canaryLLM baseline demo: default + DUMMY-AI + hybrid (NO model)")
+    print("kayenta-ai-canary-judge baseline demo: default + DUMMY-AI + hybrid (NO model)")
     print("(this is the wiring/regression path; the real LLM/VLM judge is `make scenario`)")
     print("=" * 72)
 

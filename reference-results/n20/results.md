@@ -1,4 +1,4 @@
-# canaryLLM — scored judge experiment (results)
+# kayenta-ai-canary-judge — scored judge experiment (results)
 
 _Generated 2026-06-21T23:12:59Z · 180 scenarios (9 families × n=20) · 304.8 min._
 

@@ -1,4 +1,13 @@
-# canaryLLM
+<p align="center">
+  <img src="assets/canary.svg" alt="Kayenta AI Canary Judge" width="150" height="150">
+</p>
+
+<h1 align="center">Kayenta AI Canary Judge</h1>
+
+<p align="center">
+  An AI judge for Kayenta automated canary analysis.<br>
+  Statistical, LLM/VLM, and hybrid judges, scored on a labelled dataset.
+</p>
 
 A Docker Compose harness that runs a complete automated canary analysis (ACA)
 pipeline three ways and scores the results against ground truth. The three judges
@@ -669,7 +678,7 @@ Where a common assumption differs from the source, the source wins:
 ## Repository layout
 
 ```
-canaryLLM/
+kayenta-ai-canary-judge/
 ├─ docker-compose.yml         # the 7-service stack (+ host.docker.internal for Ollama)
 ├─ .env / .env.example        # pinned image tags, ports, creds, judge defaults, model tags
 ├─ Makefile                   # every workflow (validate, validate-ai, experiment, scenario, ...)

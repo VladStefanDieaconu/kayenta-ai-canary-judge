@@ -1,4 +1,4 @@
-# canaryLLM: convenience targets.
+# kayenta-ai-canary-judge: convenience targets.
 # Host tools (seeder + pipeline) run in a local venv created from tools/requirements.txt.
 
 SHELL := /bin/bash

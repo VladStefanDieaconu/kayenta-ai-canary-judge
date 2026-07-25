@@ -1,4 +1,4 @@
-# canaryLLM Kayenta config: mounted to /opt/kayenta/config/kayenta.yml (replaces
+# kayenta-ai-canary-judge Kayenta config: mounted to /opt/kayenta/config/kayenta.yml (replaces
 # the image default entirely, so every functional key from the upstream default
 # is reproduced here). Based on:
 #   https://github.com/spinnaker/kayenta/blob/master/kayenta-web/config/kayenta.yml

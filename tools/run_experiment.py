@@ -325,7 +325,7 @@ def main() -> int:
 
     t_start = time.time()
     print("=" * 80)
-    print(f"canaryLLM scored experiment  (n={n}/family, seed={args.seed}, quick={args.quick})")
+    print(f"kayenta-ai-canary-judge scored experiment  (n={n}/family, seed={args.seed}, quick={args.quick})")
     print("=" * 80)
 
     # Health.
@@ -568,7 +568,7 @@ def _write_results_md(rows, agg, order, families, present, skipped, det, manifes
             fam_best[fam] = max(scores.items(), key=lambda kv: kv[1])
 
     L: List[str] = []
-    L.append("# canaryLLM: scored judge experiment (results)")
+    L.append("# kayenta-ai-canary-judge: scored judge experiment (results)")
     L.append("")
     L.append(f"_Generated {manifest['generated_at']} · {total_scen} scenarios "
              f"({len(families)} families × n={n}) · {elapsed/60:.1f} min._")
