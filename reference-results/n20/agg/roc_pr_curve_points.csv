@@ -1,0 +1,123 @@
+source,judge,model,curve,threshold,x,y
+statistical,statistical,-,roc,101.0,0.0,0.0
+statistical,statistical,-,pr,101.0,0.0,1.0
+statistical,statistical,-,roc,100.0,0.0,0.3167
+statistical,statistical,-,pr,100.0,0.3167,1.0
+statistical,statistical,-,roc,0.0,1.0,1.0
+statistical,statistical,-,pr,0.0,1.0,0.6667
+statistical,statistical,-,roc,-1.0,1.0,1.0
+statistical,statistical,-,pr,-1.0,1.0,0.6667
+ai:summary/phi4-llm (best local),ai:summary,phi4-llm,roc,81.0,0.0,0.0
+ai:summary/phi4-llm (best local),ai:summary,phi4-llm,pr,81.0,0.0,1.0
+ai:summary/phi4-llm (best local),ai:summary,phi4-llm,roc,80.0,0.3333,0.525
+ai:summary/phi4-llm (best local),ai:summary,phi4-llm,pr,80.0,0.525,0.759
+ai:summary/phi4-llm (best local),ai:summary,phi4-llm,roc,70.0,0.3333,0.65
+ai:summary/phi4-llm (best local),ai:summary,phi4-llm,pr,70.0,0.65,0.7959
+ai:summary/phi4-llm (best local),ai:summary,phi4-llm,roc,35.0,0.35,0.8667
+ai:summary/phi4-llm (best local),ai:summary,phi4-llm,pr,35.0,0.8667,0.832
+ai:summary/phi4-llm (best local),ai:summary,phi4-llm,roc,30.0,0.45,0.975
+ai:summary/phi4-llm (best local),ai:summary,phi4-llm,pr,30.0,0.975,0.8125
+ai:summary/phi4-llm (best local),ai:summary,phi4-llm,roc,25.0,0.6667,1.0
+ai:summary/phi4-llm (best local),ai:summary,phi4-llm,pr,25.0,1.0,0.75
+ai:summary/phi4-llm (best local),ai:summary,phi4-llm,roc,15.0,0.85,1.0
+ai:summary/phi4-llm (best local),ai:summary,phi4-llm,pr,15.0,1.0,0.7018
+ai:summary/phi4-llm (best local),ai:summary,phi4-llm,roc,5.0,1.0,1.0
+ai:summary/phi4-llm (best local),ai:summary,phi4-llm,pr,5.0,1.0,0.6667
+ai:summary/phi4-llm (best local),ai:summary,phi4-llm,roc,4.0,1.0,1.0
+ai:summary/phi4-llm (best local),ai:summary,phi4-llm,pr,4.0,1.0,0.6667
+hybrid:gated/phi4-llm,hybrid:gated,phi4-llm,roc,101.0,0.0,0.0
+hybrid:gated/phi4-llm,hybrid:gated,phi4-llm,pr,101.0,0.0,1.0
+hybrid:gated/phi4-llm,hybrid:gated,phi4-llm,roc,100.0,0.0,0.3167
+hybrid:gated/phi4-llm,hybrid:gated,phi4-llm,pr,100.0,0.3167,1.0
+hybrid:gated/phi4-llm,hybrid:gated,phi4-llm,roc,80.0,0.3333,0.6667
+hybrid:gated/phi4-llm,hybrid:gated,phi4-llm,pr,80.0,0.6667,0.8
+hybrid:gated/phi4-llm,hybrid:gated,phi4-llm,roc,70.0,0.3333,0.7917
+hybrid:gated/phi4-llm,hybrid:gated,phi4-llm,pr,70.0,0.7917,0.8261
+hybrid:gated/phi4-llm,hybrid:gated,phi4-llm,roc,0.0,1.0,1.0
+hybrid:gated/phi4-llm,hybrid:gated,phi4-llm,pr,0.0,1.0,0.6667
+hybrid:gated/phi4-llm,hybrid:gated,phi4-llm,roc,-1.0,1.0,1.0
+hybrid:gated/phi4-llm,hybrid:gated,phi4-llm,pr,-1.0,1.0,0.6667
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,roc,93.0,0.0,0.0
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,pr,93.0,0.0,1.0
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,roc,92.0,0.0,0.1083
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,pr,92.0,0.1083,1.0
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,roc,90.0,0.0,0.1667
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,pr,90.0,0.1667,1.0
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,roc,85.0,0.0,0.175
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,pr,85.0,0.175,1.0
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,roc,82.0,0.0,0.1917
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,pr,82.0,0.1917,1.0
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,roc,80.0,0.0,0.3083
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,pr,80.0,0.3083,1.0
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,roc,78.0,0.0,0.3833
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,pr,78.0,0.3833,1.0
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,roc,75.0,0.0167,0.5667
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,pr,75.0,0.5667,0.9855
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,roc,72.0,0.0333,0.625
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,pr,72.0,0.625,0.974
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,roc,70.0,0.25,0.775
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,pr,70.0,0.775,0.8611
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,roc,68.0,0.25,0.8167
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,pr,68.0,0.8167,0.8673
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,roc,65.0,0.2833,0.8333
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,pr,65.0,0.8333,0.8547
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,roc,62.0,0.2833,0.8417
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,pr,62.0,0.8417,0.8559
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,roc,55.0,0.2833,0.8583
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,pr,55.0,0.8583,0.8583
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,roc,45.0,0.3167,0.8583
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,pr,45.0,0.8583,0.8443
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,roc,40.0,0.3167,0.8667
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,pr,40.0,0.8667,0.8455
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,roc,38.0,0.35,0.9
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,pr,38.0,0.9,0.8372
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,roc,32.0,0.3833,0.9917
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,pr,32.0,0.9917,0.838
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,roc,28.0,0.4,1.0
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,pr,28.0,1.0,0.8333
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,roc,18.0,0.7,1.0
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,pr,18.0,1.0,0.7407
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,roc,15.0,0.7167,1.0
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,pr,15.0,1.0,0.7362
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,roc,12.0,0.8833,1.0
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,pr,12.0,1.0,0.6936
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,roc,10.0,0.9667,1.0
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,pr,10.0,1.0,0.6742
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,roc,8.0,1.0,1.0
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,pr,8.0,1.0,0.6667
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,roc,7.0,1.0,1.0
+ai:raw/claude-opus-4-8-vlm (frontier best rep),ai:raw,claude-opus-4-8-vlm,pr,7.0,1.0,0.6667
+hybrid:gated/claude-opus-4-8-vlm,hybrid:gated,claude-opus-4-8-vlm,roc,101.0,0.0,0.0
+hybrid:gated/claude-opus-4-8-vlm,hybrid:gated,claude-opus-4-8-vlm,pr,101.0,0.0,1.0
+hybrid:gated/claude-opus-4-8-vlm,hybrid:gated,claude-opus-4-8-vlm,roc,100.0,0.0,0.3167
+hybrid:gated/claude-opus-4-8-vlm,hybrid:gated,claude-opus-4-8-vlm,pr,100.0,0.3167,1.0
+hybrid:gated/claude-opus-4-8-vlm,hybrid:gated,claude-opus-4-8-vlm,roc,90.0,0.0,0.325
+hybrid:gated/claude-opus-4-8-vlm,hybrid:gated,claude-opus-4-8-vlm,pr,90.0,0.325,1.0
+hybrid:gated/claude-opus-4-8-vlm,hybrid:gated,claude-opus-4-8-vlm,roc,88.0,0.0,0.3417
+hybrid:gated/claude-opus-4-8-vlm,hybrid:gated,claude-opus-4-8-vlm,pr,88.0,0.3417,1.0
+hybrid:gated/claude-opus-4-8-vlm,hybrid:gated,claude-opus-4-8-vlm,roc,85.0,0.0,0.4333
+hybrid:gated/claude-opus-4-8-vlm,hybrid:gated,claude-opus-4-8-vlm,pr,85.0,0.4333,1.0
+hybrid:gated/claude-opus-4-8-vlm,hybrid:gated,claude-opus-4-8-vlm,roc,82.0,0.0,0.4417
+hybrid:gated/claude-opus-4-8-vlm,hybrid:gated,claude-opus-4-8-vlm,pr,82.0,0.4417,1.0
+hybrid:gated/claude-opus-4-8-vlm,hybrid:gated,claude-opus-4-8-vlm,roc,80.0,0.0,0.4833
+hybrid:gated/claude-opus-4-8-vlm,hybrid:gated,claude-opus-4-8-vlm,pr,80.0,0.4833,1.0
+hybrid:gated/claude-opus-4-8-vlm,hybrid:gated,claude-opus-4-8-vlm,roc,75.0,0.0167,0.5583
+hybrid:gated/claude-opus-4-8-vlm,hybrid:gated,claude-opus-4-8-vlm,pr,75.0,0.5583,0.9853
+hybrid:gated/claude-opus-4-8-vlm,hybrid:gated,claude-opus-4-8-vlm,roc,72.0,0.0333,0.5667
+hybrid:gated/claude-opus-4-8-vlm,hybrid:gated,claude-opus-4-8-vlm,pr,72.0,0.5667,0.9714
+hybrid:gated/claude-opus-4-8-vlm,hybrid:gated,claude-opus-4-8-vlm,roc,70.0,0.1333,0.7583
+hybrid:gated/claude-opus-4-8-vlm,hybrid:gated,claude-opus-4-8-vlm,pr,70.0,0.7583,0.9192
+hybrid:gated/claude-opus-4-8-vlm,hybrid:gated,claude-opus-4-8-vlm,roc,68.0,0.15,0.7583
+hybrid:gated/claude-opus-4-8-vlm,hybrid:gated,claude-opus-4-8-vlm,pr,68.0,0.7583,0.91
+hybrid:gated/claude-opus-4-8-vlm,hybrid:gated,claude-opus-4-8-vlm,roc,65.0,0.1833,0.8167
+hybrid:gated/claude-opus-4-8-vlm,hybrid:gated,claude-opus-4-8-vlm,pr,65.0,0.8167,0.8991
+hybrid:gated/claude-opus-4-8-vlm,hybrid:gated,claude-opus-4-8-vlm,roc,62.0,0.2167,0.8167
+hybrid:gated/claude-opus-4-8-vlm,hybrid:gated,claude-opus-4-8-vlm,pr,62.0,0.8167,0.8829
+hybrid:gated/claude-opus-4-8-vlm,hybrid:gated,claude-opus-4-8-vlm,roc,60.0,0.2667,0.8167
+hybrid:gated/claude-opus-4-8-vlm,hybrid:gated,claude-opus-4-8-vlm,pr,60.0,0.8167,0.8596
+hybrid:gated/claude-opus-4-8-vlm,hybrid:gated,claude-opus-4-8-vlm,roc,55.0,0.2833,0.8167
+hybrid:gated/claude-opus-4-8-vlm,hybrid:gated,claude-opus-4-8-vlm,pr,55.0,0.8167,0.8522
+hybrid:gated/claude-opus-4-8-vlm,hybrid:gated,claude-opus-4-8-vlm,roc,0.0,1.0,1.0
+hybrid:gated/claude-opus-4-8-vlm,hybrid:gated,claude-opus-4-8-vlm,pr,0.0,1.0,0.6667
+hybrid:gated/claude-opus-4-8-vlm,hybrid:gated,claude-opus-4-8-vlm,roc,-1.0,1.0,1.0
+hybrid:gated/claude-opus-4-8-vlm,hybrid:gated,claude-opus-4-8-vlm,pr,-1.0,1.0,0.6667

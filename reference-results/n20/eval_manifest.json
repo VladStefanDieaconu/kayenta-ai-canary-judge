@@ -1,0 +1,4706 @@
+{
+  "master_seed": 20260621,
+  "n_per_family": 20,
+  "families": [
+    "no_change",
+    "noise_equivalent",
+    "healed_transient",
+    "clean_mean_shift",
+    "variance_increase",
+    "tail_regression",
+    "gradual_drift",
+    "cross_metric_marginal",
+    "subtle_regression"
+  ],
+  "window_mins": 30,
+  "step_seconds": 60,
+  "n_samples": 31,
+  "base_millis": 1782081720000,
+  "window_start_iso": "2026-06-21T22:42:00Z",
+  "window_end_iso": "2026-06-21T23:12:00Z",
+  "generated_at": "2026-06-21T23:12:59Z",
+  "statistical_template": {
+    "canary": {
+      "direction": "increase",
+      "nanStrategy": "remove",
+      "outliers": {
+        "strategy": "keep"
+      },
+      "effectSize": {
+        "measure": "meanRatio",
+        "allowedIncrease": 1.05,
+        "allowedDecrease": 0.95,
+        "criticalIncrease": 1.25,
+        "criticalDecrease": 0.75
+      },
+      "critical": true,
+      "mustHaveData": true
+    },
+    "scoreThresholds": {
+      "pass": 75.0,
+      "marginal": 50.0
+    }
+  },
+  "scenarios": [
+    {
+      "id": "no_change_000",
+      "family": "no_change",
+      "gid": 0,
+      "seed": 1321046631,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0000": {
+          "mean_ratio_target": 1.005
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0000",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "no_change_001",
+      "family": "no_change",
+      "gid": 1,
+      "seed": 1321046729,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0001": {
+          "mean_ratio_target": 1.0077
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0001",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "no_change_002",
+      "family": "no_change",
+      "gid": 2,
+      "seed": 1321046827,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0002": {
+          "mean_ratio_target": 1.0094
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0002",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "no_change_003",
+      "family": "no_change",
+      "gid": 3,
+      "seed": 1321046925,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0003": {
+          "mean_ratio_target": 0.9868
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0003",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "no_change_004",
+      "family": "no_change",
+      "gid": 4,
+      "seed": 1321047023,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0004": {
+          "mean_ratio_target": 0.989
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0004",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "no_change_005",
+      "family": "no_change",
+      "gid": 5,
+      "seed": 1321047121,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0005": {
+          "mean_ratio_target": 1.0017
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0005",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "no_change_006",
+      "family": "no_change",
+      "gid": 6,
+      "seed": 1321047219,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0006": {
+          "mean_ratio_target": 0.9901
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0006",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "no_change_007",
+      "family": "no_change",
+      "gid": 7,
+      "seed": 1321047317,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0007": {
+          "mean_ratio_target": 0.9884
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0007",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "no_change_008",
+      "family": "no_change",
+      "gid": 8,
+      "seed": 1321047415,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0008": {
+          "mean_ratio_target": 1.0072
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0008",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "no_change_009",
+      "family": "no_change",
+      "gid": 9,
+      "seed": 1321047513,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0009": {
+          "mean_ratio_target": 1.0112
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0009",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "no_change_010",
+      "family": "no_change",
+      "gid": 10,
+      "seed": 1321047611,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0010": {
+          "mean_ratio_target": 0.9916
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0010",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "no_change_011",
+      "family": "no_change",
+      "gid": 11,
+      "seed": 1321047709,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0011": {
+          "mean_ratio_target": 1.0005
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0011",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "no_change_012",
+      "family": "no_change",
+      "gid": 12,
+      "seed": 1321047807,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0012": {
+          "mean_ratio_target": 1.0028
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0012",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "no_change_013",
+      "family": "no_change",
+      "gid": 13,
+      "seed": 1321047905,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0013": {
+          "mean_ratio_target": 0.9933
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0013",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "no_change_014",
+      "family": "no_change",
+      "gid": 14,
+      "seed": 1321048003,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0014": {
+          "mean_ratio_target": 1.0017
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0014",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "no_change_015",
+      "family": "no_change",
+      "gid": 15,
+      "seed": 1321048101,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0015": {
+          "mean_ratio_target": 0.9955
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0015",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "no_change_016",
+      "family": "no_change",
+      "gid": 16,
+      "seed": 1321048199,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0016": {
+          "mean_ratio_target": 0.9924
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0016",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "no_change_017",
+      "family": "no_change",
+      "gid": 17,
+      "seed": 1321048297,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0017": {
+          "mean_ratio_target": 0.9982
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0017",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "no_change_018",
+      "family": "no_change",
+      "gid": 18,
+      "seed": 1321048395,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0018": {
+          "mean_ratio_target": 0.9874
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0018",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "no_change_019",
+      "family": "no_change",
+      "gid": 19,
+      "seed": 1321048493,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0019": {
+          "mean_ratio_target": 1.006
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0019",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "noise_equivalent_000",
+      "family": "noise_equivalent",
+      "gid": 20,
+      "seed": 1321048571,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0020": {
+          "high_noise_factor": 6.5
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0020",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "noise_equivalent_001",
+      "family": "noise_equivalent",
+      "gid": 21,
+      "seed": 1321048669,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0021": {
+          "high_noise_factor": 7.6
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0021",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "noise_equivalent_002",
+      "family": "noise_equivalent",
+      "gid": 22,
+      "seed": 1321048767,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0022": {
+          "high_noise_factor": 7.02
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0022",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "noise_equivalent_003",
+      "family": "noise_equivalent",
+      "gid": 23,
+      "seed": 1321048865,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0023": {
+          "high_noise_factor": 7.54
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0023",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "noise_equivalent_004",
+      "family": "noise_equivalent",
+      "gid": 24,
+      "seed": 1321048963,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0024": {
+          "high_noise_factor": 5.06
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0024",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "noise_equivalent_005",
+      "family": "noise_equivalent",
+      "gid": 25,
+      "seed": 1321049061,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0025": {
+          "high_noise_factor": 6.2
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0025",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "noise_equivalent_006",
+      "family": "noise_equivalent",
+      "gid": 26,
+      "seed": 1321049159,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0026": {
+          "high_noise_factor": 7.61
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0026",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "noise_equivalent_007",
+      "family": "noise_equivalent",
+      "gid": 27,
+      "seed": 1321049257,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0027": {
+          "high_noise_factor": 6.22
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0027",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "noise_equivalent_008",
+      "family": "noise_equivalent",
+      "gid": 28,
+      "seed": 1321049355,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0028": {
+          "high_noise_factor": 7.74
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0028",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "noise_equivalent_009",
+      "family": "noise_equivalent",
+      "gid": 29,
+      "seed": 1321049453,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0029": {
+          "high_noise_factor": 7.85
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0029",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "noise_equivalent_010",
+      "family": "noise_equivalent",
+      "gid": 30,
+      "seed": 1321049551,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0030": {
+          "high_noise_factor": 7.94
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0030",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "noise_equivalent_011",
+      "family": "noise_equivalent",
+      "gid": 31,
+      "seed": 1321049649,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0031": {
+          "high_noise_factor": 6.46
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0031",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "noise_equivalent_012",
+      "family": "noise_equivalent",
+      "gid": 32,
+      "seed": 1321049747,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0032": {
+          "high_noise_factor": 7.32
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0032",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "noise_equivalent_013",
+      "family": "noise_equivalent",
+      "gid": 33,
+      "seed": 1321049845,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0033": {
+          "high_noise_factor": 7.13
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0033",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "noise_equivalent_014",
+      "family": "noise_equivalent",
+      "gid": 34,
+      "seed": 1321049943,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0034": {
+          "high_noise_factor": 5.64
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0034",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "noise_equivalent_015",
+      "family": "noise_equivalent",
+      "gid": 35,
+      "seed": 1321050041,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0035": {
+          "high_noise_factor": 6.75
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0035",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "noise_equivalent_016",
+      "family": "noise_equivalent",
+      "gid": 36,
+      "seed": 1321050139,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0036": {
+          "high_noise_factor": 7.79
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0036",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "noise_equivalent_017",
+      "family": "noise_equivalent",
+      "gid": 37,
+      "seed": 1321050237,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0037": {
+          "high_noise_factor": 6.19
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0037",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "noise_equivalent_018",
+      "family": "noise_equivalent",
+      "gid": 38,
+      "seed": 1321050335,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0038": {
+          "high_noise_factor": 6.31
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0038",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "noise_equivalent_019",
+      "family": "noise_equivalent",
+      "gid": 39,
+      "seed": 1321050433,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0039": {
+          "high_noise_factor": 7.14
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0039",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "healed_transient_000",
+      "family": "healed_transient",
+      "gid": 40,
+      "seed": 1321050511,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0040": {
+          "degradation_factor": 1.692,
+          "degraded_fraction": 0.46
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0040",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "healed_transient_001",
+      "family": "healed_transient",
+      "gid": 41,
+      "seed": 1321050609,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0041": {
+          "degradation_factor": 1.797,
+          "degraded_fraction": 0.438
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0041",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "healed_transient_002",
+      "family": "healed_transient",
+      "gid": 42,
+      "seed": 1321050707,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0042": {
+          "degradation_factor": 1.645,
+          "degraded_fraction": 0.497
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0042",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "healed_transient_003",
+      "family": "healed_transient",
+      "gid": 43,
+      "seed": 1321050805,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0043": {
+          "degradation_factor": 1.808,
+          "degraded_fraction": 0.44
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0043",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "healed_transient_004",
+      "family": "healed_transient",
+      "gid": 44,
+      "seed": 1321050903,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0044": {
+          "degradation_factor": 1.698,
+          "degraded_fraction": 0.428
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0044",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "healed_transient_005",
+      "family": "healed_transient",
+      "gid": 45,
+      "seed": 1321051001,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0045": {
+          "degradation_factor": 1.738,
+          "degraded_fraction": 0.403
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0045",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "healed_transient_006",
+      "family": "healed_transient",
+      "gid": 46,
+      "seed": 1321051099,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0046": {
+          "degradation_factor": 1.738,
+          "degraded_fraction": 0.425
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0046",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "healed_transient_007",
+      "family": "healed_transient",
+      "gid": 47,
+      "seed": 1321051197,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0047": {
+          "degradation_factor": 1.659,
+          "degraded_fraction": 0.47
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0047",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "healed_transient_008",
+      "family": "healed_transient",
+      "gid": 48,
+      "seed": 1321051295,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0048": {
+          "degradation_factor": 1.717,
+          "degraded_fraction": 0.406
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0048",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "healed_transient_009",
+      "family": "healed_transient",
+      "gid": 49,
+      "seed": 1321051393,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0049": {
+          "degradation_factor": 1.87,
+          "degraded_fraction": 0.427
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0049",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "healed_transient_010",
+      "family": "healed_transient",
+      "gid": 50,
+      "seed": 1321051491,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0050": {
+          "degradation_factor": 1.6,
+          "degraded_fraction": 0.414
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0050",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "healed_transient_011",
+      "family": "healed_transient",
+      "gid": 51,
+      "seed": 1321051589,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0051": {
+          "degradation_factor": 1.876,
+          "degraded_fraction": 0.493
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0051",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "healed_transient_012",
+      "family": "healed_transient",
+      "gid": 52,
+      "seed": 1321051687,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0052": {
+          "degradation_factor": 1.734,
+          "degraded_fraction": 0.484
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0052",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "healed_transient_013",
+      "family": "healed_transient",
+      "gid": 53,
+      "seed": 1321051785,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0053": {
+          "degradation_factor": 1.556,
+          "degraded_fraction": 0.45
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0053",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "healed_transient_014",
+      "family": "healed_transient",
+      "gid": 54,
+      "seed": 1321051883,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0054": {
+          "degradation_factor": 1.874,
+          "degraded_fraction": 0.493
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0054",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "healed_transient_015",
+      "family": "healed_transient",
+      "gid": 55,
+      "seed": 1321051981,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0055": {
+          "degradation_factor": 1.708,
+          "degraded_fraction": 0.425
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0055",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "healed_transient_016",
+      "family": "healed_transient",
+      "gid": 56,
+      "seed": 1321052079,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0056": {
+          "degradation_factor": 1.603,
+          "degraded_fraction": 0.466
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0056",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "healed_transient_017",
+      "family": "healed_transient",
+      "gid": 57,
+      "seed": 1321052177,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0057": {
+          "degradation_factor": 1.549,
+          "degraded_fraction": 0.47
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0057",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "healed_transient_018",
+      "family": "healed_transient",
+      "gid": 58,
+      "seed": 1321052275,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0058": {
+          "degradation_factor": 1.602,
+          "degraded_fraction": 0.49
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0058",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "healed_transient_019",
+      "family": "healed_transient",
+      "gid": 59,
+      "seed": 1321052373,
+      "truth": "PASS",
+      "params": {
+        "http_request_duration_seconds_g0059": {
+          "degradation_factor": 1.729,
+          "degraded_fraction": 0.42
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0059",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "pass"
+        }
+      ]
+    },
+    {
+      "id": "clean_mean_shift_000",
+      "family": "clean_mean_shift",
+      "gid": 60,
+      "seed": 1321052451,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0060": {
+          "shift_factor": 1.353
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0060",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "clean_mean_shift_001",
+      "family": "clean_mean_shift",
+      "gid": 61,
+      "seed": 1321052549,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0061": {
+          "shift_factor": 1.315
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0061",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "clean_mean_shift_002",
+      "family": "clean_mean_shift",
+      "gid": 62,
+      "seed": 1321052647,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0062": {
+          "shift_factor": 1.301
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0062",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "clean_mean_shift_003",
+      "family": "clean_mean_shift",
+      "gid": 63,
+      "seed": 1321052745,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0063": {
+          "shift_factor": 1.264
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0063",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "clean_mean_shift_004",
+      "family": "clean_mean_shift",
+      "gid": 64,
+      "seed": 1321052843,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0064": {
+          "shift_factor": 1.256
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0064",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "clean_mean_shift_005",
+      "family": "clean_mean_shift",
+      "gid": 65,
+      "seed": 1321052941,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0065": {
+          "shift_factor": 1.288
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0065",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "clean_mean_shift_006",
+      "family": "clean_mean_shift",
+      "gid": 66,
+      "seed": 1321053039,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0066": {
+          "shift_factor": 1.316
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0066",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "clean_mean_shift_007",
+      "family": "clean_mean_shift",
+      "gid": 67,
+      "seed": 1321053137,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0067": {
+          "shift_factor": 1.35
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0067",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "clean_mean_shift_008",
+      "family": "clean_mean_shift",
+      "gid": 68,
+      "seed": 1321053235,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0068": {
+          "shift_factor": 1.297
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0068",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "clean_mean_shift_009",
+      "family": "clean_mean_shift",
+      "gid": 69,
+      "seed": 1321053333,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0069": {
+          "shift_factor": 1.27
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0069",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "clean_mean_shift_010",
+      "family": "clean_mean_shift",
+      "gid": 70,
+      "seed": 1321053431,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0070": {
+          "shift_factor": 1.272
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0070",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "clean_mean_shift_011",
+      "family": "clean_mean_shift",
+      "gid": 71,
+      "seed": 1321053529,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0071": {
+          "shift_factor": 1.435
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0071",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "clean_mean_shift_012",
+      "family": "clean_mean_shift",
+      "gid": 72,
+      "seed": 1321053627,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0072": {
+          "shift_factor": 1.333
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0072",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "clean_mean_shift_013",
+      "family": "clean_mean_shift",
+      "gid": 73,
+      "seed": 1321053725,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0073": {
+          "shift_factor": 1.273
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0073",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "clean_mean_shift_014",
+      "family": "clean_mean_shift",
+      "gid": 74,
+      "seed": 1321053823,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0074": {
+          "shift_factor": 1.372
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0074",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "clean_mean_shift_015",
+      "family": "clean_mean_shift",
+      "gid": 75,
+      "seed": 1321053921,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0075": {
+          "shift_factor": 1.279
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0075",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "clean_mean_shift_016",
+      "family": "clean_mean_shift",
+      "gid": 76,
+      "seed": 1321054019,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0076": {
+          "shift_factor": 1.375
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0076",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "clean_mean_shift_017",
+      "family": "clean_mean_shift",
+      "gid": 77,
+      "seed": 1321054117,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0077": {
+          "shift_factor": 1.305
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0077",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "clean_mean_shift_018",
+      "family": "clean_mean_shift",
+      "gid": 78,
+      "seed": 1321054215,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0078": {
+          "shift_factor": 1.344
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0078",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "clean_mean_shift_019",
+      "family": "clean_mean_shift",
+      "gid": 79,
+      "seed": 1321054313,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0079": {
+          "shift_factor": 1.406
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0079",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "variance_increase_000",
+      "family": "variance_increase",
+      "gid": 80,
+      "seed": 1321054391,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0080": {
+          "variance_factor": 9.92
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0080",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "variance_increase_001",
+      "family": "variance_increase",
+      "gid": 81,
+      "seed": 1321054489,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0081": {
+          "variance_factor": 6.8
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0081",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "variance_increase_002",
+      "family": "variance_increase",
+      "gid": 82,
+      "seed": 1321054587,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0082": {
+          "variance_factor": 9.19
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0082",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "variance_increase_003",
+      "family": "variance_increase",
+      "gid": 83,
+      "seed": 1321054685,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0083": {
+          "variance_factor": 6.72
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0083",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "variance_increase_004",
+      "family": "variance_increase",
+      "gid": 84,
+      "seed": 1321054783,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0084": {
+          "variance_factor": 8.92
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0084",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "variance_increase_005",
+      "family": "variance_increase",
+      "gid": 85,
+      "seed": 1321054881,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0085": {
+          "variance_factor": 8.35
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0085",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "variance_increase_006",
+      "family": "variance_increase",
+      "gid": 86,
+      "seed": 1321054979,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0086": {
+          "variance_factor": 9.21
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0086",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "variance_increase_007",
+      "family": "variance_increase",
+      "gid": 87,
+      "seed": 1321055077,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0087": {
+          "variance_factor": 7.7
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0087",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "variance_increase_008",
+      "family": "variance_increase",
+      "gid": 88,
+      "seed": 1321055175,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0088": {
+          "variance_factor": 8.26
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0088",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "variance_increase_009",
+      "family": "variance_increase",
+      "gid": 89,
+      "seed": 1321055273,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0089": {
+          "variance_factor": 6.78
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0089",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "variance_increase_010",
+      "family": "variance_increase",
+      "gid": 90,
+      "seed": 1321055371,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0090": {
+          "variance_factor": 8.93
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0090",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "variance_increase_011",
+      "family": "variance_increase",
+      "gid": 91,
+      "seed": 1321055469,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0091": {
+          "variance_factor": 7.45
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0091",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "variance_increase_012",
+      "family": "variance_increase",
+      "gid": 92,
+      "seed": 1321055567,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0092": {
+          "variance_factor": 6.81
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0092",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "variance_increase_013",
+      "family": "variance_increase",
+      "gid": 93,
+      "seed": 1321055665,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0093": {
+          "variance_factor": 7.66
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0093",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "variance_increase_014",
+      "family": "variance_increase",
+      "gid": 94,
+      "seed": 1321055763,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0094": {
+          "variance_factor": 7.89
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0094",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "variance_increase_015",
+      "family": "variance_increase",
+      "gid": 95,
+      "seed": 1321055861,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0095": {
+          "variance_factor": 6.38
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0095",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "variance_increase_016",
+      "family": "variance_increase",
+      "gid": 96,
+      "seed": 1321055959,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0096": {
+          "variance_factor": 9.67
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0096",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "variance_increase_017",
+      "family": "variance_increase",
+      "gid": 97,
+      "seed": 1321056057,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0097": {
+          "variance_factor": 8.9
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0097",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "variance_increase_018",
+      "family": "variance_increase",
+      "gid": 98,
+      "seed": 1321056155,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0098": {
+          "variance_factor": 9.47
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0098",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "variance_increase_019",
+      "family": "variance_increase",
+      "gid": 99,
+      "seed": 1321056253,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0099": {
+          "variance_factor": 7.29
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0099",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "tail_regression_000",
+      "family": "tail_regression",
+      "gid": 100,
+      "seed": 1321056331,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0100": {
+          "num_spikes": 3
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0100",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "tail_regression_001",
+      "family": "tail_regression",
+      "gid": 101,
+      "seed": 1321056429,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0101": {
+          "num_spikes": 4
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0101",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "tail_regression_002",
+      "family": "tail_regression",
+      "gid": 102,
+      "seed": 1321056527,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0102": {
+          "num_spikes": 4
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0102",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "tail_regression_003",
+      "family": "tail_regression",
+      "gid": 103,
+      "seed": 1321056625,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0103": {
+          "num_spikes": 4
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0103",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "tail_regression_004",
+      "family": "tail_regression",
+      "gid": 104,
+      "seed": 1321056723,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0104": {
+          "num_spikes": 4
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0104",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "tail_regression_005",
+      "family": "tail_regression",
+      "gid": 105,
+      "seed": 1321056821,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0105": {
+          "num_spikes": 4
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0105",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "tail_regression_006",
+      "family": "tail_regression",
+      "gid": 106,
+      "seed": 1321056919,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0106": {
+          "num_spikes": 5
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0106",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "tail_regression_007",
+      "family": "tail_regression",
+      "gid": 107,
+      "seed": 1321057017,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0107": {
+          "num_spikes": 3
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0107",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "tail_regression_008",
+      "family": "tail_regression",
+      "gid": 108,
+      "seed": 1321057115,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0108": {
+          "num_spikes": 3
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0108",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "tail_regression_009",
+      "family": "tail_regression",
+      "gid": 109,
+      "seed": 1321057213,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0109": {
+          "num_spikes": 3
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0109",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "tail_regression_010",
+      "family": "tail_regression",
+      "gid": 110,
+      "seed": 1321057311,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0110": {
+          "num_spikes": 3
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0110",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "tail_regression_011",
+      "family": "tail_regression",
+      "gid": 111,
+      "seed": 1321057409,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0111": {
+          "num_spikes": 5
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0111",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "tail_regression_012",
+      "family": "tail_regression",
+      "gid": 112,
+      "seed": 1321057507,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0112": {
+          "num_spikes": 4
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0112",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "tail_regression_013",
+      "family": "tail_regression",
+      "gid": 113,
+      "seed": 1321057605,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0113": {
+          "num_spikes": 3
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0113",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "tail_regression_014",
+      "family": "tail_regression",
+      "gid": 114,
+      "seed": 1321057703,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0114": {
+          "num_spikes": 3
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0114",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "tail_regression_015",
+      "family": "tail_regression",
+      "gid": 115,
+      "seed": 1321057801,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0115": {
+          "num_spikes": 5
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0115",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "tail_regression_016",
+      "family": "tail_regression",
+      "gid": 116,
+      "seed": 1321057899,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0116": {
+          "num_spikes": 4
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0116",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "tail_regression_017",
+      "family": "tail_regression",
+      "gid": 117,
+      "seed": 1321057997,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0117": {
+          "num_spikes": 3
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0117",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "tail_regression_018",
+      "family": "tail_regression",
+      "gid": 118,
+      "seed": 1321058095,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0118": {
+          "num_spikes": 4
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0118",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "tail_regression_019",
+      "family": "tail_regression",
+      "gid": 119,
+      "seed": 1321058193,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0119": {
+          "num_spikes": 3
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0119",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "gradual_drift_000",
+      "family": "gradual_drift",
+      "gid": 120,
+      "seed": 1321058271,
+      "truth": "FAIL",
+      "params": {
+        "process_resident_memory_bytes_g0120": {
+          "ramp_start_fraction": 0.803,
+          "end_magnitude": 1.423
+        }
+      },
+      "metrics": [
+        {
+          "name": "process_resident_memory_bytes_g0120",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "gradual_drift_001",
+      "family": "gradual_drift",
+      "gid": 121,
+      "seed": 1321058369,
+      "truth": "FAIL",
+      "params": {
+        "process_resident_memory_bytes_g0121": {
+          "ramp_start_fraction": 0.811,
+          "end_magnitude": 1.416
+        }
+      },
+      "metrics": [
+        {
+          "name": "process_resident_memory_bytes_g0121",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "gradual_drift_002",
+      "family": "gradual_drift",
+      "gid": 122,
+      "seed": 1321058467,
+      "truth": "FAIL",
+      "params": {
+        "process_resident_memory_bytes_g0122": {
+          "ramp_start_fraction": 0.832,
+          "end_magnitude": 1.473
+        }
+      },
+      "metrics": [
+        {
+          "name": "process_resident_memory_bytes_g0122",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "gradual_drift_003",
+      "family": "gradual_drift",
+      "gid": 123,
+      "seed": 1321058565,
+      "truth": "FAIL",
+      "params": {
+        "process_resident_memory_bytes_g0123": {
+          "ramp_start_fraction": 0.843,
+          "end_magnitude": 1.362
+        }
+      },
+      "metrics": [
+        {
+          "name": "process_resident_memory_bytes_g0123",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "gradual_drift_004",
+      "family": "gradual_drift",
+      "gid": 124,
+      "seed": 1321058663,
+      "truth": "FAIL",
+      "params": {
+        "process_resident_memory_bytes_g0124": {
+          "ramp_start_fraction": 0.834,
+          "end_magnitude": 1.365
+        }
+      },
+      "metrics": [
+        {
+          "name": "process_resident_memory_bytes_g0124",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "gradual_drift_005",
+      "family": "gradual_drift",
+      "gid": 125,
+      "seed": 1321058761,
+      "truth": "FAIL",
+      "params": {
+        "process_resident_memory_bytes_g0125": {
+          "ramp_start_fraction": 0.805,
+          "end_magnitude": 1.457
+        }
+      },
+      "metrics": [
+        {
+          "name": "process_resident_memory_bytes_g0125",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "gradual_drift_006",
+      "family": "gradual_drift",
+      "gid": 126,
+      "seed": 1321058859,
+      "truth": "FAIL",
+      "params": {
+        "process_resident_memory_bytes_g0126": {
+          "ramp_start_fraction": 0.825,
+          "end_magnitude": 1.464
+        }
+      },
+      "metrics": [
+        {
+          "name": "process_resident_memory_bytes_g0126",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "gradual_drift_007",
+      "family": "gradual_drift",
+      "gid": 127,
+      "seed": 1321058957,
+      "truth": "FAIL",
+      "params": {
+        "process_resident_memory_bytes_g0127": {
+          "ramp_start_fraction": 0.83,
+          "end_magnitude": 1.409
+        }
+      },
+      "metrics": [
+        {
+          "name": "process_resident_memory_bytes_g0127",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "gradual_drift_008",
+      "family": "gradual_drift",
+      "gid": 128,
+      "seed": 1321059055,
+      "truth": "FAIL",
+      "params": {
+        "process_resident_memory_bytes_g0128": {
+          "ramp_start_fraction": 0.814,
+          "end_magnitude": 1.437
+        }
+      },
+      "metrics": [
+        {
+          "name": "process_resident_memory_bytes_g0128",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "gradual_drift_009",
+      "family": "gradual_drift",
+      "gid": 129,
+      "seed": 1321059153,
+      "truth": "FAIL",
+      "params": {
+        "process_resident_memory_bytes_g0129": {
+          "ramp_start_fraction": 0.818,
+          "end_magnitude": 1.394
+        }
+      },
+      "metrics": [
+        {
+          "name": "process_resident_memory_bytes_g0129",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "gradual_drift_010",
+      "family": "gradual_drift",
+      "gid": 130,
+      "seed": 1321059251,
+      "truth": "FAIL",
+      "params": {
+        "process_resident_memory_bytes_g0130": {
+          "ramp_start_fraction": 0.831,
+          "end_magnitude": 1.311
+        }
+      },
+      "metrics": [
+        {
+          "name": "process_resident_memory_bytes_g0130",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "gradual_drift_011",
+      "family": "gradual_drift",
+      "gid": 131,
+      "seed": 1321059349,
+      "truth": "FAIL",
+      "params": {
+        "process_resident_memory_bytes_g0131": {
+          "ramp_start_fraction": 0.826,
+          "end_magnitude": 1.477
+        }
+      },
+      "metrics": [
+        {
+          "name": "process_resident_memory_bytes_g0131",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "gradual_drift_012",
+      "family": "gradual_drift",
+      "gid": 132,
+      "seed": 1321059447,
+      "truth": "FAIL",
+      "params": {
+        "process_resident_memory_bytes_g0132": {
+          "ramp_start_fraction": 0.809,
+          "end_magnitude": 1.402
+        }
+      },
+      "metrics": [
+        {
+          "name": "process_resident_memory_bytes_g0132",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "gradual_drift_013",
+      "family": "gradual_drift",
+      "gid": 133,
+      "seed": 1321059545,
+      "truth": "FAIL",
+      "params": {
+        "process_resident_memory_bytes_g0133": {
+          "ramp_start_fraction": 0.844,
+          "end_magnitude": 1.434
+        }
+      },
+      "metrics": [
+        {
+          "name": "process_resident_memory_bytes_g0133",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "gradual_drift_014",
+      "family": "gradual_drift",
+      "gid": 134,
+      "seed": 1321059643,
+      "truth": "FAIL",
+      "params": {
+        "process_resident_memory_bytes_g0134": {
+          "ramp_start_fraction": 0.836,
+          "end_magnitude": 1.304
+        }
+      },
+      "metrics": [
+        {
+          "name": "process_resident_memory_bytes_g0134",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "gradual_drift_015",
+      "family": "gradual_drift",
+      "gid": 135,
+      "seed": 1321059741,
+      "truth": "FAIL",
+      "params": {
+        "process_resident_memory_bytes_g0135": {
+          "ramp_start_fraction": 0.834,
+          "end_magnitude": 1.315
+        }
+      },
+      "metrics": [
+        {
+          "name": "process_resident_memory_bytes_g0135",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "gradual_drift_016",
+      "family": "gradual_drift",
+      "gid": 136,
+      "seed": 1321059839,
+      "truth": "FAIL",
+      "params": {
+        "process_resident_memory_bytes_g0136": {
+          "ramp_start_fraction": 0.835,
+          "end_magnitude": 1.391
+        }
+      },
+      "metrics": [
+        {
+          "name": "process_resident_memory_bytes_g0136",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "gradual_drift_017",
+      "family": "gradual_drift",
+      "gid": 137,
+      "seed": 1321059937,
+      "truth": "FAIL",
+      "params": {
+        "process_resident_memory_bytes_g0137": {
+          "ramp_start_fraction": 0.84,
+          "end_magnitude": 1.357
+        }
+      },
+      "metrics": [
+        {
+          "name": "process_resident_memory_bytes_g0137",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "gradual_drift_018",
+      "family": "gradual_drift",
+      "gid": 138,
+      "seed": 1321060035,
+      "truth": "FAIL",
+      "params": {
+        "process_resident_memory_bytes_g0138": {
+          "ramp_start_fraction": 0.846,
+          "end_magnitude": 1.449
+        }
+      },
+      "metrics": [
+        {
+          "name": "process_resident_memory_bytes_g0138",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "gradual_drift_019",
+      "family": "gradual_drift",
+      "gid": 139,
+      "seed": 1321060133,
+      "truth": "FAIL",
+      "params": {
+        "process_resident_memory_bytes_g0139": {
+          "ramp_start_fraction": 0.824,
+          "end_magnitude": 1.411
+        }
+      },
+      "metrics": [
+        {
+          "name": "process_resident_memory_bytes_g0139",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "cross_metric_marginal_000",
+      "family": "cross_metric_marginal",
+      "gid": 140,
+      "seed": 1321060211,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0140": {
+          "per_metric_ratio": 1.0219
+        },
+        "process_resident_memory_bytes_g0140": {
+          "per_metric_ratio": 1.0282
+        },
+        "http_server_errors_per_second_g0140": {
+          "per_metric_ratio": 1.0319
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0140",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "process_resident_memory_bytes_g0140",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "http_server_errors_per_second_g0140",
+          "base": "http_server_errors_per_second",
+          "kind": "errors",
+          "group": "errors",
+          "unit": "err/s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "cross_metric_marginal_001",
+      "family": "cross_metric_marginal",
+      "gid": 141,
+      "seed": 1321060309,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0141": {
+          "per_metric_ratio": 1.0305
+        },
+        "process_resident_memory_bytes_g0141": {
+          "per_metric_ratio": 1.0303
+        },
+        "http_server_errors_per_second_g0141": {
+          "per_metric_ratio": 1.0287
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0141",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "process_resident_memory_bytes_g0141",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "http_server_errors_per_second_g0141",
+          "base": "http_server_errors_per_second",
+          "kind": "errors",
+          "group": "errors",
+          "unit": "err/s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "cross_metric_marginal_002",
+      "family": "cross_metric_marginal",
+      "gid": 142,
+      "seed": 1321060407,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0142": {
+          "per_metric_ratio": 1.0248
+        },
+        "process_resident_memory_bytes_g0142": {
+          "per_metric_ratio": 1.0298
+        },
+        "http_server_errors_per_second_g0142": {
+          "per_metric_ratio": 1.0256
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0142",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "process_resident_memory_bytes_g0142",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "http_server_errors_per_second_g0142",
+          "base": "http_server_errors_per_second",
+          "kind": "errors",
+          "group": "errors",
+          "unit": "err/s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "cross_metric_marginal_003",
+      "family": "cross_metric_marginal",
+      "gid": 143,
+      "seed": 1321060505,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0143": {
+          "per_metric_ratio": 1.0319
+        },
+        "process_resident_memory_bytes_g0143": {
+          "per_metric_ratio": 1.0288
+        },
+        "http_server_errors_per_second_g0143": {
+          "per_metric_ratio": 1.0257
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0143",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "process_resident_memory_bytes_g0143",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "http_server_errors_per_second_g0143",
+          "base": "http_server_errors_per_second",
+          "kind": "errors",
+          "group": "errors",
+          "unit": "err/s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "cross_metric_marginal_004",
+      "family": "cross_metric_marginal",
+      "gid": 144,
+      "seed": 1321060603,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0144": {
+          "per_metric_ratio": 1.0318
+        },
+        "process_resident_memory_bytes_g0144": {
+          "per_metric_ratio": 1.0185
+        },
+        "http_server_errors_per_second_g0144": {
+          "per_metric_ratio": 1.0223
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0144",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "process_resident_memory_bytes_g0144",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "http_server_errors_per_second_g0144",
+          "base": "http_server_errors_per_second",
+          "kind": "errors",
+          "group": "errors",
+          "unit": "err/s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "cross_metric_marginal_005",
+      "family": "cross_metric_marginal",
+      "gid": 145,
+      "seed": 1321060701,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0145": {
+          "per_metric_ratio": 1.0243
+        },
+        "process_resident_memory_bytes_g0145": {
+          "per_metric_ratio": 1.0202
+        },
+        "http_server_errors_per_second_g0145": {
+          "per_metric_ratio": 1.0233
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0145",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "process_resident_memory_bytes_g0145",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "http_server_errors_per_second_g0145",
+          "base": "http_server_errors_per_second",
+          "kind": "errors",
+          "group": "errors",
+          "unit": "err/s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "cross_metric_marginal_006",
+      "family": "cross_metric_marginal",
+      "gid": 146,
+      "seed": 1321060799,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0146": {
+          "per_metric_ratio": 1.0196
+        },
+        "process_resident_memory_bytes_g0146": {
+          "per_metric_ratio": 1.0228
+        },
+        "http_server_errors_per_second_g0146": {
+          "per_metric_ratio": 1.0218
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0146",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "process_resident_memory_bytes_g0146",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "http_server_errors_per_second_g0146",
+          "base": "http_server_errors_per_second",
+          "kind": "errors",
+          "group": "errors",
+          "unit": "err/s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "cross_metric_marginal_007",
+      "family": "cross_metric_marginal",
+      "gid": 147,
+      "seed": 1321060897,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0147": {
+          "per_metric_ratio": 1.0193
+        },
+        "process_resident_memory_bytes_g0147": {
+          "per_metric_ratio": 1.0303
+        },
+        "http_server_errors_per_second_g0147": {
+          "per_metric_ratio": 1.0273
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0147",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "process_resident_memory_bytes_g0147",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "http_server_errors_per_second_g0147",
+          "base": "http_server_errors_per_second",
+          "kind": "errors",
+          "group": "errors",
+          "unit": "err/s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "cross_metric_marginal_008",
+      "family": "cross_metric_marginal",
+      "gid": 148,
+      "seed": 1321060995,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0148": {
+          "per_metric_ratio": 1.0258
+        },
+        "process_resident_memory_bytes_g0148": {
+          "per_metric_ratio": 1.0242
+        },
+        "http_server_errors_per_second_g0148": {
+          "per_metric_ratio": 1.0286
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0148",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "process_resident_memory_bytes_g0148",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "http_server_errors_per_second_g0148",
+          "base": "http_server_errors_per_second",
+          "kind": "errors",
+          "group": "errors",
+          "unit": "err/s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "cross_metric_marginal_009",
+      "family": "cross_metric_marginal",
+      "gid": 149,
+      "seed": 1321061093,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0149": {
+          "per_metric_ratio": 1.0203
+        },
+        "process_resident_memory_bytes_g0149": {
+          "per_metric_ratio": 1.0204
+        },
+        "http_server_errors_per_second_g0149": {
+          "per_metric_ratio": 1.0232
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0149",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "process_resident_memory_bytes_g0149",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "http_server_errors_per_second_g0149",
+          "base": "http_server_errors_per_second",
+          "kind": "errors",
+          "group": "errors",
+          "unit": "err/s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "cross_metric_marginal_010",
+      "family": "cross_metric_marginal",
+      "gid": 150,
+      "seed": 1321061191,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0150": {
+          "per_metric_ratio": 1.0183
+        },
+        "process_resident_memory_bytes_g0150": {
+          "per_metric_ratio": 1.0278
+        },
+        "http_server_errors_per_second_g0150": {
+          "per_metric_ratio": 1.0257
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0150",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "process_resident_memory_bytes_g0150",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "http_server_errors_per_second_g0150",
+          "base": "http_server_errors_per_second",
+          "kind": "errors",
+          "group": "errors",
+          "unit": "err/s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "cross_metric_marginal_011",
+      "family": "cross_metric_marginal",
+      "gid": 151,
+      "seed": 1321061289,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0151": {
+          "per_metric_ratio": 1.0182
+        },
+        "process_resident_memory_bytes_g0151": {
+          "per_metric_ratio": 1.0285
+        },
+        "http_server_errors_per_second_g0151": {
+          "per_metric_ratio": 1.0264
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0151",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "process_resident_memory_bytes_g0151",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "http_server_errors_per_second_g0151",
+          "base": "http_server_errors_per_second",
+          "kind": "errors",
+          "group": "errors",
+          "unit": "err/s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "cross_metric_marginal_012",
+      "family": "cross_metric_marginal",
+      "gid": 152,
+      "seed": 1321061387,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0152": {
+          "per_metric_ratio": 1.0288
+        },
+        "process_resident_memory_bytes_g0152": {
+          "per_metric_ratio": 1.0238
+        },
+        "http_server_errors_per_second_g0152": {
+          "per_metric_ratio": 1.0223
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0152",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "process_resident_memory_bytes_g0152",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "http_server_errors_per_second_g0152",
+          "base": "http_server_errors_per_second",
+          "kind": "errors",
+          "group": "errors",
+          "unit": "err/s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "cross_metric_marginal_013",
+      "family": "cross_metric_marginal",
+      "gid": 153,
+      "seed": 1321061485,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0153": {
+          "per_metric_ratio": 1.0212
+        },
+        "process_resident_memory_bytes_g0153": {
+          "per_metric_ratio": 1.0302
+        },
+        "http_server_errors_per_second_g0153": {
+          "per_metric_ratio": 1.03
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0153",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "process_resident_memory_bytes_g0153",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "http_server_errors_per_second_g0153",
+          "base": "http_server_errors_per_second",
+          "kind": "errors",
+          "group": "errors",
+          "unit": "err/s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "cross_metric_marginal_014",
+      "family": "cross_metric_marginal",
+      "gid": 154,
+      "seed": 1321061583,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0154": {
+          "per_metric_ratio": 1.0306
+        },
+        "process_resident_memory_bytes_g0154": {
+          "per_metric_ratio": 1.0232
+        },
+        "http_server_errors_per_second_g0154": {
+          "per_metric_ratio": 1.031
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0154",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "process_resident_memory_bytes_g0154",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "http_server_errors_per_second_g0154",
+          "base": "http_server_errors_per_second",
+          "kind": "errors",
+          "group": "errors",
+          "unit": "err/s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "cross_metric_marginal_015",
+      "family": "cross_metric_marginal",
+      "gid": 155,
+      "seed": 1321061681,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0155": {
+          "per_metric_ratio": 1.018
+        },
+        "process_resident_memory_bytes_g0155": {
+          "per_metric_ratio": 1.0208
+        },
+        "http_server_errors_per_second_g0155": {
+          "per_metric_ratio": 1.0183
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0155",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "process_resident_memory_bytes_g0155",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "http_server_errors_per_second_g0155",
+          "base": "http_server_errors_per_second",
+          "kind": "errors",
+          "group": "errors",
+          "unit": "err/s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "cross_metric_marginal_016",
+      "family": "cross_metric_marginal",
+      "gid": 156,
+      "seed": 1321061779,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0156": {
+          "per_metric_ratio": 1.0289
+        },
+        "process_resident_memory_bytes_g0156": {
+          "per_metric_ratio": 1.0284
+        },
+        "http_server_errors_per_second_g0156": {
+          "per_metric_ratio": 1.0233
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0156",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "process_resident_memory_bytes_g0156",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "http_server_errors_per_second_g0156",
+          "base": "http_server_errors_per_second",
+          "kind": "errors",
+          "group": "errors",
+          "unit": "err/s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "cross_metric_marginal_017",
+      "family": "cross_metric_marginal",
+      "gid": 157,
+      "seed": 1321061877,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0157": {
+          "per_metric_ratio": 1.0314
+        },
+        "process_resident_memory_bytes_g0157": {
+          "per_metric_ratio": 1.019
+        },
+        "http_server_errors_per_second_g0157": {
+          "per_metric_ratio": 1.0241
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0157",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "process_resident_memory_bytes_g0157",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "http_server_errors_per_second_g0157",
+          "base": "http_server_errors_per_second",
+          "kind": "errors",
+          "group": "errors",
+          "unit": "err/s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "cross_metric_marginal_018",
+      "family": "cross_metric_marginal",
+      "gid": 158,
+      "seed": 1321061975,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0158": {
+          "per_metric_ratio": 1.0308
+        },
+        "process_resident_memory_bytes_g0158": {
+          "per_metric_ratio": 1.0187
+        },
+        "http_server_errors_per_second_g0158": {
+          "per_metric_ratio": 1.0235
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0158",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "process_resident_memory_bytes_g0158",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "http_server_errors_per_second_g0158",
+          "base": "http_server_errors_per_second",
+          "kind": "errors",
+          "group": "errors",
+          "unit": "err/s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "cross_metric_marginal_019",
+      "family": "cross_metric_marginal",
+      "gid": 159,
+      "seed": 1321062073,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0159": {
+          "per_metric_ratio": 1.0275
+        },
+        "process_resident_memory_bytes_g0159": {
+          "per_metric_ratio": 1.018
+        },
+        "http_server_errors_per_second_g0159": {
+          "per_metric_ratio": 1.0285
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0159",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "process_resident_memory_bytes_g0159",
+          "base": "process_resident_memory_bytes",
+          "kind": "memory",
+          "group": "resources",
+          "unit": "bytes",
+          "direction": "increase",
+          "truth": "high"
+        },
+        {
+          "name": "http_server_errors_per_second_g0159",
+          "base": "http_server_errors_per_second",
+          "kind": "errors",
+          "group": "errors",
+          "unit": "err/s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "subtle_regression_000",
+      "family": "subtle_regression",
+      "gid": 160,
+      "seed": 1321062151,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0160": {
+          "shift_ratio": 1.0774
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0160",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "subtle_regression_001",
+      "family": "subtle_regression",
+      "gid": 161,
+      "seed": 1321062249,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0161": {
+          "shift_ratio": 1.0679
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0161",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "subtle_regression_002",
+      "family": "subtle_regression",
+      "gid": 162,
+      "seed": 1321062347,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0162": {
+          "shift_ratio": 1.0827
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0162",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "subtle_regression_003",
+      "family": "subtle_regression",
+      "gid": 163,
+      "seed": 1321062445,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0163": {
+          "shift_ratio": 1.0706
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0163",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "subtle_regression_004",
+      "family": "subtle_regression",
+      "gid": 164,
+      "seed": 1321062543,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0164": {
+          "shift_ratio": 1.0649
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0164",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "subtle_regression_005",
+      "family": "subtle_regression",
+      "gid": 165,
+      "seed": 1321062641,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0165": {
+          "shift_ratio": 1.062
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0165",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "subtle_regression_006",
+      "family": "subtle_regression",
+      "gid": 166,
+      "seed": 1321062739,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0166": {
+          "shift_ratio": 1.0735
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0166",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "subtle_regression_007",
+      "family": "subtle_regression",
+      "gid": 167,
+      "seed": 1321062837,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0167": {
+          "shift_ratio": 1.081
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0167",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "subtle_regression_008",
+      "family": "subtle_regression",
+      "gid": 168,
+      "seed": 1321062935,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0168": {
+          "shift_ratio": 1.0758
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0168",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "subtle_regression_009",
+      "family": "subtle_regression",
+      "gid": 169,
+      "seed": 1321063033,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0169": {
+          "shift_ratio": 1.069
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0169",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "subtle_regression_010",
+      "family": "subtle_regression",
+      "gid": 170,
+      "seed": 1321063131,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0170": {
+          "shift_ratio": 1.0675
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0170",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "subtle_regression_011",
+      "family": "subtle_regression",
+      "gid": 171,
+      "seed": 1321063229,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0171": {
+          "shift_ratio": 1.0801
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0171",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "subtle_regression_012",
+      "family": "subtle_regression",
+      "gid": 172,
+      "seed": 1321063327,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0172": {
+          "shift_ratio": 1.0808
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0172",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "subtle_regression_013",
+      "family": "subtle_regression",
+      "gid": 173,
+      "seed": 1321063425,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0173": {
+          "shift_ratio": 1.061
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0173",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "subtle_regression_014",
+      "family": "subtle_regression",
+      "gid": 174,
+      "seed": 1321063523,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0174": {
+          "shift_ratio": 1.0746
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0174",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "subtle_regression_015",
+      "family": "subtle_regression",
+      "gid": 175,
+      "seed": 1321063621,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0175": {
+          "shift_ratio": 1.0696
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0175",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "subtle_regression_016",
+      "family": "subtle_regression",
+      "gid": 176,
+      "seed": 1321063719,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0176": {
+          "shift_ratio": 1.0691
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0176",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "subtle_regression_017",
+      "family": "subtle_regression",
+      "gid": 177,
+      "seed": 1321063817,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0177": {
+          "shift_ratio": 1.0738
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0177",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "subtle_regression_018",
+      "family": "subtle_regression",
+      "gid": 178,
+      "seed": 1321063915,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0178": {
+          "shift_ratio": 1.0779
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0178",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    },
+    {
+      "id": "subtle_regression_019",
+      "family": "subtle_regression",
+      "gid": 179,
+      "seed": 1321064013,
+      "truth": "FAIL",
+      "params": {
+        "http_request_duration_seconds_g0179": {
+          "shift_ratio": 1.0803
+        }
+      },
+      "metrics": [
+        {
+          "name": "http_request_duration_seconds_g0179",
+          "base": "http_request_duration_seconds",
+          "kind": "latency",
+          "group": "latency",
+          "unit": "s",
+          "direction": "increase",
+          "truth": "high"
+        }
+      ]
+    }
+  ]
+}

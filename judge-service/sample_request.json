@@ -1,0 +1,216 @@
+{
+  "canaryConfig": {
+    "name": "dummy-ai",
+    "description": "Dummy canary config, Remote Judge (RemoteJudge-v1.0) forwarding to the judge-service. Identical metrics block to statistical; only judge name differs.",
+    "configVersion": "1.0",
+    "applications": [
+      "ad-hoc"
+    ],
+    "judge": {
+      "name": "RemoteJudge-v1.0",
+      "judgeConfigurations": {}
+    },
+    "metrics": [
+      {
+        "name": "dummy_latency",
+        "query": {
+          "type": "prometheus",
+          "metricName": "dummy_latency",
+          "labelBindings": [],
+          "customInlineTemplate": "PromQL:sum without(Canary) (dummy_latency{Canary=\"$\\{scope}\"})",
+          "serviceType": "prometheus"
+        },
+        "groups": [
+          "dummy-group"
+        ],
+        "analysisConfigurations": {
+          "canary": {
+            "direction": "either"
+          }
+        },
+        "scopeName": "default"
+      },
+      {
+        "name": "dummy_error_rate",
+        "query": {
+          "type": "prometheus",
+          "metricName": "dummy_error_rate",
+          "labelBindings": [],
+          "customInlineTemplate": "PromQL:sum without(Canary) (dummy_error_rate{Canary=\"$\\{scope}\"})",
+          "serviceType": "prometheus"
+        },
+        "groups": [
+          "dummy-group"
+        ],
+        "analysisConfigurations": {
+          "canary": {
+            "direction": "increase"
+          }
+        },
+        "scopeName": "default"
+      }
+    ],
+    "templates": {},
+    "classifier": {
+      "groupWeights": {
+        "dummy-group": 100.0
+      },
+      "scoreThresholds": {
+        "pass": 75.0,
+        "marginal": 50.0
+      }
+    }
+  },
+  "scoreThresholds": {
+    "pass": 75.0,
+    "marginal": 50.0
+  },
+  "metricSetPairList": [
+    {
+      "name": "dummy_latency",
+      "id": "1ce1a3b7-616e-4edd-947f-70fd0952836d",
+      "tags": {},
+      "values": {
+        "control": [
+          99.2377,
+          97.9949,
+          96.9728,
+          96.2839,
+          96.0042,
+          96.1643,
+          96.7467,
+          97.6872,
+          98.8823,
+          100.2005,
+          101.4966,
+          102.6279,
+          103.47,
+          103.93,
+          103.9574,
+          103.5492,
+          102.7502,
+          101.6485,
+          100.3653,
+          99.0419,
+          97.8239
+        ],
+        "experiment": [
+          111.1463,
+          109.7543,
+          108.6095,
+          107.838,
+          107.5247,
+          107.704,
+          108.3563,
+          109.4097,
+          110.7482,
+          112.2246,
+          113.6762,
+          114.9433,
+          115.8864,
+          116.4016,
+          116.4323,
+          115.9751,
+          115.0802,
+          113.8463,
+          112.4091,
+          110.9269,
+          109.5628
+        ]
+      },
+      "scopes": {
+        "control": {
+          "startTimeIso": "2026-06-15T17:05:21Z",
+          "startTimeMillis": 1781543121000,
+          "stepMillis": 60000
+        },
+        "experiment": {
+          "startTimeIso": "2026-06-15T17:05:21Z",
+          "startTimeMillis": 1781543121000,
+          "stepMillis": 60000
+        }
+      },
+      "attributes": {
+        "control": {
+          "query": "sum without(Canary) (dummy_latency{Canary=\"Control\"})"
+        },
+        "experiment": {
+          "query": "sum without(Canary) (dummy_latency{Canary=\"Experiment\"})"
+        }
+      }
+    },
+    {
+      "name": "dummy_error_rate",
+      "id": "55ac115a-c770-4de8-b1b0-45cd09949a93",
+      "tags": {},
+      "values": {
+        "control": [
+          0.9809,
+          0.9499,
+          0.9243,
+          0.9071,
+          0.9001,
+          0.9041,
+          0.9187,
+          0.9422,
+          0.9721,
+          1.005,
+          1.0374,
+          1.0657,
+          1.0867,
+          1.0983,
+          1.0989,
+          1.0887,
+          1.0688,
+          1.0412,
+          1.0091,
+          0.976,
+          0.9456
+        ],
+        "experiment": [
+          1.1771,
+          1.1398,
+          1.1092,
+          1.0885,
+          1.0801,
+          1.0849,
+          1.1024,
+          1.1306,
+          1.1665,
+          1.206,
+          1.2449,
+          1.2788,
+          1.3041,
+          1.3179,
+          1.3187,
+          1.3065,
+          1.2825,
+          1.2495,
+          1.211,
+          1.1713,
+          1.1347
+        ]
+      },
+      "scopes": {
+        "control": {
+          "startTimeIso": "2026-06-15T17:05:21Z",
+          "startTimeMillis": 1781543121000,
+          "stepMillis": 60000
+        },
+        "experiment": {
+          "startTimeIso": "2026-06-15T17:05:21Z",
+          "startTimeMillis": 1781543121000,
+          "stepMillis": 60000
+        }
+      },
+      "attributes": {
+        "control": {
+          "query": "sum without(Canary) (dummy_error_rate{Canary=\"Control\"})"
+        },
+        "experiment": {
+          "query": "sum without(Canary) (dummy_error_rate{Canary=\"Experiment\"})"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+judge,model,no_change,noise_equivalent,healed_transient,clean_mean_shift,variance_increase,tail_regression,gradual_drift,cross_metric_marginal,subtle_regression
+statistical,-,1.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,0.9
+ai:plot,claude-opus-4-8-vlm,1.0,0.8,0.0,1.0,1.0,1.0,1.0,0.5,1.0
+ai:raw,claude-opus-4-8-vlm,0.9,0.9,0.0,1.0,1.0,1.0,1.0,1.0,1.0
+ai:summary,claude-opus-4-8-vlm,1.0,0.75,0.0,1.0,1.0,1.0,1.0,0.3,1.0
+hybrid:and,claude-opus-4-8-vlm,1.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,0.9
+hybrid:gated,claude-opus-4-8-vlm,1.0,1.0,0.15,1.0,1.0,1.0,1.0,0.0,0.9
+hybrid:or,claude-opus-4-8-vlm,1.0,1.0,0.15,1.0,1.0,1.0,1.0,0.0,0.9

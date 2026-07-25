@@ -1,0 +1,4 @@
+judge,n,accuracy,precision,recall,f1,fpr,fnr,TP,FP,TN,FN
+statistical,180,0.544,1.0,0.317,0.481,0.0,0.683,38,0,60,82
+ensemble:tuned,180,0.85,0.919,0.85,0.883,0.15,0.15,102,9,51,18
+ensemble:no_recovery_guard,180,0.756,0.784,0.875,0.827,0.483,0.125,105,29,31,15

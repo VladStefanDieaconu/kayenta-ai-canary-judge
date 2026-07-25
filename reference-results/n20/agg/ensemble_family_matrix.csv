@@ -1,0 +1,4 @@
+judge,no_change,noise_equivalent,healed_transient,clean_mean_shift,variance_increase,tail_regression,gradual_drift,cross_metric_marginal,subtle_regression
+statistical,1.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,0.9
+ensemble:tuned,0.75,0.8,1.0,1.0,1.0,0.25,0.95,1.0,0.9
+ensemble:no_recovery_guard,0.75,0.8,0.0,1.0,1.0,0.4,0.95,1.0,0.9

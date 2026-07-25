@@ -1,0 +1,94 @@
+# LiteLLM gateway: one OpenAI-compatible Chat Completions endpoint in front of
+# every provider. The judge only ever talks to this gateway and never branches on
+# provider, so switching local <-> Bedrock <-> OpenAI <-> Anthropic is a change
+# here (alias target and creds), not in the judge code.
+#
+# `model_name` is the alias the judge sends (it matches judge-service/models.yaml).
+# Local models are served by Ollama on the host (Apple-Silicon Metal GPU); LiteLLM
+# reaches it at OLLAMA_BASE_URL (host.docker.internal:11434).
+
+model_list:
+  # Active local models. The scored experiment evaluates every alias below that
+  # is present locally (Ollama). Text models use the `ollama_chat/` provider;
+  # vision models use the `ollama/` (generate) provider, which converts OpenAI
+  # image_url parts into Ollama's `images` field (`ollama_chat/` passes the
+  # content array through and Ollama rejects it). Tags are pinned to what is
+  # pulled on this host.
+  #
+  # --- LLMs (text) ---
+  - model_name: qwen-llm           # Qwen2.5 7B Instruct, Apache-2.0
+    litellm_params:
+      model: ollama_chat/qwen2.5:7b
+      api_base: os.environ/OLLAMA_BASE_URL
+  - model_name: phi4-llm           # Phi-4 14B, MIT
+    litellm_params:
+      model: ollama_chat/phi4:latest
+      api_base: os.environ/OLLAMA_BASE_URL
+  - model_name: olmo2-llm          # OLMo 2 7B, Apache-2.0 (fully open)
+    litellm_params:
+      model: ollama_chat/olmo2:7b
+      api_base: os.environ/OLLAMA_BASE_URL
+  - model_name: mistral-nemo-llm   # Mistral-Nemo 12B, Apache-2.0
+    litellm_params:
+      model: ollama_chat/mistral-nemo:12b
+      api_base: os.environ/OLLAMA_BASE_URL
+  - model_name: deepseek-r1-llm    # DeepSeek-R1-Distill-Qwen 7B, MIT (reasoning)
+    litellm_params:
+      model: ollama_chat/deepseek-r1:7b
+      api_base: os.environ/OLLAMA_BASE_URL
+
+  # --- VLMs (vision) ---
+  - model_name: moondream-vlm      # Moondream2 ~1.8B, Apache-2.0
+    litellm_params:
+      model: ollama/moondream:v2
+      api_base: os.environ/OLLAMA_BASE_URL
+  - model_name: granite-vision-vlm # Granite 3.2 Vision 2B, Apache-2.0 (built for charts)
+    litellm_params:
+      model: ollama/granite3.2-vision:latest
+      api_base: os.environ/OLLAMA_BASE_URL
+  - model_name: minicpm-v-vlm      # MiniCPM-V 8B, vision
+    litellm_params:
+      model: ollama/minicpm-v:latest
+      api_base: os.environ/OLLAMA_BASE_URL
+
+  # Cloud providers (no judge change). Set creds in .env and uncomment. The judge
+  # uses these by alias just like a local model.
+  # - model_name: bedrock-claude
+  #   litellm_params:
+  #     model: bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0
+  #     aws_region_name: os.environ/AWS_REGION_NAME
+  #     aws_access_key_id: os.environ/AWS_ACCESS_KEY_ID
+  #     aws_secret_access_key: os.environ/AWS_SECRET_ACCESS_KEY
+  # - model_name: openai-gpt4o
+  #   litellm_params:
+  #     model: openai/gpt-4o
+  #     api_key: os.environ/OPENAI_API_KEY
+  # - model_name: anthropic-claude
+  #   litellm_params:
+  #     model: anthropic/claude-3-5-sonnet-20241022
+  #     api_key: os.environ/ANTHROPIC_API_KEY
+
+  # Frontier hosted models (optional). AWS Bedrock via bearer-token auth
+  # (AWS_BEARER_TOKEN_BEDROCK in .env, never committed) instead of SigV4/boto3
+  # creds, so no aws_access_key_id/secret is needed. These use cross-region
+  # inference profile IDs (us.*). num_retries is scoped to these two deployments
+  # only (transient network/rate-limit retries on the hosted call), so it cannot
+  # change the deterministic local-model behaviour the published N=20 numbers
+  # depend on.
+  - model_name: claude-opus-4-8-vlm
+    litellm_params:
+      model: bedrock/us.anthropic.claude-opus-4-8
+      aws_region_name: os.environ/AWS_REGION_NAME
+      api_key: os.environ/AWS_BEARER_TOKEN_BEDROCK
+      num_retries: 2
+  - model_name: claude-sonnet-5-vlm
+    litellm_params:
+      model: bedrock/us.anthropic.claude-sonnet-5
+      aws_region_name: os.environ/AWS_REGION_NAME
+      api_key: os.environ/AWS_BEARER_TOKEN_BEDROCK
+      num_retries: 2
+
+litellm_settings:
+  drop_params: true        # silently drop params a backend rejects (e.g. seed on Ollama)
+  request_timeout: 600     # local models on CPU/Metal can be slow on first load
+  set_verbose: false

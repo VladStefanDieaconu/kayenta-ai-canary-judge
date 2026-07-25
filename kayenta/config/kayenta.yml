@@ -1,0 +1,149 @@
+# canaryLLM Kayenta config: mounted to /opt/kayenta/config/kayenta.yml (replaces
+# the image default entirely, so every functional key from the upstream default
+# is reproduced here). Based on:
+#   https://github.com/spinnaker/kayenta/blob/master/kayenta-web/config/kayenta.yml
+#
+# Confirmed against source (see README "Source-verified config" section):
+#   * object store keys: kayenta.aws + kayenta.s3  (AwsManagedAccount fields)
+#   * metric source:     kayenta.prometheus.accounts[].endpoint.baseUrl
+#   * remote judge:      kayenta.remoteJudge.{enabled,endpoint.baseUrl}  (camelCase!)
+#   * standalone API:    kayenta.standaloneCanaryAnalysis.enabled (must be true)
+# Secrets/ports come from the environment (compose passes them in); no hardcoding.
+
+server:
+  port: 8090
+
+redis:
+  connection: redis://redis:6379
+
+kayenta:
+  atlas:
+    enabled: false
+  google:
+    enabled: false
+  azure:
+    enabled: false
+
+  # --- S3 object store, pointed at MinIO ---------------------------------
+  # When an account 'endpoint' is set, AwsConfiguration auto-enables
+  # path-style access (required for MinIO). Credentials are supplied
+  # explicitly from the environment.
+  aws:
+    enabled: true
+    accounts:
+      - name: minio-store
+        bucket: ${KAYENTA_S3_BUCKET:kayenta}
+        rootFolder: ${KAYENTA_S3_ROOT_FOLDER:kayenta}
+        region: us-east-1
+        endpoint: http://minio:9000
+        explicitCredentials:
+          accessKey: ${MINIO_ROOT_USER:kayentaadmin}
+          secretKey: ${MINIO_ROOT_PASSWORD:kayentaadmin123}
+        supportedTypes:
+          - OBJECT_STORE
+          - CONFIGURATION_STORE
+  s3:
+    enabled: true
+
+  datadog:
+    enabled: false
+  graphite:
+    enabled: false
+  newrelic:
+    enabled: false
+
+  # --- Metric source: Prometheus provider pointed at VictoriaMetrics -----
+  prometheus:
+    enabled: true
+    accounts:
+      - name: vm
+        endpoint:
+          baseUrl: http://victoriametrics:8428
+        supportedTypes:
+          - METRICS_STORE
+
+  # signalfx defaults to enabled upstream but has no account here, disable it.
+  signalfx:
+    enabled: false
+  wavefront:
+    enabled: false
+  gcs:
+    enabled: false
+  blobs:
+    enabled: false
+  stackdriver:
+    enabled: false
+  memory:
+    enabled: false
+  configbin:
+    enabled: false
+
+  # --- Remote Judge: forwards metric set pairs to our dummy AI service ----
+  # POSTs RemoteJudgeRequest to <baseUrl>/judge (path is fixed in
+  # RemoteJudgeService.java). Judge name is "RemoteJudge-v1.0".
+  remoteJudge:
+    enabled: true
+    endpoint:
+      baseUrl: http://judge-service:5000
+
+  # --- Standalone Canary Analysis (SCAPE) REST API -----------------------
+  # MUST be true to expose POST/GET /standalone_canary_analysis, which the
+  # pipeline drives. Upstream default is false.
+  standaloneCanaryAnalysis:
+    enabled: true
+
+  metrics:
+    retry:
+      series: SERVER_ERROR
+      statuses: REQUEST_TIMEOUT, TOO_MANY_REQUESTS
+      attempts: 10
+      backoffPeriodMultiplierMs: 1000
+
+  serialization:
+    writeDatesAsTimestamps: false
+    writeDurationsAsTimestamps: false
+
+management.endpoints.web.exposure.include: '*'
+management.endpoint.health.show-details: always
+management.metrics.export.graphite.graphite-tags-enabled: false
+
+keiko:
+  queue:
+    redis:
+      queueName: kayenta.keiko.queue
+      deadLetterQueueName: kayenta.keiko.queue.deadLetters
+
+spectator:
+  applicationName: ${spring.application.name}
+  webEndpoint:
+    enabled: true
+
+swagger:
+  enabled: true
+  title: Kayenta API
+  description:
+  contact:
+  patterns:
+    - /admin.*
+    - /canary.*
+    - /canaryConfig.*
+    - /canaryJudgeResult.*
+    - /credentials.*
+    - /fetch.*
+    - /health
+    - /judges.*
+    - /metadata.*
+    - /metricSetList.*
+    - /metricSetPairList.*
+    - /metricServices.*
+    - /pipeline.*
+    - /standalone.*
+
+spring:
+  application:
+    name: kayenta
+  liquibase:
+    change-log: classpath:db/changelog-master.yml
+  autoconfigure:
+    exclude: >
+      org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration,
