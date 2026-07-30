@@ -4,23 +4,17 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 
-# --- OS / editor ---
-.DS_Store
-*.swp
-
-# --- Editor / local tooling state ---
-.claude/
-.cursor/
-.windsurf/
-.vscode/
-
 # --- Local environment (copy .env.example -> .env) ---
-.env
+# Every .env variant is ignored, not just the exact name: a backup made before
+# rotating a credential (.env.bak, .env.local, .env.2026-07-29) holds the same
+# live token as the original, and a rule that names only `.env` does not stop it
+# being committed. The example file is the one deliberate exception.
+.env*
+!.env.example
 
-# --- SSH keys / secrets: never commit ---
-personal_sshkey
-personal_sshkey.pub
+# --- Credentials: never commit ---
 *.pem
+*.key
 id_rsa*
 id_ed25519*
 

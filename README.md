@@ -34,18 +34,23 @@ code changes.
 - [Command reference](#command-reference)
 - [Architecture](#architecture)
 - [The AI judge](#the-ai-judge)
+  - [Selecting the prompt](#selecting-the-prompt)
 - [The hybrid judge](#the-hybrid-judge)
 - [The evaluation dataset](#the-evaluation-dataset)
 - [Configuring the statistical judge fairly](#configuring-the-statistical-judge-fairly)
 - [Running the experiment and reading `results/`](#running-the-experiment-and-reading-results)
+  - [The long-format result schema](#the-long-format-result-schema)
+- [Adding your own scenario family](#adding-your-own-scenario-family)
 - [The stress test](#the-stress-test)
 - [Bringing your own model or provider](#bringing-your-own-model-or-provider)
+- [Using your own metrics](#using-your-own-metrics)
 - [Reading a single result](#reading-a-single-result)
 - [Viewing a result in Referee](#viewing-a-result-in-referee)
 - [Configuration reference](#configuration-reference)
-- [Build notes and things learned the hard way](#build-notes-and-things-learned-the-hard-way)
+- [Build notes and operational constraints](#build-notes-and-operational-constraints)
 - [Repository layout](#repository-layout)
 - [Scope and limitations](#scope-and-limitations)
+  - [A known defect in the published reference run](#a-known-defect-in-the-published-reference-run)
 - [Reproducing the published numbers](#reproducing-the-published-numbers)
 - [License](#license)
 
@@ -107,7 +112,12 @@ The gated hybrid keeps precision and recovers recall. It trusts the statistical
 judge's failures (which are high precision) and escalates to the AI only in the cases
 where the statistical judge is weak. Its clearest effect is on the weaker models: it
 lifts moondream's precision from 0.71 to 0.92 and granite's from 0.67 to 1.00 while
-keeping recall on the blind spots. McNemar's exact test finds the improvement over the
+keeping recall on the blind spots. (The moondream pair is affected by a defect in the
+published run — 21 of its `ai:plot` rows are failed calls recorded as verdicts. On the
+uncontaminated scenarios the lift is 0.64 → 0.89; see
+[A known defect in the published reference run](#a-known-defect-in-the-published-reference-run).
+Granite and the other six models are unaffected.)
+McNemar's exact test finds the improvement over the
 statistical judge significant for seven of the eight models (for example phi4
 p ≈ 3e-5, granite p ≈ 2e-5, moondream p ≈ 4e-5, deepseek p ≈ 0.0002, mistral
 p ≈ 0.0001). The `and` policy collapses back to statistical-like behaviour, which is
@@ -160,8 +170,10 @@ Three things to take from that:
    averages.
 
 The tables and figures are regenerated into `results/` by `make experiment`. The
-models scored were `qwen2.5:7b`, `phi4`, `olmo2:7b`, `mistral-nemo:12b`,
-`deepseek-r1:7b`, `moondream:v2`, `granite3.2-vision`, and `minicpm-v`.
+models scored were `qwen2.5:7b`, `phi4:14b`, `olmo2:7b`, `mistral-nemo:12b`,
+`deepseek-r1:7b`, `moondream:v2`, `granite3.2-vision:2b`, and `minicpm-v:8b`.
+Every artefact is named by a version tag; see `.env.example` for the manifest
+digest of each.
 
 > These are laptop-scale models, roughly 2–14B parameters. Larger or cloud models
 > tighten the AI's per-metric labels and reduce its benign-family false positives.
@@ -226,6 +238,15 @@ mandatory beyond the models you choose to pull.
 You can override the experiment size with environment variables: `EVAL_N` (instances
 per family, default 12), `EVAL_SEED` (master seed), and `EVAL_MODELS` (a comma-separated
 allow-list). The host tools run in a local `.venv` that `make` creates for you.
+
+These are read from `.env`, and **the tools load `.env` themselves** (`tools/repo_env.py`,
+imported by every entry point) rather than relying on the shell. Docker Compose reads that
+file automatically but a bare `python tools/…` does not, and neither does
+`nohup python tools/…`; a run launched that way silently used the built-in default of 12
+instead of the configured 20 and produced a differently-seeded dataset while looking
+entirely healthy. A variable already set in the real environment still wins, so
+`EVAL_N=5 python tools/run_experiment.py` behaves as written. Every runner prints where
+its configuration came from in its banner.
 
 ## Architecture
 
@@ -307,18 +328,68 @@ Kayenta ──POST /judge {canaryConfig, metricSetPairList, scoreThresholds}─�
    strict-JSON verdict ──▶ parsed and mapped to a valid CanaryJudgeResult
 ```
 
-### The prompt is frozen
+### Selecting the prompt
 
-The prompt is frozen at `PROMPT_VERSION = "v1-frozen-2026-06"` (in
-`judge-service/app/llm_judge.py`) and was deliberately not tuned against the scenario
-outcomes. Tuning it would overfit to the statistical judge's known weaknesses and make
-the comparison meaningless. It is one fixed template for every model and every
+The rubric is a file, not a string literal. Each variant lives in `prompts/` under an
+explicit identifier, and the identifier plus a hash of the prompt text is recorded on
+every result row and in every `data/ai-logs/` payload — so no row is ever ambiguous
+about which rubric produced it.
+
+```bash
+ls prompts/
+# v1-frozen-2026-06.prompt  v2-operational-2026-07.prompt  v3-temporal-2026-07.prompt
+```
+
+| identifier | hash | what it is |
+|---|---|---|
+| **`v1-frozen-2026-06`** | `ae9455dfe48cb0f3` | **The default, and the rubric that produces every published number.** |
+| `v2-operational-2026-07` | `db72944909fb423b` | v1 plus one sentence naming what the promotion decision is. |
+| `v3-temporal-2026-07` | `66093d87318d11c5` | v1 plus two sentences making the temporal rule explicit. |
+
+Selection is configuration, in the same order of precedence as `mode` and `model`: the
+canary config's `judge.judgeConfigurations.prompt_id`, then `JUDGE_PROMPT_ID`, then the
+frozen default.
+
+```bash
+JUDGE_PROMPT_ID=v3-temporal-2026-07 make experiment
+python tools/run_frontier_experiment.py --model <alias> --prompt-id v2-operational-2026-07
+```
+
+**An unknown identifier fails the call.** It does not fall back to another prompt: a
+silent fallback is how this study once spent 540 calls on a vision model that never
+received an image.
+
+**Adding one.** Copy a file, change `@id` to match the new filename stem, and edit the
+`@rubric` body. `prompts/` is mounted into the container, so no rebuild is needed.
+
+```
+@id my-variant-2026-08
+@description one line, shown in listings
+
+# Lines beginning with '#' outside a body are commentary, not part of the prompt.
+
+@system
+...system prompt text, verbatim...
+
+@rubric
+...verdict instruction text, verbatim...
+```
+
+The hash covers the system and rubric text only, so editing the commentary does not
+change a prompt's identity.
+
+**Why v1 is frozen.** It was deliberately not tuned against the scenario outcomes;
+tuning it would overfit to the statistical judge's known weaknesses and make the
+comparison meaningless. It is one fixed template for every model and every
 representation. A system message sets the role; the user message is the representation
 plus a strict-JSON verdict instruction that asks the model to judge holistically, to
 weigh variance and instability, the tail (p90/p95/p99/max), and emerging trends
 (slope), not just the mean and median. The ground-truth label never appears in the
 prompt, control is always presented before experiment (to control for position bias),
 and the rationale is length-bounded (to control for verbosity bias).
+
+Editing `prompts/v1-frozen-2026-06.prompt` invalidates every number in
+`reference-results/`. Add a new file instead.
 
 ### Determinism and robustness
 
@@ -488,6 +559,87 @@ against a larger cloud model (`run_frontier_experiment.py`), ROC/PR curves
 McNemar (`pooled_mcnemar.py`), and test-retest reproducibility
 (`reproducibility_test_retest.py`). Their outputs land in `results/agg/`.
 
+### The long-format result schema
+
+The per-experiment CSVs above each have their own columns, which makes comparing two
+experiments a parsing exercise. Every run therefore *also* appends to a single
+long-format frame under `results/agg/experiments/`, one row per judged scenario, same
+columns for every judge and every run:
+
+| column | meaning |
+|---|---|
+| `run_id`, `ts` | which invocation wrote the row, and when |
+| `dataset_id` | `original-180` or `generalisation-60` |
+| `prompt_id`, `prompt_hash` | the rubric that produced it; **empty** for judges that make no model call |
+| `model`, `judge`, `representation` | `judge` is `statistical`/`ai`/`hybrid`/`ensemble`; `representation` is `summary`/`raw`/`plot`, or the hybrid policy |
+| `family`, `scenario_id`, `seed`, `truth_label` | which scenario, and its label |
+| `verdict`, `score`, `correct` | the judgement; all three **empty on an error row** |
+| `latency_s`, `tokens_in`, `tokens_out`, `finish_reason` | cost and completion telemetry |
+| `error_kind`, `error` | `empty_completion`, `parse_failure`, `api_error`, `transport`, `unknown_prompt` |
+| `rationale` | the model's own explanation |
+
+Read it through `tools/results_schema.py`, which is the only loader:
+
+```python
+import results_schema as rs
+
+rows = rs.load(prompt_id="v1-frozen-2026-06", dataset_id="original-180", judge="ai")
+rs.confusion(rows)          # {'TP': .., 'FP': .., 'TN': .., 'FN': ..}
+print(rs.available())       # what run_ids / prompts / models are in the frame
+```
+
+**`load()` excludes error rows unless you ask for them.** A row with an `error_kind`
+carries no judgement, and letting one into an accuracy denominator is how a failed call
+becomes a published number: an empty completion used to be recorded as `FAIL` at score
+0.0 with an empty error field, which is indistinguishable from a verdict of FAIL. Rows
+are append-only; nothing rewrites an existing file.
+
+## Adding your own scenario family
+
+The evaluation dataset is generated, not recorded: 31 samples per series over a 30-minute
+window, from a per-instance seeded RNG, so every scenario is reproducible from the master
+seed alone. A **family** is one failure shape plus its ground-truth label, and each
+instance draws its parameters from a range so the family is a distribution of cases rather
+than one hand-picked example.
+
+Everything lives in `tools/eval_dataset.py`:
+
+1. **Declare it** in a dataset's spec — the truth label and which metric kinds it uses:
+
+   ```python
+   "my_family": {"truth": "FAIL", "kinds": ["latency"]},
+   ```
+
+2. **Generate it** by adding a branch to `_gen_kind()` that returns
+   `(control, experiment, per_metric_truth, params)`. Record every drawn parameter in
+   `params`; it goes into the manifest and is what makes a result explicable later.
+
+   ```python
+   if family == "my_family":
+       shift = rng.uniform(1.2, 1.4)
+       p["shift_factor"] = round(shift, 3)
+       return _noisy(rng, base, noise, n), _noisy(rng, base * shift, noise, n), "high", p
+   ```
+
+3. **Validate it before spending anything on a model.** Run the statistical judge and the
+   tuned ensemble over it and check they do what you expect;
+   `tools/validate_new_families.py` is a worked example that also measures the shape
+   properties each family claims to have.
+
+Two constraints that are easy to miss:
+
+- **Never insert a family into the middle of `FAMILY_SPEC`.** The `gid` counter runs across
+  all families in declaration order and feeds each scenario's seed, so inserting one
+  re-seeds every scenario after it and renames every metric. Append, or add a new dataset
+  entry in `DATASETS` with its own `gid_base` — which is what `generalisation-60` does, so
+  that the original 180 stay byte-identical.
+- **The family name must never reach the prompt.** Metric names are namespaced with an
+  opaque global id (`http_request_duration_seconds_g1042`), never the family, or the
+  ground truth leaks into the input.
+
+The three families in `generalisation-60` (`partial_recovery`, `late_transient`,
+`sustained_excursion`) are the reference implementations of all of this.
+
 ## The stress test
 
 For a fast visual demonstration, separate from the scored experiment, `make scenario`
@@ -521,6 +673,140 @@ changes:
 
 Then `make up` to reload the gateway config, and run an analysis. For vision or `plot`
 mode, mark the alias `modality: vision` so the judge attaches the chart image.
+
+## Using your own metrics
+
+The synthetic dataset exists so the judges can be scored against ground truth. To point
+the harness at a real service instead, four things change and one capability is lost.
+The worked example below uses a service that exports
+`http_request_duration_seconds_p95` and `http_requests_errors_total`, with a `version`
+label separating the two deployments.
+
+### 1. Point Kayenta at your own metric store
+
+`kayenta/config/kayenta.yml` declares one Prometheus-compatible account named `vm`:
+
+```yaml
+kayenta:
+  prometheus:
+    enabled: true
+    accounts:
+      - name: vm
+        endpoint:
+          baseUrl: http://victoriametrics:8428
+        supportedTypes:
+          - METRICS_STORE
+```
+
+Change `baseUrl` to your own Prometheus, VictoriaMetrics or Thanos query endpoint. Keep
+the account name `vm`, or rename it and pass the new name as `metricsAccountName` on
+every request. From inside the compose network the URL must be reachable from the
+Kayenta container, so a store on your host is `http://host.docker.internal:9090`, not
+`http://localhost:9090`. Reload with:
+
+```bash
+docker compose up -d kayenta
+```
+
+The bundled VictoriaMetrics can be left running and unused; nothing writes to it unless
+you run one of the seeders.
+
+### 2. Write a canary config for your own metrics
+
+Copy `kayenta/canary-configs/statistical.json` and replace the `metrics` array. Each
+entry names the metric, the PromQL that fetches it, and the group it scores under:
+
+```json
+{
+  "name": "p95_latency",
+  "query": {
+    "type": "prometheus",
+    "serviceType": "prometheus",
+    "metricName": "http_request_duration_seconds_p95",
+    "customInlineTemplate": "PromQL:sum without(version) (http_request_duration_seconds_p95{job=\"checkout\",version=\"${scope}\"})",
+    "labelBindings": []
+  },
+  "groups": ["latency"],
+  "analysisConfigurations": { "canary": { "direction": "increase" } },
+  "scopeName": "default"
+}
+```
+
+The `customInlineTemplate` **must** collapse the label that distinguishes the two
+deployments — `sum without(version) (...)` above. Kayenta substitutes `${scope}` once
+for the control and once for the experiment and expects each query to return exactly
+one series. Leave the label in place and each query returns two, the two scopes never
+pair, and every metric comes back `Nodata` with no error.
+
+`direction` is `increase` when higher is worse, `decrease` when lower is worse, and
+`either` when any movement matters. Group weights are distributed evenly across the
+groups present.
+
+### 3. Substitute your own control and experiment labels
+
+The synthetic dataset uses `Canary="Control"` and `Canary="Experiment"`. A real
+deployment usually separates the two by version, replicaset or colour, so
+`version="1.4.2"` and `version="1.5.0"` take those places. Whatever the label is, it is
+the one the template must collapse in step 2.
+
+The scope object is flat. `controlScope` and `experimentScope` are plain strings with
+`startTimeIso`, `endTimeIso` and `step` as siblings, not nested objects:
+
+```json
+{
+  "scopeName": "default",
+  "controlScope": "1.4.2",
+  "controlLocation": "vm",
+  "experimentScope": "1.5.0",
+  "experimentLocation": "vm",
+  "startTimeIso": "2026-07-27T09:00:00Z",
+  "endTimeIso": "2026-07-27T09:30:00Z",
+  "step": 60,
+  "extendedScopeParams": {}
+}
+```
+
+`controlLocation` and `experimentLocation` are the metric account name.
+
+### 4. Run one analysis over a real window
+
+```bash
+curl -s -X POST \
+  "http://localhost:8090/standalone_canary_analysis/?metricsAccountName=vm&storageAccountName=minio-store&application=checkout&user=you" \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "canaryConfig": { ...the config from step 2... },
+    "executionRequest": {
+      "scopes": [ ...the scope from step 3... ],
+      "thresholds": { "pass": 75, "marginal": 50 },
+      "lifetimeDurationMins": 25,
+      "analysisIntervalMins": 25,
+      "beginAfterMins": 0,
+      "lookbackMins": 0
+    }
+  }'
+```
+
+The response carries an execution id. Poll it at
+`GET /standalone_canary_analysis/{id}`, and read the verdict as described under
+[Reading a single result](#reading-a-single-result). To view it rendered, open
+`http://localhost:3001/dashboard/reports/standalone_canary_analysis/{id}`.
+
+To use the AI or hybrid judge instead, set `judge.name` to `RemoteJudge-v1.0` and put
+`mode` and `model` in `judgeConfigurations`, exactly as the shipped AI canary configs do.
+
+### 5. What you lose
+
+**Without ground-truth labels there is no accuracy, precision or recall.** The
+scoreboard exists because every synthetic scenario carries a known PASS or FAIL label to
+score the verdict against. Your own traffic has no such label, so on your own metrics
+you get verdicts, scores and Referee reports — the operational output — and no
+scoreboard.
+
+`make experiment` will not work on your data. It generates its own labelled dataset,
+seeds it, and scores against it; pointing it at a real service is not a matter of
+configuration. Scoring judges on your own service means labelling your own incidents
+first, which is a data-collection exercise this repository does not automate.
 
 ## Reading a single result
 
@@ -628,7 +914,7 @@ judge branches on. `litellm/config.yaml` maps each alias to a provider, model, a
 credentials. Alias names have to match across the two files. Reload the gateway with
 `docker compose up -d litellm`.
 
-## Build notes and things learned the hard way
+## Build notes and operational constraints
 
 ### Images
 
@@ -658,7 +944,7 @@ Where a common assumption differs from the source, the source wins:
   metric is `High` only on a significant location shift and a mean ratio over
   `allowedIncrease`.
 
-### Things that only showed up at runtime
+### Runtime requirements
 
 - The PromQL template has to strip the `Canary` label (`sum without(Canary) (...)`) or
   control and experiment do not pair, and every metric comes back `Nodata`.
@@ -695,20 +981,29 @@ kayenta-ai-canary-judge/
 │     ├─ models.py            # pydantic mirrors of the Kayenta request/response
 │     ├─ dummy_judge.py       # the no-op stub verdict (model-free default)
 │     ├─ representations.py   # summary / raw / plot builders (matplotlib for plot)
-│     ├─ llm_judge.py         # the AI judge: frozen prompt -> litellm -> parse -> map
+│     ├─ llm_judge.py         # the AI judge: prompt -> litellm -> parse -> map (+ the empty-response guard)
+│     ├─ prompt_registry.py   # loads prompts/ by id; unknown ids fail, never fall back
+│     ├─ verdict_parser.py    # the tolerant JSON parser, pure so it can be replayed offline
 │     ├─ hybrid.py            # hybrid mode: real statistical + AI, merged by a policy
 │     ├─ hybrid_policy.py     # the pure merge policy (gated|or|and), shared with the runner
 │     ├─ series_guards.py     # shape detectors (healed transient, equal-variance noise)
 │     ├─ ensemble_judge.py    # the statistical-ensemble judge
 │     └─ kayenta_callback.py  # hybrid: call Kayenta back for the genuine default judge
+├─ prompts/                   # one rubric per file; v1-frozen-2026-06 is the published default
 ├─ litellm/config.yaml        # gateway: alias -> provider/model (local + cloud examples)
 ├─ referee/Dockerfile         # builds Nike-Inc/referee from source
 ├─ tools/                     # host-run Python (in .venv)
-│  ├─ eval_dataset.py         # the seeded 9-family dataset + tuned config template
+│  ├─ eval_dataset.py         # the seeded datasets (original-180, generalisation-60) + config template
+│  ├─ repo_env.py             # loads .env so a bare `python tools/...` matches `make`
+│  ├─ results_schema.py       # the long-format result schema and its only loader
 │  ├─ seed_eval_dataset.py    # load the dataset into VM + manifest (make seed-eval)
 │  ├─ judge_clients.py        # host clients: genuine NetflixACAJudge + AI judge on exact pairs
 │  ├─ run_experiment.py       # the scored experiment (make experiment) -> results/
 │  ├─ render_figures.py       # matplotlib figures, run inside the judge-service container
+│  ├─ container_plot.py       # shared plumbing for rendering a figure in that container
+│  ├─ verify_reproduction.py  # diff a re-run against reference-results/ (verdict+score+rationale)
+│  ├─ replay_ai_logs.py       # replay archived payloads through the current parser
+│  ├─ validate_new_families.py# shape checks + statistical/ensemble baselines for a new family
 │  ├─ seed_dummy_data.py / seed_scenario_data.py   # the dummy + stress-test datasets
 │  ├─ run_pipeline.py / run_scenario.py            # make demo-dummy / make scenario
 │  └─ ... additional analysis scripts (CIs, ensemble, frontier, ROC, McNemar)
@@ -733,6 +1028,34 @@ Some limits are there by design:
 - Small vision models occasionally misread dense or precise charts
   (`cross_metric_marginal`, `subtle_regression`). The visually salient families
   (variance, tail, drift) suit them better.
+
+### A known defect in the published reference run
+
+`reference-results/n20/results_raw.csv` contains **22 rows that are failed calls recorded
+as verdicts**, not judgements. They are identifiable by a rationale beginning
+`AI judge error (`, and every one has an empty `error` column with a verdict of FAIL at
+score 0.0 — 21 from `moondream-vlm / ai:plot` and 1 from `deepseek-r1-llm / ai:summary`.
+Twenty-one of them score as *correct*, because their families' ground truth is FAIL.
+
+The harness no longer does this: a call that produces no usable answer emits an error row
+with an `error_kind`, and `results_schema.load()` excludes such rows from any metric. The
+released reference file predates that guard and is left as it was actually produced.
+
+What it affects, and what it does not:
+
+- **`moondream-vlm / ai:plot` `cross_metric_marginal = 1.000` is an artefact.** All twenty
+  scenarios in that cell are failed calls; there is no measurement there.
+- moondream's overall accuracy is 0.594 as published and 0.541 over the 159 rows that are
+  genuine judgements; MCC 0.114 against 0.045.
+- The hybrid rows derived from those scenarios are contaminated rather than fabricated.
+  Dropping the affected scenarios, moondream's `hybrid:gated` precision is 0.889 rather
+  than 0.920, and the AI-to-hybrid precision lift quoted above becomes 0.64 → 0.89
+  instead of 0.71 → 0.92. The effect the harness is measuring survives; its size moves.
+- **The `healed_transient` results are unaffected** — every row in that family is a real
+  judgement — as are all seven other families and every other model.
+
+`make replay-logs` re-derives this from the archived payloads, and
+`tools/consolidate_numbers.py` regenerates the tables above from the reference file.
 
 If you want to extend it, the seams are all inside the service:
 
@@ -766,6 +1089,50 @@ make experiment          # writes results/ (override size/seed/models via EVAL_N
 The exact dataset scored for the published numbers is recorded in
 `reference-results/n20/eval_manifest.json`. Absent models are skipped and recorded, so a
 run is bounded by whatever models you have pulled.
+
+### Checking a re-run against the reference
+
+`make experiment` writes `results/`; it does not tell you whether those numbers match the
+published ones. `tools/verify_reproduction.py` does, row by row:
+
+```bash
+python tools/verify_reproduction.py --models qwen-llm --modes summary --limit 10   # ~30s
+python tools/verify_reproduction.py --all-local                                    # every configuration
+```
+
+```
+reproduction check  prompt=v1-frozen-2026-06 (ae9455dfe48cb0f3)  n=20 seed=20260621
+rows compared      : 10
+DIFF COUNT         : 0
+  OK   qwen-llm/summary: compared=10 verdict=0 score=0 rationale=0 error=0
+```
+
+It compares **verdicts, scores and rationale strings**, prints an exact diff count, and
+exits non-zero if anything differs. The rationale is the sensitive detector: a verdict is
+one of two values and a score one of a hundred, so both can coincide across a whole run,
+but a sixty-word free-text string reproducing character for character cannot.
+
+Three things worth knowing before you read a zero:
+
+- A model must be pulled at the **same tag** the reference used. `ollama pull <model>:latest`
+  will overwrite a pinned tag and change the artefact behind the numbers.
+- A reproduction check confirms determinism, not validity. If a model failed the same way
+  on the same scenarios in both runs, both runs record the same failure. Check the
+  `error_kind` column, and see [the result schema](#the-long-format-result-schema).
+- **`reference-results/` stores a lossy rendering of each row.** Scores are rounded to two
+  decimals and rationales truncated to 200 characters with newlines flattened, because that
+  is what `results_raw.csv` has always held. The long-format frame keeps the full values, so
+  a naive comparison of the two reports differences that are purely formatting — `0.9887`
+  against `0.99`, or a 243-character rationale against its own 200-character prefix. Both
+  `verify_reproduction.py` and `diff_against_reference.py` normalise before comparing; if you
+  write your own comparison, do the same.
+
+If a re-run has already happened, `tools/diff_against_reference.py` compares the rows it
+produced without calling a model at all:
+
+```bash
+python tools/diff_against_reference.py --out diff.json
+```
 
 ## License
 

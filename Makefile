@@ -6,17 +6,35 @@ COMPOSE := docker compose
 VENV := .venv
 PY := $(VENV)/bin/python
 PIP := $(VENV)/bin/pip
+
+# Captured before the -include below, which would otherwise append .env to
+# MAKEFILE_LIST and make `help` scan it too.
+THIS_MAKEFILE := $(lastword $(MAKEFILE_LIST))
+
+# Read .env so the host tools see the same ports Compose publishes. Without
+# this the tools fall back to their hardcoded defaults and a changed *_PORT
+# moves the container while every host tool keeps talking to the old port.
+# `-include` so a fresh clone with no .env still works off the defaults below.
+-include .env
+export
+
 KAYENTA_PORT ?= 8090
+REFEREE_PORT ?= 3001
+VICTORIAMETRICS_PORT ?= 8428
+KAYENTA_URL ?= http://localhost:$(KAYENTA_PORT)
+VM_URL ?= http://localhost:$(VICTORIAMETRICS_PORT)
+REFEREE_URL ?= http://localhost:$(REFEREE_PORT)
 
 .DEFAULT_GOAL := help
 
 .PHONY: help up ensure-up down logs ps build venv wait-kayenta \
         seed seed-scenario seed-eval demo-dummy pipeline judge scenario results referee \
-        validate validate-ai test-judge-mock experiment experiment-quick clean
+        validate validate-ai test-judge-mock experiment experiment-quick clean \
+        analysis analysis-live figures reproduce require-results require-stack
 
 help: ## Show this help
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
-		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(THIS_MAKEFILE) | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
 
 up: ## Start the stack, forcing a rebuild of local images (use after code changes)
 	$(COMPOSE) up -d --build
@@ -92,7 +110,7 @@ judge: venv ## Run a single baseline judge (JUDGE=default|dummy|hybrid)
 #   make referee EXEC=<id>             -> a specific execution id
 JUDGE ?= default
 referee: ## Open Referee on a recorded report (JUDGE=<key> or EXEC=<id>; `make results` lists keys)
-	@base="http://localhost:$${REFEREE_PORT:-3001}"; \
+	@base="$(REFEREE_URL)"; \
 	path="/dashboard/reports/standalone_canary_analysis/"; \
 	id="$(EXEC)"; \
 	if [ -z "$$id" ] && [ -f data/last_run.json ]; then \
@@ -140,3 +158,140 @@ test-judge-mock: ## Run the AI judge mock test (no model needed)
 
 clean: ## Stop the stack and remove volumes
 	$(COMPOSE) down -v
+
+# --- Post-hoc analysis and figures ------------------------------------------
+#
+# Two groups, split by whether the script re-derives tables from results already
+# on disk or has to call Kayenta again.
+#
+#   OFFLINE (make analysis)     read results/ and results/agg/, write results/agg/.
+#                               No container, no model, no network.
+#   LIVE    (make analysis-live) call judge_clients, so Kayenta (and for some,
+#                               judge-service + Ollama or Bedrock) must be up.
+#
+# The offline set is ordered by what each script reads and writes:
+#   bounded_confidence_intervals  needs agg/long_results.csv (from the live set)
+#                                 and OVERWRITES agg/metrics_with_ci.csv with the
+#                                 Wilson + bootstrap version, replacing the Wald
+#                                 one run_experiment_multiseed.py wrote. It must
+#                                 therefore run before anything that reads that
+#                                 file, which is ensemble_multiseed_ci.py.
+#   pooled_mcnemar                needs agg/long_results.csv, and pairs against
+#                                 agg/ensemble_multiseed_rows.csv when present
+#                                 (it degrades to skipping the ensemble row).
+#   baselines_and_mcc             needs results/summary.csv only. Independent.
+#   roc_pr_curves                 needs results/results_raw.csv and
+#                                 agg/frontier_long_*.csv. Independent.
+#   run_fp_guard_experiment       needs results/results_raw.csv and
+#                                 results/summary.csv. Independent.
+
+ANALYSIS_SCRIPTS := \
+	tools/bounded_confidence_intervals.py \
+	tools/pooled_mcnemar.py \
+	tools/baselines_and_mcc.py \
+	tools/roc_pr_curves.py \
+	tools/run_fp_guard_experiment.py
+
+# Add a new generator here; nothing else changes. Each takes --results and --out
+# and writes a PNG, so a host that has matplotlib can run any of them directly.
+FIGURE_SCRIPTS := \
+	tools/figure_distributions.py \
+	tools/figure_blindspot_series.py \
+	tools/figure_approach_bars.py \
+	tools/figure_threshold_summaries.py \
+	tools/figure_multiseed_intervals.py
+
+# render_figures.py predates the others and takes --spec as well, so it is invoked
+# separately rather than bent into the loop above.
+# The locally-built judge-service image, named without an explicit tag so docker
+# resolves it to whatever `make build` produced. Nothing upstream is referenced
+# here, so there is no external tag to pin.
+FIGURE_IMAGE := canaryllm-judge-service
+
+require-results:
+	@if [ ! -f results/results_raw.csv ]; then \
+		echo "results/results_raw.csv is missing. Run 'make experiment' first, or copy" >&2; \
+		echo "a published run into results/ (see reference-results/README.md)." >&2; \
+		exit 1; \
+	fi
+
+require-stack:
+	@if ! curl -fsS http://localhost:$(KAYENTA_PORT)/health >/dev/null 2>&1; then \
+		echo "Kayenta is not reachable on :$(KAYENTA_PORT). This target calls the genuine" >&2; \
+		echo "judge and will not start the stack for you. Run 'make up' first." >&2; \
+		exit 1; \
+	fi
+
+analysis: venv require-results ## Re-derive every table from results/ (offline: no stack, no model)
+	@for s in $(ANALYSIS_SCRIPTS); do echo "--- $$s"; $(PY) $$s || exit 1; done
+	@echo "analysis: OK -> results/agg/"
+
+# Everything here calls judge_clients and therefore needs Kayenta up. The two
+# frontier targets additionally need AWS_BEARER_TOKEN_BEDROCK; the multiseed
+# sweep additionally needs Ollama and the local models pulled. Ordered so each
+# script's inputs exist when it runs: bounded_confidence_intervals is invoked
+# mid-chain because ensemble_multiseed_ci.py reads the file it rewrites.
+analysis-live: venv require-stack ## Re-run the analyses that call Kayenta (NEEDS the stack up; frontier steps need Bedrock creds)
+	$(PY) tools/run_experiment_multiseed.py
+	$(PY) tools/run_ensemble_experiment.py
+	$(PY) tools/run_frontier_experiment.py
+	$(PY) tools/bounded_confidence_intervals.py
+	$(PY) tools/ensemble_multiseed_ci.py
+	$(PY) tools/reproducibility_test_retest.py
+	@echo "analysis-live: OK -> results/agg/"
+
+# The generators need matplotlib, which is in the judge-service image and not in
+# the host venv (PyPI is gated on the reference machine). They run in a one-off
+# container over a bind mount of the repository, so the stack does not have to be
+# up: only the image has to exist. A host that has matplotlib can skip all this
+# and run any generator directly.
+figures: require-results ## Render every figure into results/figures/ (needs the judge-service image built; no stack, no model)
+	@if ! docker image inspect $(FIGURE_IMAGE) >/dev/null 2>&1; then \
+		echo "$(FIGURE_IMAGE) is not built. Figures render inside that image because" >&2; \
+		echo "matplotlib is not in the host venv. Run 'make build' first." >&2; \
+		exit 1; \
+	fi
+	@mkdir -p results/figures
+	@for s in $(FIGURE_SCRIPTS); do \
+		echo "--- $$s"; \
+		docker run --rm -v "$(PWD)":/work -w /work $(FIGURE_IMAGE) \
+			python $$s --results results --out results/figures || exit 1; \
+	done
+	@echo "--- tools/render_figures.py"
+	@docker run --rm -v "$(PWD)":/work -w /work $(FIGURE_IMAGE) \
+		python tools/render_figures.py --spec data/ai-logs/_exp_figdata.json \
+			--results results --out results/figures
+	@echo "figures: OK -> results/figures/"
+
+# Offline regeneration plus a diff against the published run. Deliberately does
+# NOT depend on analysis-live: those steps re-call Kayenta and cannot run on a
+# machine that only has the repository checked out.
+reproduce: analysis figures ## Re-derive tables + figures, then diff results/ against reference-results/
+	@echo
+	@echo "=== results/ vs reference-results/n20/ ==="
+	@diff -r -q results reference-results/n20 || true
+	@echo "=== end of diff (no output above means byte-identical) ==="
+
+# Override on the command line, e.g.
+#   make verify-repro MODELS=phi4-llm,qwen-llm MODES=summary,raw LIMIT=30
+# With no MODELS it checks every AI configuration the reference file contains.
+MODELS ?=
+MODES ?=
+LIMIT ?=
+
+verify-repro: venv require-stack ## Re-judge a slice and diff verdicts/scores/rationales against reference-results/
+	$(PY) tools/verify_reproduction.py \
+	  $(if $(MODELS),--models $(MODELS),--all-local) \
+	  $(if $(MODES),--modes $(MODES),) \
+	  $(if $(LIMIT),--limit $(LIMIT),)
+
+verify-repro-quick: venv require-stack ## The 10-scenario version of verify-repro (~30s, one text model)
+	$(PY) tools/verify_reproduction.py --models qwen-llm --modes summary --limit 10
+
+replay-logs: venv ## Replay archived data/ai-logs payloads through the current parser (no model, no stack)
+	$(PY) tools/replay_ai_logs.py
+
+prompts: venv ## List the available rubrics with their ids and text hashes
+	@$(PY) -c "import sys; sys.path.insert(0,'judge-service/app'); import prompt_registry as p; \
+	[print(f'  {i:26s} {p.load(i).hash}  {p.load(i).description}') for i in p.available()]; \
+	print(f'\n  default: {p.DEFAULT_PROMPT_ID}')"
