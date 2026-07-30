@@ -67,12 +67,20 @@ def fam_cell(rows: Sequence[Dict[str, Any]]) -> str:
 
 
 def section_representation(L: List[str]) -> None:
-    L += ["## A — Frozen-prompt representation accuracy, three hosted models", "",
-          "Source: `results/agg/experiments/published__*__v1-frozen-2026-06__original-180.csv`, "
-          "imported verbatim from the published `results/agg/frontier_long_<model>.csv` "
-          "(columns `verdict`, `truth`, `correct`). n = 180 per cell.", "",
-          "| model | representation | acc | 95% CI (Wilson) | bal.acc | MCC | prec | rec | F1 | FPR | TP/FP/TN/FN |",
-          "|---|---|---|---|---|---|---|---|---|---|---|"]
+    L += ["## A — Frozen-prompt representation accuracy, every model in the frame", "",
+          "Two provenances, labelled per row because they are not interchangeable:",
+          "",
+          "- **published import** — the three hosted runs, imported verbatim from",
+          "  `results/agg/frontier_long_<model>.csv` into",
+          "  `results/agg/experiments/published__*__v1-frozen-2026-06__original-180.csv`.",
+          "- **re-executed** — local models re-run under the fixed harness. Where a re-run",
+          "  produced error rows, the loader excludes them, so `n` is below 180 and the",
+          "  affected cells have no measurement rather than a fabricated one.",
+          "",
+          "**`n` is printed on every row.** A metric over 159 rows and one over 180 must never",
+          "be read from the same column without its denominator.", "",
+          "| model | representation | n | source | acc | 95% CI (Wilson) | bal.acc | MCC | prec | rec | F1 | FPR | TP/FP/TN/FN |",
+          "|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
     for model in sorted({r["model"] for r in rs.load(dataset_id="original-180", judge="ai", prompt_id=FROZEN)}):
         for rep in ("summary", "raw", "plot"):
             rows = rs.load(dataset_id="original-180", judge="ai", prompt_id=FROZEN,
@@ -81,10 +89,16 @@ def section_representation(L: List[str]) -> None:
                 continue
             m = metrics(rows)
             k = m["TP"] + m["TN"]
-            L.append(f"| {model} | ai:{rep} | **{f3(m['accuracy'])}** | {ci(k, m['n'])} | "
+            source = ("published import" if any(r["run_id"].startswith("published__") for r in rows)
+                      else "re-executed")
+            flag = "" if m["n"] == 180 else " ⚠"
+            L.append(f"| {model} | ai:{rep} | **{m['n']}**{flag} | {source} | "
+                     f"**{f3(m['accuracy'])}** | {ci(k, m['n'])} | "
                      f"{f3(m['balanced_accuracy'])} | {f3(m['mcc'])} | {f3(m['precision'])} | "
                      f"{f3(m['recall'])} | {f3(m['f1'])} | {f3(m['fpr'])} | "
                      f"{m['TP']}/{m['FP']}/{m['TN']}/{m['FN']} |")
+    L += ["", "⚠ marks a row whose denominator is below 180 because the correction removed "
+              "failed calls. See `audit/RECOMPUTE-PAIRED-STATS.md` Task 0."]
     L += ["", "Baselines on this 120 FAIL / 60 PASS split, for reading the column above:", "",
           "| baseline | acc | bal.acc | MCC |", "|---|---|---|---|"]
     for name, a, b, c in BASELINES:
