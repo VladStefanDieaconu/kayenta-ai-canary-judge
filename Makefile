@@ -56,11 +56,30 @@ build: ## Build the locally-built images (judge-service, referee)
 
 venv: $(VENV)/.installed ## Create the host Python venv for the tools
 
-# --system-site-packages lets the venv inherit a host-installed `requests`,
-# so the tools work even where access to a package index is gated/offline.
+# --system-site-packages lets the venv inherit a host-installed `requests`, so the
+# tools work on a machine where the package index is gated or offline but the
+# dependency is already present system-wide.
+#
+# The install itself is allowed to fail (the `-` prefix) for exactly that case.
+# What must not happen is failing quietly: a venv with no `requests` looks ready
+# and then every tool dies with "No module named 'requests'" somewhere further in,
+# which is a much worse error than the one that caused it. So the import is
+# checked, and the target refuses to mark itself installed if it is not there.
 $(VENV)/.installed: tools/requirements.txt
 	python3 -m venv --system-site-packages $(VENV)
 	-$(PIP) install --no-deps -r tools/requirements.txt
+	@$(PY) -c "import requests" 2>/dev/null || { \
+	  echo ""; \
+	  echo "ERROR: the host tools need 'requests' and it is not importable."; \
+	  echo ""; \
+	  echo "  The install step above could not reach a package index, and this"; \
+	  echo "  machine has no system-wide 'requests' for the venv to inherit."; \
+	  echo ""; \
+	  echo "  Fix it either way:"; \
+	  echo "    $(PIP) install requests==2.32.3     # if you can reach an index"; \
+	  echo "    pip3 install --user requests==2.32.3 # then re-run: make venv"; \
+	  echo ""; \
+	  exit 1; }
 	@touch $(VENV)/.installed
 
 wait-kayenta: ## Poll Kayenta /health until UP (timeout ~4 min)

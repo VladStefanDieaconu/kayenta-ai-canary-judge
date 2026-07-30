@@ -71,16 +71,42 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Diff re-run rows against reference-results/")
     ap.add_argument("--models", default="", help="comma-separated aliases; default = all in the frame")
     ap.add_argument("--reference", default=str(REFERENCE))
+    ap.add_argument("--include-hybrid", action="store_true",
+                    help="also compare hybrid rows; only meaningful for a run that used the "
+                         "model's primary representation (see the note in the source)")
     ap.add_argument("--out", default="")
     args = ap.parse_args()
 
     ref = load_reference(Path(args.reference))
     wanted = {m.strip() for m in args.models.split(",") if m.strip()}
 
-    rows = rs.load(dataset_id="original-180", prompt_id="v1-frozen-2026-06", include_errors=True)
+    rows = rs.load(dataset_id="original-180", include_errors=True)
     # Only rows this session produced: the imported published run would trivially
     # match itself and would say nothing about reproducibility.
     rows = [r for r in rows if not r["run_id"].startswith("published__")]
+    # Filtering the whole frame on prompt_id would silently drop every hybrid and
+    # statistical row, because those judges make no model call and carry an empty
+    # prompt_id by design. They are part of what has to reproduce, so the frozen-rubric
+    # condition is applied only to the rows it can apply to.
+    rows = [r for r in rows if r["judge"] != "ai" or r["prompt_id"] == "v1-frozen-2026-06"]
+
+    # Hybrid rows are excluded unless asked for, and that needs justifying rather
+    # than assuming. A hybrid verdict is a pure function of the statistical verdict
+    # and one AI verdict, computed by the same shared policy code in both runners --
+    # so if those two inputs reproduce, the hybrid does too.
+    #
+    # It cannot simply be compared here because the runners disagree about *which*
+    # AI verdict feeds it. run_experiment always uses the model's primary
+    # representation (summary for text, plot for vision); run_frontier_experiment
+    # uses plot if present and otherwise modes[0]. A `--modes raw` run therefore
+    # emits hybrids derived from raw, which are a different quantity from the
+    # published summary-derived ones and differ from them legitimately.
+    #
+    # Where the derivation did match -- the two full re-runs, which used the primary
+    # representation -- the hybrids were compared and reproduced exactly
+    # (see tools/build_corrected_results.py: 1,352 of 1,352 rows identical).
+    if not args.include_hybrid:
+        rows = [r for r in rows if r["judge"] != "hybrid"]
     if wanted:
         rows = [r for r in rows if r["model"] in wanted]
     if not rows:
@@ -136,7 +162,8 @@ def main() -> int:
     print(f"identical            : {identical}")
     print(f"DIFF COUNT           : {len(diffs)}")
     print(f"error rows (no verdict, excluded from the diff): {len(errors)}")
-    print(f"not present in the reference                   : {missing}")
+    print(f"not present in the reference                   : {missing}"
+          f"  (hosted models have no rows in results_raw.csv, which covers the local set only)")
     print("-" * 78)
     for (model, judge), s in sorted(per_config.items()):
         total = s["verdict"] + s["score"] + s["rationale"]
