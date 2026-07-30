@@ -112,6 +112,57 @@ FAMILY_SPEC: Dict[str, Dict[str, Any]] = {
 }
 FAMILIES: List[str] = list(FAMILY_SPEC.keys())
 
+# A second, separate dataset, added for the prompt ablation.
+#
+# These three families are NOT appended to FAMILY_SPEC, and that is deliberate.
+# `gid` counts across every family in order and feeds each scenario's seed, so
+# adding a tenth family would re-seed all 180 existing scenarios, rename every
+# metric, and invalidate reference-results/ wholesale. They therefore live in
+# their own dataset with its own gid range, and build_scenarios() still returns
+# exactly the original 180 unless asked for otherwise.
+#
+# What they are for: the prompt variants under test speak about the end of the
+# observation window. Scoring them only on healed_transient would measure
+# whether an instruction works on the one case it was written for. Two of these
+# families are adversarial to that instruction in opposite directions, and the
+# third is held out from every rubric entirely.
+GENERALISATION_FAMILY_SPEC: Dict[str, Dict[str, Any]] = {
+    "partial_recovery":    {"truth": "FAIL", "kinds": ["latency"]},
+    "late_transient":      {"truth": "FAIL", "kinds": ["latency"]},
+    "sustained_excursion": {"truth": "FAIL", "kinds": ["latency"]},
+}
+GENERALISATION_FAMILIES: List[str] = list(GENERALISATION_FAMILY_SPEC.keys())
+
+# gid_base keeps the two datasets' metric-name namespaces disjoint, so a scenario
+# from one can never be confused with a scenario from the other -- in a metric
+# store, in an ai-log filename, or in a cache key.
+DATASETS: Dict[str, Dict[str, Any]] = {
+    "original-180":      {"spec": FAMILY_SPEC, "families": FAMILIES, "gid_base": 0},
+    "generalisation-60": {"spec": GENERALISATION_FAMILY_SPEC,
+                          "families": GENERALISATION_FAMILIES, "gid_base": 1000},
+}
+DEFAULT_DATASET_ID = "original-180"
+
+
+def family_order(family: str) -> Tuple[int, int]:
+    """Sort key placing families in dataset order, then in declaration order.
+
+    Reporting code used to sort on FAMILIES.index(), which raises the moment a
+    run contains a family from the second dataset.
+    """
+    for di, (_, ds) in enumerate(DATASETS.items()):
+        if family in ds["families"]:
+            return (di, ds["families"].index(family))
+    return (99, 0)
+
+
+def family_dataset(family: str) -> str:
+    """Which dataset a family belongs to. Used when reporting mixed runs."""
+    for dsid, ds in DATASETS.items():
+        if family in ds["families"]:
+            return dsid
+    return ""
+
 
 @dataclass
 class MetricSpec:
@@ -242,16 +293,166 @@ def _gen_kind(family: str, kind: str, rng: random.Random, n: int) -> Tuple[List[
         p["shift_ratio"] = round(r, 4)
         return _noisy(rng, base, noise, n), _noisy(rng, base * r, noise, n), "high", p
 
+    # --- generalisation-60 families -------------------------------------------
+    if family == "partial_recovery":
+        # healed_transient with a floor. Same degradation magnitude, same degraded
+        # fraction, same recovery length -- the single difference is that recovery
+        # stops at `residual` above control instead of reaching it. Holding
+        # everything else identical is the point: any verdict difference between
+        # this family and healed_transient is attributable to the residual alone,
+        # which is the contrast the prompt ablation is trying to measure.
+        #
+        # Truth is FAIL. The canary ends the window ~20% worse than control on a
+        # latency SLI and stays there; that is the state promotion would make
+        # permanent. Adversarial to any rubric that says "returned to control
+        # levels", because a model reading that loosely sees recovery and passes.
+        deg = rng.uniform(1.5, 1.9)
+        dur = rng.uniform(0.40, 0.50)
+        residual = rng.uniform(1.18, 1.25)
+        k = max(2, int(n * dur))
+        rec = max(3, int(n * 0.20))
+        p["degradation_factor"] = round(deg, 3)
+        p["degraded_fraction"] = round(dur, 3)
+        p["residual_ratio"] = round(residual, 4)
+        control = _noisy(rng, base, noise, n)
+        floor = base * residual
+        exp: List[float] = []
+        for i in range(n):
+            if i < k:
+                level = base * deg
+            elif i < k + rec:
+                level = base * deg - (base * deg - floor) * ((i - k) / rec)
+            else:
+                level = floor
+            exp.append(level + rng.gauss(0.0, noise))
+        return control, exp, "high", p
+
+    if family == "late_transient":
+        # Healthy for the first three quarters, then a step change that is still
+        # present at the last sample. A step rather than gradual_drift's ramp, so
+        # the two are not the same waveform under different names.
+        #
+        # Truth is FAIL, and it is adversarial in the opposite direction to
+        # partial_recovery: it punishes a judge that has learned to discount early
+        # evidence but reads recency naively, and it checks that a variant which
+        # repairs the healed transient has not simply inverted the original error.
+        onset = rng.uniform(0.72, 0.78)
+        mag = rng.uniform(1.35, 1.55)
+        s = max(1, int(n * onset))
+        p["onset_fraction"] = round(onset, 3)
+        p["step_magnitude"] = round(mag, 3)
+        control = _noisy(rng, base, noise, n)
+        exp = [(base if i < s else base * mag) + rng.gauss(0.0, noise) for i in range(n)]
+        return control, exp, "high", p
+
+    if family == "sustained_excursion":
+        # The held-out family. Control and experiment are the SAME multiset of
+        # values -- experiment is a permutation of control -- so mean, stddev,
+        # min, max and every percentile are identical by construction, not merely
+        # close. The only difference is arrangement in time: control's elevated
+        # samples are isolated single-sample spikes, the canary's are gathered
+        # into a few contiguous multi-sample excursions.
+        #
+        # Truth is FAIL. A service that sits above threshold for several
+        # consecutive minutes burns an error budget and trips multi-window
+        # alerting; the same number of isolated one-sample spikes does not. This
+        # is the standard sustained-vs-transient distinction in SLO practice.
+        #
+        # It is held out because no version of the rubric names this pattern:
+        # spread, tail and trend are all named, and none of them separates these
+        # two series. The summary representation provably cannot -- its statistics
+        # are equal on both sides apart from slope, which the excursion placement
+        # below keeps near zero on purpose, so the family tests judgment rather
+        # than instruction-following.
+        n_runs = rng.randint(2, 3)
+        run_len = rng.randint(3, 4)
+        n_elev = n_runs * run_len
+        elev_ratio = rng.uniform(1.25, 1.45)
+
+        baseline_vals = _noisy(rng, base, noise, n - n_elev)
+        elevated_vals = [base * elev_ratio + rng.gauss(0.0, noise) for _ in range(n_elev)]
+
+        # Control: elevated samples scattered as isolated spikes, never adjacent,
+        # so no run of two exists anywhere in the baseline series.
+        positions: List[int] = []
+        candidates = list(range(n))
+        rng.shuffle(candidates)
+        for c in candidates:
+            if len(positions) == n_elev:
+                break
+            if all(abs(c - q) > 1 for q in positions):
+                positions.append(c)
+        control_pool = list(baseline_vals)
+        rng.shuffle(control_pool)
+        control = []
+        ci = 0
+        elev_iter = list(elevated_vals)
+        rng.shuffle(elev_iter)
+        for i in range(n):
+            if i in positions:
+                control.append(elev_iter[positions.index(i)])
+            else:
+                control.append(control_pool[ci])
+                ci += 1
+
+        # Experiment: the same values, with the elevated ones gathered into
+        # contiguous runs. Run starts are spread across the window so the fitted
+        # slope stays near zero and the excursions are not merely a late ramp.
+        slot = n // n_runs
+        starts = []
+        for r_i in range(n_runs):
+            lo = r_i * slot
+            hi = min(n - run_len, lo + slot - run_len)
+            starts.append(rng.randint(lo, max(lo, hi)))
+        run_positions: List[int] = []
+        for st in starts:
+            run_positions.extend(range(st, min(n, st + run_len)))
+        run_positions = sorted(set(run_positions))[:n_elev]
+
+        exp_pool = list(baseline_vals)
+        rng.shuffle(exp_pool)
+        exp_elev = list(elevated_vals)
+        rng.shuffle(exp_elev)
+        exp = []
+        ei = 0
+        pi = 0
+        for i in range(n):
+            if i in run_positions and pi < len(exp_elev):
+                exp.append(exp_elev[pi])
+                pi += 1
+            else:
+                exp.append(exp_pool[ei])
+                ei += 1
+
+        p["n_runs"] = n_runs
+        p["run_length"] = run_len
+        p["n_elevated"] = n_elev
+        p["elevated_ratio"] = round(elev_ratio, 4)
+        p["excursion_starts"] = starts
+        return control, exp, "high", p
+
     raise ValueError(f"unknown family {family}")
 
 
 # Scenario construction (deterministic from the master seed).
 def build_scenarios(master_seed: int = DEFAULT_MASTER_SEED,
-                    n_per_family: int = DEFAULT_N_PER_FAMILY) -> List[Scenario]:
+                    n_per_family: int = DEFAULT_N_PER_FAMILY,
+                    dataset_id: str = DEFAULT_DATASET_ID) -> List[Scenario]:
+    """The scenarios of one dataset, deterministic from the master seed.
+
+    The default is the original nine families with gid starting at 0, which is
+    what every published run used; the signature gained a parameter but not a
+    behaviour.
+    """
+    if dataset_id not in DATASETS:
+        raise ValueError(f"unknown dataset_id {dataset_id!r}; known: {sorted(DATASETS)}")
+    ds = DATASETS[dataset_id]
+    spec_map, family_list = ds["spec"], ds["families"]
+
     scenarios: List[Scenario] = []
-    gid = 0
-    for family in FAMILIES:
-        spec = FAMILY_SPEC[family]
+    gid = ds["gid_base"]
+    for family in family_list:
+        spec = spec_map[family]
         for idx in range(n_per_family):
             seed = (master_seed * 1_000_003 + gid * 97 + idx) & 0x7FFFFFFF
             metrics: List[MetricSpec] = []
