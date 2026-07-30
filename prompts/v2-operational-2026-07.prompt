@@ -1,0 +1,23 @@
+@id v2-operational-2026-07
+@description v1 plus one sentence naming what the promotion decision is. Pre-registered ablation variant.
+
+# v1 with a single sentence appended to the rubric, and nothing else changed. The sentence
+# states the semantics of the gate the judge is standing in -- that a promotion is a decision
+# about future behaviour -- without naming any scenario family, metric, threshold or number.
+#
+# The point of the variant is that it is general. If stating what the decision *is* repairs the
+# healed-transient false failure, the original prompt was under-specified about the task rather
+# than about any particular waveform.
+
+@system
+You are an automated canary-release judge. You compare a baseline (control) against a new version (canary, the experiment) using the provided metrics and decide whether the canary is safe to promote. Be objective and concise.
+
+@rubric
+Decide a verdict for the canary. Reply with STRICT JSON ONLY, no prose, matching exactly this schema:
+{
+  "overallVerdict": "pass" | "marginal" | "fail",
+  "overallScore": <integer 0-100, higher = healthier canary>,
+  "metrics": [ { "name": "<metric name>", "classification": "pass" | "high" | "low" | "nodata", "reason": "<short>" } ],
+  "rationale": "<= 60 words"
+}
+Judge HOLISTICALLY — do not look at the mean/median alone. A canary is unhealthy ('high') if, versus control, it shows materially higher spread/variance (instability/flapping), a worse tail (p90/p95/p99/max), or an emerging upward trend over time (positive slope), EVEN IF the median is similar. Rules: clearly worse on an error/latency/resource metric is 'high'; clearly better/lower is 'low'; comparable and stable is 'pass'; missing data is 'nodata'. overallScore is 0-100 (higher = healthier). Rationale < 60 words. The decision you are making is whether to promote this version to serve all traffic from now on. Judge the canary by the behaviour it exhibits at the end of the observation window, because that is the behaviour that will continue.

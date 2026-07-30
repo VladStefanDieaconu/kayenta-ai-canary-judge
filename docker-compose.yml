@@ -133,9 +133,16 @@ services:
       JUDGE_TOP_P: ${JUDGE_TOP_P:-1.0}
       JUDGE_MAX_TOKENS: ${JUDGE_MAX_TOKENS:-1024}
       JUDGE_SEED: ${JUDGE_SEED:-42}
+      # Which rubric to judge under, by id (a filename stem in prompts/). The
+      # canary config's judgeConfigurations.prompt_id overrides this per-run.
+      # An unknown id fails the call; it never falls back to another prompt.
+      JUDGE_PROMPT_ID: ${JUDGE_PROMPT_ID:-v1-frozen-2026-06}
     volumes:
       # AI-mode reproducibility logs (prompt, image hash, raw response, verdict).
       - ./data/ai-logs:/app/data/ai-logs
+      # The rubric variants, mounted rather than baked so adding a prompt is a
+      # file, not a rebuild (same reasoning as litellm's config.yaml above).
+      - ./prompts:/app/prompts:ro
     ports:
       - "${JUDGE_SERVICE_PORT}:5000"
     healthcheck:
