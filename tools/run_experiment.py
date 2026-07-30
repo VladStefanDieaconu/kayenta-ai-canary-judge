@@ -45,12 +45,24 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import requests
 
+# .env must be loaded before any argparse default reads os.environ; see the
+# module docstring for the incident this prevents.
+import repo_env  # noqa: E402,F401
 import eval_dataset as ed
 import judge_clients
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "judge-service" / "app"))
 import hybrid_policy  # noqa: E402  (shared pure policy, imported from the service)
+import prompt_registry  # noqa: E402  (same registry the service resolves against)
+
+# Resolved once, at import: which rubric this process will attribute its rows to.
+# Selection is the service's decision, so this mirrors the service's precedence
+# (env, then the frozen default) and would disagree only if a caller overrode the
+# prompt per-request, which the local sweep does not do.
+active_prompt = prompt_registry.load(
+    os.environ.get("JUDGE_PROMPT_ID") or prompt_registry.DEFAULT_PROMPT_ID
+)
 
 RESULTS_DIR = REPO_ROOT / "results"
 FIG_DIR = RESULTS_DIR / "figures"
@@ -326,6 +338,7 @@ def main() -> int:
     t_start = time.time()
     print("=" * 80)
     print(f"kayenta-ai-canary-judge scored experiment  (n={n}/family, seed={args.seed}, quick={args.quick})")
+    print(f"  prompt={active_prompt.id} ({active_prompt.hash})  config: {repo_env.describe()}")
     print("=" * 80)
 
     # Health.
@@ -678,12 +691,16 @@ def _write_results_md(rows, agg, order, families, present, skipped, det, manifes
 
 
 def _prompt_version() -> str:
+    """The rubric this run judged under, as `id (hash)`.
+
+    Read from the prompt registry rather than scraped out of the judge source,
+    which is what it used to do. The hash is included because the id alone is a
+    label an editor can leave stale; the hash cannot be.
+    """
     try:
-        txt = (REPO_ROOT / "judge-service" / "app" / "llm_judge.py").read_text()
-        m = re.search(r'PROMPT_VERSION\s*=\s*"([^"]+)"', txt)
-        return m.group(1) if m else "frozen"
-    except OSError:
-        return "frozen"
+        return f"{active_prompt.id} ({active_prompt.hash})"
+    except Exception:  # noqa: BLE001 - a manifest string must never fail a run
+        return os.environ.get("JUDGE_PROMPT_ID", prompt_registry.DEFAULT_PROMPT_ID)
 
 
 if __name__ == "__main__":

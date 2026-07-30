@@ -46,6 +46,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import sys
 import time
 from collections import defaultdict
@@ -58,6 +59,9 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "tools"))
 sys.path.insert(0, str(REPO_ROOT / "judge-service" / "app"))
 
+# .env must be loaded before any argparse default reads os.environ; see the
+# module docstring for the incident this prevents.
+import repo_env  # noqa: E402,F401
 import eval_dataset as ed  # noqa: E402
 import judge_clients  # noqa: E402
 
@@ -170,7 +174,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Multi-seed judge sweep with confidence intervals")
     ap.add_argument("--n", type=int, default=DEFAULT_N)
     ap.add_argument("--seeds", default=",".join(str(s) for s in DEFAULT_SEEDS))
-    ap.add_argument("--models", default="", help="comma-separated alias allow-list (default: all present)")
+    ap.add_argument("--models", default=os.environ.get("EVAL_MODELS", ""),
+                    help="comma-separated alias allow-list (default: all present)")
     ap.add_argument("--no-cache", action="store_true")
     args = ap.parse_args()
 
