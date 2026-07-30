@@ -21,8 +21,8 @@ Two bounded methods, used together:
 
 is_zero_variance() flags rates that are bit-identical across every seed (a
 structural finding, e.g. the statistical judge's 0/5 on variance_increase in
-all 5 seeds) so callers can report the flat rate plainly instead of dressing it
-up with an interval that implies sampling uncertainty that isn't there.
+all 5 seeds) so callers can report the flat rate plainly. An interval on such a
+rate would imply sampling uncertainty the data does not contain.
 """
 
 from __future__ import annotations
@@ -57,7 +57,7 @@ def percentile_bootstrap(
     """Percentile bootstrap CI for `statistic` applied to resamples of `values`.
 
     A constant `values` list (zero variance) collapses to a zero-width
-    interval at that constant, which is the correct behaviour, not a bug.
+    interval at that constant.
     """
     n = len(values)
     if n == 0:

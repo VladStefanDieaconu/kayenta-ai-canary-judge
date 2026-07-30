@@ -3,13 +3,12 @@
 Used by the statistical-ensemble judge (ensemble_judge.py, to stop its
 variance/tail tests firing on `healed_transient`) and by the hybrid policy's
 false-positive guards (hybrid_policy.py, to suppress a gated-hybrid FAIL on
-`healed_transient`/`noise_equivalent`). Kept in one place so there's a single
-definition of each shape, not two copies that drift apart.
+`healed_transient`/`noise_equivalent`). Both callers import the same definition
+of each shape from here.
 
-These aren't distributional significance tests (that's ensemble_judge.py's job).
-They're simple structural checks on where in the window a difference sits, which
-is exactly the information a location/rank test (and a plain variance/tail test)
-discards.
+The distributional significance tests live in ensemble_judge.py. These are
+structural checks on where in the window a difference sits, the information a
+location/rank test (and a plain variance/tail test) discards.
 """
 
 from __future__ import annotations
@@ -53,16 +52,15 @@ def detect_equal_variance_noise(
     (near-)equal spread, i.e. how `noise_equivalent` is actually built (both
     high-variance, same underlying distribution, no location shift).
 
-    Checking the mean alone isn't enough, which was a real bug caught during
-    validation: `variance_increase` also has an equal mean by design (it's a
-    variance-only regression), and each individual metric of
-    `cross_metric_marginal` looks unremarkable in isolation on both mean and
-    spread (that family's defining property is that no single metric looks bad,
-    only the joint pattern does). Requiring the spread to also be near-equal
-    correctly excludes `variance_increase` (whose spread ratio is deliberately
-    ~6-10x, not ~1x). `cross_metric_marginal` is excluded structurally instead,
-    by scoping this guard to single-metric scenarios (see its caller), since
-    that family is multi-metric by construction and this one is not.
+    The mean alone is not a sufficient test. `variance_increase` also has an
+    equal mean by design, being a variance-only regression, and each individual
+    metric of `cross_metric_marginal` is unremarkable in isolation on both mean
+    and spread, that family's defining property being that no single metric
+    looks bad while the joint pattern does. Requiring the spread to be
+    near-equal as well excludes `variance_increase`, whose spread ratio is
+    deliberately ~6-10x. `cross_metric_marginal` is excluded structurally
+    instead, by scoping this guard to single-metric scenarios (see its caller),
+    that family being multi-metric by construction.
     """
     if not control or not experiment:
         return False, 1.0

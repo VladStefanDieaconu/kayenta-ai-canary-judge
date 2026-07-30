@@ -60,11 +60,11 @@ def build_guard_signals(master_seed: int, n_per_family: int) -> Dict[str, Dict[s
     `equal_variance_noise` is deliberately scoped to single-metric scenarios
     only. `cross_metric_marginal` (the only multi-metric family) is designed so
     each individual metric looks statistically unremarkable in isolation (small
-    mean shift, unchanged spread), which is exactly what this guard would
-    otherwise flag as "equal variance noise", wrongly suppressing a genuine
-    blind-spot FAIL. `noise_equivalent`/`healed_transient` (this guard's actual
-    targets) are single-metric families in this dataset, so the scoping costs
-    nothing against the two families the guard targets.
+    mean shift, unchanged spread), which this guard would otherwise flag as
+    "equal variance noise", wrongly suppressing a genuine blind-spot FAIL.
+    `noise_equivalent`/`healed_transient` (this guard's actual targets) are
+    single-metric families in this dataset, so the scoping costs nothing against
+    the two families the guard targets.
     """
     scenarios = ed.build_scenarios(master_seed, n_per_family)
     base_millis = ed.aligned_base_millis()
@@ -88,10 +88,9 @@ def build_guard_signals(master_seed: int, n_per_family: int) -> Dict[str, Dict[s
 
 def recompute_hybrid_gated(raw_rows: List[Dict[str, str]], guard_signals: Dict[str, Dict[str, Any]],
                            use_guards: bool) -> List[Dict[str, Any]]:
-    # keyed by (judge, model), not judge alone: ai:summary/ai:raw/ai:plot each
-    # have one row per model for a given scenario. Keying by judge alone was a
-    # real bug that silently kept only the last model's row (Python dict
-    # overwrite), collapsing 8 models down to 2 in the first run.
+    # Key by (judge, model): ai:summary/ai:raw/ai:plot each contribute one row
+    # per model per scenario, so keying by judge alone keeps only the last model
+    # (Python dict overwrite), collapsing 8 models down to 2.
     stat_by_scenario: Dict[str, Dict[str, str]] = {}
     ai_by_scenario: Dict[str, List[Dict[str, str]]] = defaultdict(list)
     for r in raw_rows:

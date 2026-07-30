@@ -30,8 +30,13 @@ AI_FAIL_CONF_MAX = 50.0
 
 # Blind-spot dimensions the rank test is structurally insensitive to. If the AI's
 # per-metric reasoning/rationale cites one and the AI fails, the gated hybrid
-# trusts the AI over a clean statistical PASS. This is where the hybrid earns its
-# keep.
+# trusts the AI over a clean statistical PASS.
+#
+# 30 substrings (11 spread + 8 tail + 11 temporal), of which 29 are effective:
+# "stddev" contains "std", so any text matching "stddev" already matched "std"
+# and the entry can never fire on its own. It is the only such superstring.
+# Both counts are recorded because the tuple is frozen at the published values
+# and a reader comparing it against the paper needs to know which is which.
 BLINDSPOT_KEYWORDS = (
     "varian", "spread", "std", "stddev", "deviation", "instab", "unstable",
     "flap", "noisy", "volatil", "erratic",
