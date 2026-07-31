@@ -7,12 +7,18 @@ functions (discover_models, run_scenario, confusion, metrics_from_conf,
 aggregate, mcnemar_exact, cohen_kappa) across multiple master seeds, so
 per-judge metrics can be reported as mean +/- 95% CI across seeds.
 
+Superseded by tools/run_multiseed_corrected.py, which runs the same sweep but
+writes through results_schema: this one's long_results.csv carries no rationale
+column and discards failed calls instead of recording them, which is what made
+the artefact it produced un-auditable. Kept because `make analysis-live` still
+names it and because it is the runner the published multi-seed artefact came
+from. Prefer the corrected runner for anything new.
+
 Scope note: a full N=20 x 5-seed re-run of the 8-model sweep would take
 ~25 hours (the N=20/180-scenario single-seed run took 304.9 min on its own).
-This runs N=5/family x 5 seeds (225 scenario-equivalents, ~6-7h), matching the
-scale of the repo's own reference-results/n5/ run. One of the 5 seeds is the same
-master seed (20260621) used in reference-results/n20/, so that slice is directly
-comparable to reference-results/n5/.
+This runs N=5/family x 5 seeds (225 scenario-equivalents, ~6-7h). One of the 5
+seeds is the master seed 20260621, so that slice is directly comparable to a
+single-seed run at the same n.
 
 Caching + retry: judge_clients.judge_ai and judge_clients.run_default_judge are
 monkey-patched (a module-attribute swap, so tools/run_experiment.py's

@@ -30,7 +30,7 @@ REFEREE_URL ?= http://localhost:$(REFEREE_PORT)
 .PHONY: help up ensure-up down logs ps build venv wait-kayenta \
         seed seed-scenario seed-eval demo-dummy pipeline judge scenario results referee \
         validate validate-ai test-judge-mock experiment experiment-quick clean \
-        analysis analysis-live figures reproduce require-results require-stack
+        analysis analysis-live figures demo require-results require-stack
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(THIS_MAKEFILE) | \
@@ -230,7 +230,7 @@ FIGURE_IMAGE := canaryllm-judge-service
 require-results:
 	@if [ ! -f results/results_raw.csv ]; then \
 		echo "results/results_raw.csv is missing. Run 'make experiment' first, or copy" >&2; \
-		echo "a published run into results/ (see reference-results/README.md)." >&2; \
+		echo "the bundled example run into results/ (see example-results/README.md)." >&2; \
 		exit 1; \
 	fi
 
@@ -282,30 +282,33 @@ figures: require-results ## Render every figure into results/figures/ (needs the
 			--results results --out results/figures
 	@echo "figures: OK -> results/figures/"
 
-# Offline regeneration plus a diff against the published run. Deliberately does
-# NOT depend on analysis-live: those steps re-call Kayenta and cannot run on a
-# machine that only has the repository checked out.
-reproduce: analysis figures ## Re-derive tables + figures, then diff results/ against reference-results/
-	@echo
-	@echo "=== results/ vs reference-results/n20/ ==="
-	@diff -r -q results reference-results/n20 || true
-	@echo "=== end of diff (no output above means byte-identical) ==="
+# The end-to-end check a fresh clone can run: committed data in, a rendered
+# figure out, no stack and no model. example-results/ is a small slice of a real
+# run kept for exactly this, and is documented in the README as example data
+# rather than as the study's results.
+#
+# figures-published used to live here. It rendered every manuscript figure from
+# reference-results/n20 and results/corrected, and both of those are now archived
+# with the paper's data instead of shipped with the testbed, so the target has
+# nothing to read. Rendering the paper's figures is done from the archive; see
+# the README section on where the paper's data lives.
+demo: ## Render one figure from the committed example data (no stack, no model, no network)
+	@if ! docker image inspect $(FIGURE_IMAGE) >/dev/null 2>&1; then \
+		echo "$(FIGURE_IMAGE) is not built. Figures render inside that image because" >&2; \
+		echo "matplotlib is not in the host venv. Run 'make build' first." >&2; \
+		exit 1; \
+	fi
+	@mkdir -p results/figures-demo
+	docker run --rm -v "$(PWD)":/work -w /work $(FIGURE_IMAGE) \
+		python tools/figure_approach_bars.py \
+			--results example-results --out results/figures-demo
+	@echo "demo: OK -> results/figures-demo/"
 
-# Override on the command line, e.g.
-#   make verify-repro MODELS=phi4-llm,qwen-llm MODES=summary,raw LIMIT=30
-# With no MODELS it checks every AI configuration the reference file contains.
-MODELS ?=
-MODES ?=
-LIMIT ?=
-
-verify-repro: venv require-stack ## Re-judge a slice and diff verdicts/scores/rationales against reference-results/
-	$(PY) tools/verify_reproduction.py \
-	  $(if $(MODELS),--models $(MODELS),--all-local) \
-	  $(if $(MODES),--modes $(MODES),) \
-	  $(if $(LIMIT),--limit $(LIMIT),)
-
-verify-repro-quick: venv require-stack ## The 10-scenario version of verify-repro (~30s, one text model)
-	$(PY) tools/verify_reproduction.py --models qwen-llm --modes summary --limit 10
+# reproduce, verify-repro and verify-repro-quick were removed here. All three
+# compared a fresh run against reference-results/, the published run for the
+# paper, which is archived with the paper's data rather than shipped with the
+# testbed. The scripts moved with it. Comparing your own runs against each other
+# needs neither.
 
 replay-logs: venv ## Replay archived data/ai-logs payloads through the current parser (no model, no stack)
 	$(PY) tools/replay_ai_logs.py

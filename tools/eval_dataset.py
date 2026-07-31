@@ -117,7 +117,7 @@ FAMILIES: List[str] = list(FAMILY_SPEC.keys())
 # These three families are NOT appended to FAMILY_SPEC, and that is deliberate.
 # `gid` counts across every family in order and feeds each scenario's seed, so
 # adding a tenth family would re-seed all 180 existing scenarios, rename every
-# metric, and invalidate reference-results/ wholesale. They therefore live in
+# metric, and invalidate every result ever produced from them. They therefore live in
 # their own dataset with its own gid range, and build_scenarios() still returns
 # exactly the original 180 unless asked for otherwise.
 #

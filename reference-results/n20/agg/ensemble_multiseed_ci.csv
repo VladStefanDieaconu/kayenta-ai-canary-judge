@@ -1,7 +1,0 @@
-judge,n_seeds,n_pooled,accuracy_mean,accuracy_ci_low,accuracy_ci_high,accuracy_boot_low,accuracy_boot_high,precision_mean,precision_ci_low,precision_ci_high,precision_boot_low,precision_boot_high,recall_mean,recall_ci_low,recall_ci_high,recall_boot_low,recall_boot_high,f1_mean,f1_ci_low,f1_ci_high,f1_boot_low,f1_boot_high,fpr_mean,fpr_ci_low,fpr_ci_high,fpr_boot_low,fpr_boot_high,fnr_mean,fnr_ci_low,fnr_ci_high,fnr_boot_low,fnr_boot_high,identical_across_seeds
-ensemble:tuned,5,225,0.876,0.826,0.912,0.836,0.916,0.962,0.914,0.984,0.933,0.992,0.847,0.78,0.896,0.8,0.893,0.901,,,0.867,0.933,0.067,0.029,0.147,0.013,0.12,0.153,0.104,0.22,0.107,0.2,
-
-config,n,accuracy,accuracy_ci_low,accuracy_ci_high,ci_method,note
-"ensemble:tuned (5-seed, n=5/family)",225,0.876,0.826,0.912,wilson(pooled),zero LLM calls; 6-knob statistical ensemble on top of the genuine judge
-"best local LLM: ai:summary/phi4-llm (5-seed, n=5/family)",225,0.813,0.757,0.859,"wilson(pooled), from fix_confidence_intervals.py",same 5-seed multiseed scope as the ensemble row above
-"frontier: ai:raw/claude-opus-4-8-vlm (single seed, N=20, point estimate only)",180,0.867,,,"none (single run, no seed axis)","§10 frontier run; not re-run here, point estimate only, no CI possible from 1 seed"
