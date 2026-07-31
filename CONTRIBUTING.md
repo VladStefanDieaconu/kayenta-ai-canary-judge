@@ -52,13 +52,20 @@ Most changes here are meant to be behaviour-preserving under the default configu
 Two checks prove it, and neither needs a cloud credential:
 
 ```bash
-make replay-logs         # re-parse every archived response; verdicts and scores must not move
-make verify-repro-quick  # re-judge 10 scenarios and diff against reference-results/
+make replay-logs                                # re-parse every archived response; verdicts and scores must not move
+python tools/test_failed_call_is_not_scored.py  # a failed call must still produce no verdict
+make demo                                       # the committed example data must still render
 ```
 
-`verify-repro` compares rationale strings as well as verdicts and scores. A verdict is
-one of two values and a score one of a hundred, so both can coincide across a run; a
-sixty-word rationale reproducing character for character cannot.
+`replay-logs` is the sensitive one. It re-runs the tolerant parser over every archived
+model response and compares the verdict, the score and the rationale string. A verdict
+is one of two values and a score one of a hundred, so both can coincide across a whole
+run by chance; a sixty-word rationale reproducing character for character cannot.
+
+The row-by-row check against the published run lived here too, as `make verify-repro`.
+It compared a fresh run against `reference-results/`, which is archived with the paper's
+data rather than shipped with the testbed, so both the target and the script moved with
+it.
 
 The README's [scope section](README.md#scope-and-limitations) lists the four main
 extension seams and where each one is.

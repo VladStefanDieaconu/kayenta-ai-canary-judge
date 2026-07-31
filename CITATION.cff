@@ -1,0 +1,76 @@
+cff-version: 1.2.0
+message: >-
+  If you use this software or the benchmark it produces, please cite the paper
+  below rather than the repository alone. The repository is the artefact; the
+  paper is where the method and the measurements are described.
+title: >-
+  Kayenta AI Canary Judge: a model-agnostic remote judge and benchmark for
+  automated canary analysis
+abstract: >-
+  A configurable remote judge for Kayenta that produces a canary verdict from a
+  large language model or a vision-language model, three explicit hybrid policies
+  that combine it with the genuine NetflixACAJudge verdict, a tuned statistical
+  ensemble baseline, and a seeded nine-family fault-injection benchmark of 180
+  labelled scenarios with the harness that scores every judge over it.
+type: software
+license: Apache-2.0
+repository-code: "https://github.com/VladStefanDieaconu/kayenta-ai-canary-judge"
+keywords:
+  - automated canary analysis
+  - continuous delivery
+  - progressive delivery
+  - Mann-Whitney U test
+  - large language models
+  - vision-language models
+  - LLM-as-a-judge
+  - anomaly detection
+  - site reliability engineering
+authors:
+  - family-names: Dieaconu
+    given-names: Vlad-Ștefan
+    affiliation: >-
+      Faculty of Automatic Control and Computers, National University of Science
+      and Technology POLITEHNICA Bucharest, Bucharest, Romania
+    email: vlad.dieaconu@stud.acs.upb.ro
+  - family-names: Rughiniș
+    given-names: Răzvan
+    affiliation: >-
+      Faculty of Automatic Control and Computers, National University of Science
+      and Technology POLITEHNICA Bucharest, Bucharest, Romania; Academy of
+      Romanian Scientists, Bucharest, Romania
+    email: razvan.rughinis@upb.ro
+  - family-names: Dumistrăcel
+    given-names: Eduard-Costin
+    affiliation: >-
+      Faculty of Automatic Control and Computers, National University of Science
+      and Technology POLITEHNICA Bucharest, Bucharest, Romania
+    email: eduard.dumistracel@upb.ro
+  - family-names: Țurcanu
+    given-names: Dinu
+    affiliation: >-
+      Faculty of Electronics and Telecommunications and National Institute of
+      Innovations in Cybersecurity CYBERCOR, Technical University of Moldova,
+      Chisinau, Moldova
+    email: dinu.turcanu@adm.utm.md
+
+# The paper. Volume, issue, pages and DOI are filled in at acceptance; leaving
+# them blank is better than guessing, because a wrong DOI in a CITATION.cff is
+# propagated automatically by every tool that reads this file.
+preferred-citation:
+  type: article
+  title: >-
+    A Model-Agnostic Remote Judge for Automated Canary Analysis: Augmenting
+    Mann-Whitney Gating with Large Language and Vision-Language Models
+  journal: Future Internet
+  publisher:
+    name: MDPI
+  year: 2026
+  authors:
+    - family-names: Dieaconu
+      given-names: Vlad-Ștefan
+    - family-names: Rughiniș
+      given-names: Răzvan
+    - family-names: Dumistrăcel
+      given-names: Eduard-Costin
+    - family-names: Țurcanu
+      given-names: Dinu
