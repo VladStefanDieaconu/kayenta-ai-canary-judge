@@ -204,12 +204,15 @@ def judge_key(kind: str, sub: str) -> str:
 
 # Run one scenario across all judges/models.
 def run_scenario(sc: ed.Scenario, present: List[Dict[str, str]], base_millis: int,
-                 modes_text: List[str], modes_vision: List[str]) -> List[Dict[str, Any]]:
+                 modes_text: List[str], modes_vision: List[str],
+                 errors: Optional[List[Dict[str, Any]]] = None) -> List[Dict[str, Any]]:
     series = ed.series_for_scenario(sc)
     pairs = ed.build_pairs(sc, series, base_millis)
     stat_cfg = ed.build_canary_config(sc, {"name": "NetflixACAJudge-v1.0", "judgeConfigurations": {}})
 
     rows: List[Dict[str, Any]] = []
+    if errors is None:
+        errors = []
 
     # statistical (the real NetflixACAJudge)
     stat = judge_clients.run_default_judge(pairs, stat_cfg, PASS_T, MARGINAL_T)
@@ -226,8 +229,34 @@ def run_scenario(sc: ed.Scenario, present: List[Dict[str, str]], base_millis: in
         for mode in modes:
             ai = judge_clients.judge_ai(pairs, ed.build_canary_config(sc, {}), mode, alias, PASS_T, MARGINAL_T)
             ai_by_mode[mode] = ai
+            if not ai["ok"]:
+                # A failed call is not a judgement. judge_clients._err() returns
+                # verdict "FAIL" at score 0.0 so the caller has a well-formed
+                # object to inspect, and scoring that object is exactly the fault
+                # Section 11 of the paper describes: because both affected
+                # families were FAIL-truth, the fabricated rows scored as correct
+                # and flattered the configurations they damaged. The row is
+                # recorded as an error and never reaches the results file, so it
+                # cannot enter an accuracy denominator; write_outputs() reports
+                # the count and writes errors.csv.
+                errors.append({
+                    "scenario": sc.id, "family": sc.family, "truth": sc.truth,
+                    "judge": judge_key("ai", mode), "model": alias,
+                    "error_kind": ai.get("error_kind", "") or "unspecified",
+                    "error": (ai.get("error") or "")[:300],
+                    "latency": round(float(ai["latency"]), 2),
+                    # finish_reason separates a model that ran out of completion
+                    # budget from one the gateway never answered for, which is
+                    # the distinction the two observed failure modes turn on.
+                    "finish_reason": ai.get("finish_reason", "") or "",
+                    "prompt_id": ai.get("prompt_id", "") or "",
+                    "prompt_hash": ai.get("prompt_hash", "") or "",
+                    "tokens_in": ai.get("tokens_in") if ai.get("tokens_in") is not None else "",
+                    "tokens_out": ai.get("tokens_out") if ai.get("tokens_out") is not None else "",
+                })
+                continue
             rows.append(_row(sc, "ai", mode, alias, ai["verdict"], ai["score"], ai["latency"],
-                             ai["error"], rationale=ai["rationale"]))
+                             ai["error"], rationale=ai["rationale"], call=ai))
 
         # hybrid uses this model's primary representation as the AI half
         prim = PRIMARY_MODE[modality]
@@ -247,8 +276,14 @@ def run_scenario(sc: ed.Scenario, present: List[Dict[str, str]], base_millis: in
 
 
 def _row(sc: ed.Scenario, kind: str, sub: str, model: str, verdict: str, score: float,
-         latency: float, error: str, rationale: str = "", note: str = "") -> Dict[str, Any]:
+         latency: float, error: str, rationale: str = "", note: str = "",
+         call: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     jk = judge_key(kind, sub)
+    # `call` is the judge_clients response the row came from. Its provenance
+    # fields travel with the row so a downstream writer can record which rubric
+    # produced the verdict and whether the completion was truncated; the
+    # statistical and hybrid judges make no model call and leave them empty.
+    c = call or {}
     return {
         "scenario": sc.id, "family": sc.family, "truth": sc.truth,
         "judge": jk, "kind": kind, "rep_or_policy": sub, "model": model,
@@ -256,6 +291,11 @@ def _row(sc: ed.Scenario, kind: str, sub: str, model: str, verdict: str, score: 
         "correct": int(verdict == sc.truth),
         "latency": round(float(latency), 2), "error": error[:140],
         "rationale": rationale[:200].replace("\n", " "), "note": note,
+        "prompt_id": c.get("prompt_id", "") or "",
+        "prompt_hash": c.get("prompt_hash", "") or "",
+        "finish_reason": c.get("finish_reason", "") or "",
+        "tokens_in": c.get("tokens_in") if c.get("tokens_in") is not None else "",
+        "tokens_out": c.get("tokens_out") if c.get("tokens_out") is not None else "",
     }
 
 
@@ -379,14 +419,37 @@ def main() -> int:
     vision_models = [m for m in present if m["modality"] == "vision"]
     n_ai = len(text_models) * len(TEXT_MODES) + len(vision_models) * len(VISION_MODES)
     print(f"[experiment] {len(scenarios)} scenarios x ({n_ai} AI calls + statistical + hybrids) ...")
+    call_errors: List[Dict[str, Any]] = []
     for i, sc in enumerate(scenarios, 1):
         t0 = time.time()
-        rows = run_scenario(sc, present, base_millis, TEXT_MODES, VISION_MODES)
+        rows = run_scenario(sc, present, base_millis, TEXT_MODES, VISION_MODES, call_errors)
         all_rows.extend(rows)
         print(f"  [{i:3d}/{len(scenarios)}] {sc.id:24s} truth={sc.truth} "
               f"({time.time()-t0:.0f}s)")
 
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Failed calls, reported loudly and written beside the results rather than
+    # scored. An empty errors.csv is the normal outcome and is still written, so
+    # "no error file" cannot be confused with "no errors".
+    err_path = RESULTS_DIR / "errors.csv"
+    with err_path.open("w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=["scenario", "family", "truth", "judge",
+                                          "model", "error_kind", "error", "latency",
+                                          "finish_reason", "prompt_id", "prompt_hash",
+                                          "tokens_in", "tokens_out"])
+        w.writeheader()
+        w.writerows(call_errors)
+    if call_errors:
+        by_cfg: Dict[Tuple[str, str], int] = defaultdict(int)
+        for e in call_errors:
+            by_cfg[(e["judge"], e["model"])] += 1
+        print(f"[experiment] {len(call_errors)} call(s) returned no usable response and were "
+              f"EXCLUDED, not scored -> {err_path}", file=sys.stderr)
+        for (judge, model), k in sorted(by_cfg.items()):
+            print(f"              {judge:12s} {model:22s} {k}", file=sys.stderr)
+    else:
+        print(f"[experiment] 0 failed calls -> {err_path}")
     write_outputs(all_rows, present, skipped, det, manifest, args, n,
                   no_figures=args.no_figures, elapsed=time.time() - t_start)
     print(f"\n[experiment] DONE in {(time.time()-t_start)/60:.1f} min -> {RESULTS_DIR}")
