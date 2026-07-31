@@ -9,7 +9,8 @@ Reads three tables and picks the strongest row of each approach by accuracy
 rather than naming configurations, so a run with a different model set still
 produces the figure:
   results/summary.csv                    local judges and hybrids
-  results/agg/frontier_representation.csv frontier run, when present
+  results/agg/frontier_representation*.csv the hosted runs, filtered to the
+                                         three models in FRONTIER_MODELS
   results/agg/ensemble_scoreboard.csv     tuned ensemble, when present
 
 The frontier and ensemble panels are skipped with a note when their table is
@@ -38,6 +39,18 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 METRICS = ["accuracy", "precision", "recall"]
 COLOURS = {"accuracy": "#4c72b0", "precision": "#dd8452", "recall": "#55a868"}
 
+# The three hosted models, named rather than globbed.
+#
+# run_frontier_experiment.py writes agg/frontier_representation__<tag>.csv for
+# whatever it was pointed at, and it was later pointed at local models for the
+# defect re-runs and the reproduction checks. A glob over that filename pattern
+# therefore grew from three files to nine, and this figure silently went from
+# five columns to eleven with DeepSeek-R1, Moondream, Phi-4 and Qwen2.5 labelled
+# "frontier" -- which is not what the caption says and not true of the models.
+# The set of hosted models is a fact about the study, not something to infer
+# from a directory listing, so it is written down. --frontier-models overrides.
+FRONTIER_MODELS = ("claude-opus-4-8-vlm", "gpt-oss-120b-llm", "qwen3-vl-235b-vlm")
+
 
 def read_csv(path: Path):
     if not path.exists():
@@ -62,6 +75,12 @@ def main() -> int:
     ap.add_argument("--out", default=None,
                     help="output directory (default: <results>/figures)")
     ap.add_argument("--dpi", type=int, default=300)
+    ap.add_argument("--frontier-models", default="",
+                    help="comma-separated model aliases to treat as frontier "
+                         f"(default: {','.join(FRONTIER_MODELS)})")
+    ap.add_argument("--frontier-columns", choices=("best", "all"), default="best",
+                    help="one column for the strongest hosted configuration (best, "
+                         "the published figure), or one per hosted model (all)")
     args = ap.parse_args()
 
     results = Path(args.results)
@@ -75,11 +94,12 @@ def main() -> int:
     # frontier_representation_<alias>.csv; read all of those so every frontier model
     # is represented, and fall back to the bare file when no suffixed copy exists.
     frontier = []
-    suffixed = sorted(agg.glob("frontier_representation_*.csv"))
-    for path in suffixed:
-        frontier.extend(read_csv(path))
+    wanted = set(args.frontier_models.split(",")) if args.frontier_models else set(FRONTIER_MODELS)
+    for path in sorted(agg.glob("frontier_representation_*.csv")):
+        frontier.extend(r for r in read_csv(path) if r.get("model") in wanted)
     if not frontier:
-        frontier = read_csv(agg / "frontier_representation.csv")
+        frontier = [r for r in read_csv(agg / "frontier_representation.csv")
+                    if r.get("model") in wanted]
     ensemble = read_csv(agg / "ensemble_scoreboard.csv")
 
     columns, skipped = [], []
@@ -96,18 +116,25 @@ def main() -> int:
     best_local_row = pick[1] if pick else None
     columns.append(pick) if pick else skipped.append("best local model")
 
-    # One column per frontier MODEL, each at its own strongest representation, so a
-    # multi-vendor comparison is visible rather than a single overall winner.
+    # The published figure carries one frontier column, the strongest hosted
+    # configuration, and its caption names that model. Splitting it per model
+    # makes a multi-vendor comparison visible but no longer matches the caption,
+    # so it is available under --frontier-columns all rather than by default.
+    frontier_label = (lambda r: "frontier\n("
+                      f"{r['model'].replace('-vlm', '').replace('-llm', '').replace('claude-', '')} "
+                      f"· {r['judge'].split(':')[1]})")
     frontier_models = sorted({r["model"] for r in frontier if r["judge"].startswith("ai:")})
-    if frontier_models:
+    if not frontier_models:
+        skipped.append("frontier (no agg/frontier_representation*.csv; needs Bedrock credentials)")
+    elif args.frontier_columns == "all":
         for fm in frontier_models:
             pick = strongest(frontier,
                              lambda r, fm=fm: r["judge"].startswith("ai:") and r["model"] == fm,
-                             lambda r: f"frontier\n({r['model'].replace('-vlm', '').replace('-llm', '').replace('claude-', '')} "
-                                       f"· {r['judge'].split(':')[1]})")
+                             frontier_label)
             columns.append(pick) if pick else skipped.append(f"frontier {fm}")
     else:
-        skipped.append("frontier (no agg/frontier_representation*.csv; needs Bedrock credentials)")
+        pick = strongest(frontier, lambda r: r["judge"].startswith("ai:"), frontier_label)
+        columns.append(pick) if pick else skipped.append("frontier")
 
     pick = strongest(ensemble, lambda r: r["judge"] == "ensemble:tuned",
                      lambda r: "ensemble\n(tuned)")

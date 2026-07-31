@@ -22,7 +22,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "tools"))
@@ -111,14 +111,16 @@ save(fig, spec["outfile"], dpi=200)
 
 
 def build(dataset: str, representation: str, outfile: str, title: str,
-          highlight: List[str], footer: str) -> Dict[str, Any]:
-    models = sorted({r["model"] for r in rs.load(dataset_id=dataset, judge="ai")})
+          highlight: List[str], footer: str, min_rubrics: int = 2,
+          experiments: Optional[Path] = None) -> Dict[str, Any]:
+    models = sorted({r["model"] for r in rs.load(experiments, dataset_id=dataset, judge="ai")})
     prompts = [p for p in PROMPT_ORDER
-               if rs.load(dataset_id=dataset, judge="ai", prompt_id=p, representation=representation)]
-    families = sorted({r["family"] for r in rs.load(dataset_id=dataset, judge="ai")},
+               if rs.load(experiments, dataset_id=dataset, judge="ai", prompt_id=p,
+                          representation=representation)]
+    families = sorted({r["family"] for r in rs.load(experiments, dataset_id=dataset, judge="ai")},
                       key=ed.family_order)
     truth = {}
-    for r in rs.load(dataset_id=dataset, judge="ai"):
+    for r in rs.load(experiments, dataset_id=dataset, judge="ai"):
         truth[r["family"]] = r["truth_label"]
 
     out_models = []
@@ -128,8 +130,8 @@ def build(dataset: str, representation: str, outfile: str, title: str,
         n_by_prompt: Dict[str, int] = {}
         n = 0
         for p in prompts:
-            rows = rs.load(dataset_id=dataset, judge="ai", representation=representation,
-                           model=model, prompt_id=p)
+            rows = rs.load(experiments, dataset_id=dataset, judge="ai",
+                           representation=representation, model=model, prompt_id=p)
             if not rows:
                 continue
             n = max(n, len(rows))
@@ -141,7 +143,12 @@ def build(dataset: str, representation: str, outfile: str, title: str,
                 if sub:
                     per[f] = sum(r["correct"] for r in sub) / len(sub)
             fam[p] = per
-        if overall:
+        # A model that ran only one rubric was not ablated, and a panel with a
+        # single bar per family reads as a result about that model rather than
+        # as a missing arm. The local models entered this frame after the figure
+        # was first drawn, under the frozen rubric only; without this guard the
+        # figure silently grew from three panels to seven.
+        if len(overall) >= min_rubrics:
             out_models.append({"model": model, "family": fam, "overall": overall,
                                "n": n, "n_by_prompt": n_by_prompt})
 
@@ -156,7 +163,14 @@ def main() -> int:
     ap.add_argument("--dataset", default="original-180")
     ap.add_argument("--representation", default="raw")
     ap.add_argument("--outfile", default="")
+    ap.add_argument("--min-rubrics", type=int, default=2,
+                    help="drop models that ran fewer rubrics than this "
+                         "(default 2: an ablation figure shows ablated models)")
+    ap.add_argument("--experiments", default=None,
+                    help="directory of long-format result CSVs "
+                         "(default: results/agg/experiments)")
     args = ap.parse_args()
+    experiments = Path(args.experiments) if args.experiments else None
 
     if args.dataset == "original-180":
         outfile = args.outfile or "prompt_comparison_original180.png"
@@ -171,7 +185,8 @@ def main() -> int:
         footer = ("Shaded column: sustained_excursion, the held-out family no rubric names. "
                   "All three families are labelled FAIL, so accuracy here is recall.")
 
-    spec = build(args.dataset, args.representation, outfile, title, highlight, footer)
+    spec = build(args.dataset, args.representation, outfile, title, highlight,
+                 footer, args.min_rubrics, experiments)
     if not spec["models"]:
         print(f"[figure] no rows for dataset={args.dataset}", file=sys.stderr)
         return 1

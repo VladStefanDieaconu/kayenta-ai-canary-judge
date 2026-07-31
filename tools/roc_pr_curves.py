@@ -45,26 +45,38 @@ Usage:
 
 from __future__ import annotations
 
+import argparse
 import csv
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-RESULTS_DIR = REPO_ROOT / "results"
-AGG_DIR = RESULTS_DIR / "agg"
 
-SOURCES = [
-    {"name": "statistical", "path": RESULTS_DIR / "results_raw.csv", "judge": "statistical", "model": "-"},
-    {"name": "ai:summary/phi4-llm (best local)", "path": RESULTS_DIR / "results_raw.csv",
-     "judge": "ai:summary", "model": "phi4-llm"},
-    {"name": "hybrid:gated/phi4-llm", "path": RESULTS_DIR / "results_raw.csv",
-     "judge": "hybrid:gated", "model": "phi4-llm"},
-    {"name": "ai:raw/claude-opus-4-8-vlm (frontier best rep)",
-     "path": AGG_DIR / "frontier_long_claude-opus-4-8-vlm.csv", "judge": "ai:raw", "model": "claude-opus-4-8-vlm"},
-    {"name": "hybrid:gated/claude-opus-4-8-vlm",
-     "path": AGG_DIR / "frontier_long_claude-opus-4-8-vlm.csv", "judge": "hybrid:gated", "model": "claude-opus-4-8-vlm"},
-]
+
+def sources_for(results_dir: Path) -> List[Dict[str, Any]]:
+    """The five configurations, resolved against one results directory.
+
+    Taking the directory as an argument rather than a module constant is what
+    lets this run against a results set other than the repository's own, which
+    is the whole point for anyone bringing their own models. The frontier file
+    is named rather than globbed: a glob over agg/ matches the defect re-runs
+    and the reproduction checks too, and those are not this configuration.
+    """
+    agg = results_dir / "agg"
+    raw = results_dir / "results_raw.csv"
+    frontier = agg / "frontier_long_claude-opus-4-8-vlm.csv"
+    return [
+        {"name": "statistical", "path": raw, "judge": "statistical", "model": "-"},
+        {"name": "ai:summary/phi4-llm (best local)", "path": raw,
+         "judge": "ai:summary", "model": "phi4-llm"},
+        {"name": "hybrid:gated/phi4-llm", "path": raw,
+         "judge": "hybrid:gated", "model": "phi4-llm"},
+        {"name": "ai:raw/claude-opus-4-8-vlm (frontier best rep)",
+         "path": frontier, "judge": "ai:raw", "model": "claude-opus-4-8-vlm"},
+        {"name": "hybrid:gated/claude-opus-4-8-vlm",
+         "path": frontier, "judge": "hybrid:gated", "model": "claude-opus-4-8-vlm"},
+    ]
 
 
 def read_csv(path: Path) -> List[Dict[str, str]]:
@@ -141,12 +153,22 @@ def average_precision(pts: List[Dict[str, float]]) -> float:
 
 
 def main() -> int:
+    ap_ = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap_.add_argument("--results", default=str(REPO_ROOT / "results"),
+                     help="directory holding results_raw.csv and agg/")
+    ap_.add_argument("--out", default=None,
+                     help="output directory (default: <results>/agg)")
+    args = ap_.parse_args()
+    results_dir = Path(args.results)
+    out_dir = Path(args.out) if args.out else results_dir / "agg"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
     auc_header = ["judge", "model", "n", "auc_roc", "auc_pr", "average_precision", "note"]
     curve_header = ["source", "judge", "model", "curve", "threshold", "x", "y"]
     auc_rows = []
     curve_rows = []
 
-    for src in SOURCES:
+    for src in sources_for(results_dir):
         if not src["path"].exists():
             auc_rows.append([src["judge"], src["model"], 0, "", "", "",
                              f"source file not found: {src['path'].name}"])
@@ -176,8 +198,8 @@ def main() -> int:
             curve_rows.append([src["name"], src["judge"], src["model"], "pr",
                                r4(p["threshold"]), r4(p["recall"]), r4(p["precision"])])
 
-    write_csv(AGG_DIR / "roc_pr_auc.csv", auc_header, auc_rows)
-    write_csv(AGG_DIR / "roc_pr_curve_points.csv", curve_header, curve_rows)
+    write_csv(out_dir / "roc_pr_auc.csv", auc_header, auc_rows)
+    write_csv(out_dir / "roc_pr_curve_points.csv", curve_header, curve_rows)
 
     print(f"[roc-pr-auc] wrote {len(auc_rows)} judge/model AUC rows, {len(curve_rows)} curve points")
     for row in auc_rows:

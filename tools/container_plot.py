@@ -78,15 +78,30 @@ def render(plot_code: str, spec: Dict[str, Any], timeout: int = 300) -> List[Dic
     The script receives its spec on the first line of stdin and calls save(fig,
     name) for each figure. Names are returned with measured dimensions.
     """
-    script = _PREAMBLE.format(out=CONTAINER_OUT) + "\n" + plot_code
-    payload = json.dumps(spec, separators=(",", ":")) + "\n" + script
-    proc = subprocess.run(
-        ["docker", "compose", "exec", "-T", "judge-service", "python", "-c",
-         "import sys; code=sys.stdin.read().split('\\n', 1); "
-         "sys.stdin = __import__('io').StringIO(code[0] + '\\n'); exec(code[1])"],
-        input=payload, capture_output=True, text=True, cwd=str(REPO_ROOT), timeout=timeout,
-    )
-    if proc.returncode != 0:
+    # Two ways into the image, in preference order: an already-running service,
+    # then a one-off container over a bind mount of the repository. The second
+    # is the `make figures` contract and needs only the built image, so a
+    # machine with the repository checked out can redraw every figure without
+    # standing up Kayenta, Redis, MinIO and the gateway to do it. The container
+    # output directory differs between the two because the mount point does.
+    runner = ("import sys; code=sys.stdin.read().split('\\n', 1); "
+              "sys.stdin = __import__('io').StringIO(code[0] + '\\n'); exec(code[1])")
+    attempts = [
+        (CONTAINER_OUT,
+         ["docker", "compose", "exec", "-T", "judge-service", "python", "-c", runner]),
+        ("/work/data/ai-logs/_exp_figs",
+         ["docker", "run", "--rm", "-i", "-v", f"{REPO_ROOT}:/work", "-w", "/work",
+          "canaryllm-judge-service", "python", "-c", runner]),
+    ]
+    proc = None
+    for out_dir, cmd in attempts:
+        script = _PREAMBLE.format(out=out_dir) + "\n" + plot_code
+        payload = json.dumps(spec, separators=(",", ":")) + "\n" + script
+        proc = subprocess.run(cmd, input=payload, capture_output=True, text=True,
+                              cwd=str(REPO_ROOT), timeout=timeout)
+        if proc.returncode == 0:
+            break
+    if proc is None or proc.returncode != 0:
         raise RuntimeError(f"figure render failed:\n{proc.stdout[-2000:]}\n{proc.stderr[-2000:]}")
 
     written = [line.split(" ", 1)[1] for line in proc.stdout.splitlines() if line.startswith("WROTE ")]

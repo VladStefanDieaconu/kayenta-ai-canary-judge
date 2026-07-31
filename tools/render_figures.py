@@ -23,6 +23,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 IN = "/app/data/ai-logs/_exp_figdata.json"
+# The published figures were drawn at 120. MDPI asks for 300 in print, so the
+# resolution is a flag rather than three literals -- but the default is the
+# published value, so re-rendering without asking changes nothing.
+DPI = 120
 OUT = "/app/data/ai-logs/_exp_figs"
 
 # The heatmap's extra rows, when their table is reachable. Each entry is
@@ -97,7 +101,7 @@ def heatmap_from_results(results):
 
 
 def main() -> int:
-    global IN, OUT
+    global IN, OUT, DPI
     ap = argparse.ArgumentParser(description="Render the experiment figures")
     ap.add_argument("--spec", default=IN, help="figure spec written by run_experiment.py")
     ap.add_argument("--out", default=OUT, help="directory to write PNGs into")
@@ -105,11 +109,13 @@ def main() -> int:
                     help="results directory holding agg/, for the heatmap's "
                          "ensemble and frontier rows; omit to draw the main "
                          "sweep's judges only")
+    ap.add_argument("--dpi", type=int, default=DPI,
+                    help=f"figure resolution (default {DPI}, the published value)")
     ap.add_argument("--include-or", action="store_true",
                     help="keep the hybrid:or row, which is verdict-identical to "
                          "hybrid:gated on this benchmark (Section 7.1)")
     args = ap.parse_args()
-    IN, OUT = args.spec, args.out
+    IN, OUT, DPI = args.spec, args.out, args.dpi
 
     spec = {}
     if os.path.exists(IN):
@@ -136,7 +142,7 @@ def main() -> int:
         metrics = ["accuracy", "precision", "recall", "f1"]
         x = np.arange(len(judges))
         w = 0.2
-        fig, ax = plt.subplots(figsize=(max(8, 1.3 * len(judges)), 5), dpi=120)
+        fig, ax = plt.subplots(figsize=(max(8, 1.3 * len(judges)), 5), dpi=DPI)
         for i, mname in enumerate(metrics):
             vals = [bar[j].get(mname, 0.0) for j in judges]
             ax.bar(x + (i - 1.5) * w, vals, w, label=mname)
@@ -186,7 +192,7 @@ def main() -> int:
 
     z = np.array(z, dtype=float)
     labels = [COLUMN_ABBREVIATIONS.get(c, c) for c in cols]
-    fig, ax = plt.subplots(figsize=(max(8, 1.1 * len(cols)), max(4, 0.6 * len(rows))), dpi=120)
+    fig, ax = plt.subplots(figsize=(max(8, 1.1 * len(cols)), max(4, 0.6 * len(rows))), dpi=DPI)
     im = ax.imshow(z, aspect="auto", cmap="RdYlGn", vmin=0, vmax=1)
     ax.set_xticks(range(len(cols)))
     ax.set_xticklabels(labels, rotation=40, ha="right")
@@ -207,7 +213,7 @@ def main() -> int:
     conf = spec.get("confusion", {})
     if conf:
         n = len(conf)
-        fig, axes = plt.subplots(1, n, figsize=(3.2 * n, 3.0), dpi=120, squeeze=False)
+        fig, axes = plt.subplots(1, n, figsize=(3.2 * n, 3.0), dpi=DPI, squeeze=False)
         for k, (name, c) in enumerate(conf.items()):
             ax = axes[0][k]
             # rows = actual [FAIL, PASS], cols = predicted [FAIL, PASS]
