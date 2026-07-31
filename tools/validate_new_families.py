@@ -43,18 +43,20 @@ import results_schema  # noqa: E402
 import run_ensemble_experiment as ens  # noqa: E402
 import series_guards  # noqa: E402
 
-REFERENCE_ENSEMBLE = REPO_ROOT / "reference-results" / "n20" / "agg" / "ensemble_config.json"
+TUNED_ENSEMBLE = REPO_ROOT / "judge-service" / "ensemble_tuned.json"
 DATASET = "generalisation-60"
 
 
 def tuned_config() -> ej.EnsembleConfig:
-    """The published tuned ensemble, read from the frozen reference artefact.
+    """The published tuned ensemble, read rather than re-tuned.
 
-    Read rather than re-tuned on purpose: re-tuning would fit the ensemble to the
-    new families, and the question here is what the *published* ensemble does on
-    scenarios it has never seen.
+    Re-tuning would fit the ensemble to the new families, and the question here
+    is what the *published* ensemble does on scenarios it has never seen. The
+    parameters were read from the tuning run's own artefact until that artefact
+    was archived with the rest of the result data; they now ship as
+    configuration, which is what they are.
     """
-    cfg = json.loads(REFERENCE_ENSEMBLE.read_text())["tuned_config"]
+    cfg = json.loads(TUNED_ENSEMBLE.read_text())["tuned_config"]
     return ej.EnsembleConfig(**cfg)
 
 
