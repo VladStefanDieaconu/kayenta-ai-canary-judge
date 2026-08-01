@@ -105,9 +105,16 @@ The AI judge never branches on the provider. Provider selection lives in
 ## Quick start
 
 ```bash
-cp .env.example .env        # review it: the shipped values are examples, not secrets to keep
+cp .env.example .env
+# then set MINIO_ROOT_USER and MINIO_ROOT_PASSWORD in .env to values of your own
 make validate               # brings the stack up and runs the model-free regression
 ```
+
+Those two are the only values you must change. They ship as `CHANGE_ME_*`
+placeholders rather than as a working pair, so the stack fails loudly instead of
+starting on a password published in a public file. MinIO wants at least eight
+characters. Everything else in `.env.example` is a port, an image tag or a
+default you can leave alone.
 
 `make validate` is the functional gate. It starts the stack, waits for Kayenta to
 report healthy, seeds a small dataset, and runs the statistical, dummy-AI, and
