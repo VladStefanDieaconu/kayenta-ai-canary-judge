@@ -116,10 +116,17 @@ starting on a password published in a public file. MinIO wants at least eight
 characters. Everything else in `.env.example` is a port, an image tag or a
 default you can leave alone.
 
-`make validate` is the functional gate. It starts the stack, waits for Kayenta to
-report healthy, seeds a small dataset, and runs the statistical, dummy-AI, and
+`make validate` is the functional gate and the smallest possible first run. It
+starts the stack, waits for Kayenta to report healthy, seeds a small dummy
+dataset with `tools/seed_dummy_data.py`, and runs the statistical, dummy-AI and
 hybrid judges end to end. It exits 0 only if all three return a verdict, and it
 needs no model.
+
+**Two seeders, for two different jobs.** `seed_dummy_data.py` writes a handful of
+points so the pipeline can be exercised in seconds; `seed_eval_dataset.py`
+(`make seed-eval`) generates the full labelled nine-family benchmark that the
+scored experiment is measured against. Start with the first; you only need the
+second when you want a scoreboard.
 
 ### Running against the bundled example data
 
@@ -891,6 +898,10 @@ Every judge returns the same `CanaryJudgeResult`:
 
 ## Viewing a result in Referee
 
+Referee is the browser view, and it is the manual inspection path: it draws the
+per-metric control-versus-experiment graphs the judge saw, so you can look at
+what your judge is judging rather than only at the verdict it returned. When a
+verdict surprises you, this is where you find out why.
 
 Every analysis is a real Kayenta execution, so they all render in Referee's SCAPE
 Report Viewer and can be compared side by side:
