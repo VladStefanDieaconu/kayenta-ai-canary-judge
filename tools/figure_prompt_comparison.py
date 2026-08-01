@@ -12,6 +12,10 @@ find the cost.
 Selection runs through results_schema.load(); this file does not know which run
 wrote which row.
 
+Not a numbered manuscript figure: Figure 11 is the one-panel summary drawn by
+figure_ablation_summary.py, and this is the full per-family breakdown behind
+it. Its filenames are descriptive for that reason.
+
 Usage:
   python tools/figure_prompt_comparison.py [--dataset original-180]
 """

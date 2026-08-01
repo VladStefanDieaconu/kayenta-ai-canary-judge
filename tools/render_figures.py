@@ -1,5 +1,10 @@
 """Render the experiment figures with matplotlib.
 
+Draws manuscript Figures 7, 8 and 9 -- accuracy_bars.png, family_heatmap.png and
+confusion_matrices.png respectively. Those filenames are descriptive rather than
+numbered because they predate the numbering and are referenced by name from the
+published result directories; the mapping is recorded here so it is checkable.
+
 The host tools' venv has no matplotlib (PyPI is gated here), but the judge-service
 container does (it renders the `plot` representation). So tools/run_experiment.py
 runs this script inside that container:

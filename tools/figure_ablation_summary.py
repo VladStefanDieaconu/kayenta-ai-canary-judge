@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Section 7.9 in one panel: the three rubrics against the three hosted models.
+"""Figure 11: the prompt ablation in one panel, per model and per rubric.
 
 Section 7.9 carries the newest result in the paper and has no figure. Tables 15
 and 16 hold it as eighteen numbers, and the finding -- that the same sentence
@@ -321,7 +321,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--dataset", default="original-180")
     ap.add_argument("--representation", default="raw")
-    ap.add_argument("--outfile", default="ablation_summary.png")
+    ap.add_argument("--outfile", default="fig11_ablation_summary.png")
     ap.add_argument("--models", default="",
                     help="comma-separated aliases to draw (default: every model in "
                          "the frame that ran at least --min-rubrics rubrics)")

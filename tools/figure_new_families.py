@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One instance of each generalisation-60 family, drawn the way the judge sees it.
+"""Figure 12: one instance of each added family, drawn the way the judge sees it.
 
 The point of the figure is that the three families fail in three different
 places in the window, and that the third does not differ from its control in any
@@ -49,7 +49,7 @@ for i, f in enumerate(fams):
 fig.suptitle("generalisation-60: three held-out scenario families", fontsize=14, fontweight="bold")
 fig.tight_layout(rect=[0, 0, 1, 0.975])
 fig.subplots_adjust(hspace=0.95)
-save(fig, spec.get("outfile", "new_families.png"), dpi=spec.get("dpi", 200))
+save(fig, spec.get("outfile", "fig12_new_families.png"), dpi=spec.get("dpi", 200))
 """
 
 
@@ -61,7 +61,7 @@ def main() -> int:
     ap.add_argument("--dpi", type=int, default=200,
                     help="output resolution; the figure size is fixed, so this "
                          "scales the pixels without changing the aspect ratio")
-    ap.add_argument("--outfile", default="new_families.png")
+    ap.add_argument("--outfile", default="fig12_new_families.png")
     ap.add_argument("--out", default=None,
                     help="output directory (default: results/figures)")
     args = ap.parse_args()

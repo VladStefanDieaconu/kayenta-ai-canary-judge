@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Figure 12: multi-seed accuracy with 95% intervals, as a point-and-interval plot.
+"""Figure 14: multi-seed accuracy with 95% intervals, as a point-and-interval plot.
 
 One row per configuration: the tuned statistical ensemble, the best local
 language-model judge, every gated hybrid, and the statistical judge. The
@@ -264,11 +264,11 @@ def main() -> int:
 
     out_dir = Path(args.out) if args.out else results / "figures"
     out_dir.mkdir(parents=True, exist_ok=True)
-    path = out_dir / f"fig12_multiseed_intervals_{args.ci}.png"
+    path = out_dir / f"fig14_multiseed_intervals_{args.ci}.png"
     fig.savefig(path)
     plt.close(fig)
 
-    print(f"[figure-12] interval family: {args.ci}")
+    print(f"[figure-14] interval family: {args.ci}")
     overlap = []
     for label, acc, lo, hi, kind, identical in rows:
         flag = " (identical across seeds)" if identical else ""

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Figure 11: threshold-independent summaries for the representative configurations.
+"""Figure 13: threshold-independent summaries for the representative configurations.
 
 Three bars per configuration from results/agg/roc_pr_auc.csv: AUC-ROC, average
 precision, and the trapezoidal precision-recall area. Average precision is the
@@ -99,11 +99,11 @@ def main() -> int:
 
     out_dir = Path(args.out) if args.out else results / "figures"
     out_dir.mkdir(parents=True, exist_ok=True)
-    path = out_dir / "fig11_threshold_summaries.png"
+    path = out_dir / "fig13_threshold_summaries.png"
     fig.savefig(path)
     plt.close(fig)
 
-    print("[figure-11] configurations plotted:")
+    print("[figure-13] configurations plotted:")
     for r in rows:
         print(f"  {r['judge']:14}/{r['model']:22} auc_roc={float(r['auc_roc']):.4f} "
               f"ap={float(r['average_precision']):.4f} "
