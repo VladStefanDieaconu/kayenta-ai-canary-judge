@@ -59,7 +59,7 @@ STAT_COLOUR = "#000000"
 BAND_COLOUR = "#c0392b"
 
 # Student t, two-sided 95%, by degrees of freedom. Same table as
-# tools/run_experiment_multiseed.py::_T_TABLE, so --ci wald reproduces the
+# the retired multi-seed runner's _T_TABLE, so --ci wald reproduces the
 # interval that script wrote before it was superseded.
 _T_TABLE = {1: 12.706, 2: 4.303, 3: 3.182, 4: 2.776, 5: 2.571, 6: 2.447,
             7: 2.365, 8: 2.306, 9: 2.262, 10: 2.228}

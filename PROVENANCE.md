@@ -105,6 +105,17 @@ any content at all.
 | An `errors.csv` is written on every run, empty or not, so "no error file" cannot be read as "no errors". | `tools/run_experiment.py` |
 | Rows carry `prompt_id`, `prompt_hash`, `finish_reason`, `tokens_in` and `tokens_out`, so a truncated or mis-rubriced completion is visible after the fact. | `tools/results_schema.py`, `tools/run_multiseed_corrected.py` |
 
+**The runner that produced the fabricated verdicts has been deleted, not kept.**
+`tools/run_experiment_multiseed.py` recorded failed calls as verdicts and wrote a
+frame with no rationale column, and it was still wired to `make analysis-live`. A
+warning in its docstring was not enough: the defect went unnoticed the first time
+precisely because someone ran a Makefile target without reading the source. It is
+replaced by `tools/run_multiseed_corrected.py`, which the target now calls.
+
+Nothing is lost by that. The artefact it produced is preserved in the data
+deposit as `reference-results/n20/agg/long_results.csv`, and this document
+records what it did. The code is gone; the evidence is not.
+
 The claim is checked rather than asserted.
 `tools/test_failed_call_is_not_scored.py` stubs the AI judge to fail in each of
 the five ways the harness can observe, runs one scenario of each, and inspects

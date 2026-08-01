@@ -815,7 +815,7 @@ Absent models are recorded and skipped, not failed. The figures are rendered ins
 the host Python environment is kept dependency-light on purpose.
 
 A few extra analysis scripts under `tools/` go beyond the headline run: multi-seed
-confidence intervals (`run_experiment_multiseed.py`, `ensemble_multiseed_ci.py`,
+confidence intervals (`run_multiseed_corrected.py`, `ensemble_multiseed_ci.py`,
 `bounded_confidence_intervals.py`), a statistical-ensemble judge and a false-positive
 guard (`run_ensemble_experiment.py`, `run_fp_guard_experiment.py`), a frontier run
 against a larger cloud model (`run_frontier_experiment.py`), ROC/PR curves

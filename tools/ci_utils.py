@@ -1,7 +1,7 @@
 """Bounded confidence-interval helpers (pure stdlib).
 
 The multi-seed CIs (results/agg/metrics_with_ci.csv,
-family_recall_with_ci.csv, both written by tools/run_experiment_multiseed.py's
+family_recall_with_ci.csv, both written by tools/bounded_confidence_intervals.py's
 mean_ci95) use a Wald t-interval on the 5 per-seed rates. On a rate near 0 or 1
 with n=5, that interval can fall outside [0, 1], e.g. the published
 tail_regression [-0.071, 0.151] and subtle_regression [0.849, 1.071]. This

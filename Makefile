@@ -189,12 +189,11 @@ clean: ## Stop the stack and remove volumes
 #                               judge-service + Ollama or Bedrock) must be up.
 #
 # The offline set is ordered by what each script reads and writes:
-#   bounded_confidence_intervals  needs agg/long_results.csv (from the live set)
-#                                 and OVERWRITES agg/metrics_with_ci.csv with the
-#                                 Wilson + bootstrap version, replacing the Wald
-#                                 one run_experiment_multiseed.py wrote. It must
-#                                 therefore run before anything that reads that
-#                                 file, which is ensemble_multiseed_ci.py.
+#   bounded_confidence_intervals  needs the multi-seed long_results.csv (from the
+#                                 live set) and WRITES agg/metrics_with_ci.csv
+#                                 with Wilson intervals plus a bootstrap
+#                                 cross-check. It must run before anything that
+#                                 reads that file, which is ensemble_multiseed_ci.py.
 #   pooled_mcnemar                needs agg/long_results.csv, and pairs against
 #                                 agg/ensemble_multiseed_rows.csv when present
 #                                 (it degrades to skipping the ensemble row).
@@ -251,7 +250,7 @@ analysis: venv require-results ## Re-derive every table from results/ (offline: 
 # script's inputs exist when it runs: bounded_confidence_intervals is invoked
 # mid-chain because ensemble_multiseed_ci.py reads the file it rewrites.
 analysis-live: venv require-stack ## Re-run the analyses that call Kayenta (NEEDS the stack up; frontier steps need Bedrock creds)
-	$(PY) tools/run_experiment_multiseed.py
+	$(PY) tools/run_multiseed_corrected.py --out results/n5-corrected
 	$(PY) tools/run_ensemble_experiment.py
 	$(PY) tools/run_frontier_experiment.py
 	$(PY) tools/bounded_confidence_intervals.py

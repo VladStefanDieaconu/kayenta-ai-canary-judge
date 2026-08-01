@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The five-seed sweep, written through the long-format schema.
 
-tools/run_experiment_multiseed.py produced reference-results/n20/agg/long_results.csv,
+The retired multi-seed runner produced reference-results/n20/agg/long_results.csv,
 whose `error` column is empty on all 8,550 rows and which carries no rationale at
 all. That artefact cannot be audited: a row that fabricated a verdict from a
 failed call is indistinguishable from a row a model actually answered. This
@@ -20,7 +20,7 @@ thresholds, representations and hybrid policies are the same code:
      without being able to reach a metric.
   3. The output directory is an argument. Nothing is written to results/agg/.
 
-No result cache. tools/run_experiment_multiseed.py keyed a disk cache on
+No result cache. The retired runner keyed a disk cache on
 (mode, model, pairs); the 6,372 entries it left behind predate the provenance
 fields, so every one of them would produce a row with an empty prompt_hash, and
 the key does not include the rubric, so there is no way to establish after the

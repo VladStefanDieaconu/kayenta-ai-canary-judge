@@ -2,13 +2,12 @@
 """Bounded confidence intervals for the judge-comparison metrics.
 
 Computes confidence intervals directly from results produced by
-tools/run_experiment.py and tools/run_experiment_multiseed.py
-(results/summary.csv, results/family_matrix.csv, results/results_raw.csv,
-results/agg/long_results.csv); it doesn't call any model.
+tools/run_experiment.py and tools/run_multiseed_corrected.py
+(results/summary.csv, results/family_matrix.csv, results/results_raw.csv, and a
+multi-seed long_results.csv); it doesn't call any model.
 
-Rationale: a plain Wald t-interval over the 5 per-seed rates
-(tools/run_experiment_multiseed.py::mean_ci95) can fall outside [0, 1] on a
-small-n rate near 0 or 1 (e.g. tail_regression [-0.071, 0.151],
+Rationale: a plain Wald t-interval over the 5 per-seed rates can fall outside
+[0, 1] on a small-n rate near 0 or 1 (e.g. tail_regression [-0.071, 0.151],
 subtle_regression [0.849, 1.071]), which is meaningless for a rate. This
 script instead uses a Wilson score interval on pooled counts (primary) plus a
 seed-level percentile bootstrap (cross-check), both bounded to [0, 1] by
@@ -34,6 +33,7 @@ Usage:
 
 from __future__ import annotations
 
+import argparse
 import csv
 import sys
 from collections import defaultdict
@@ -58,6 +58,34 @@ def read_csv(path: Path) -> List[Dict[str, str]]:
         return list(csv.DictReader(f))
 
 
+def read_long(path: Path) -> List[Dict[str, Any]]:
+    """The multi-seed frame, in either schema, normalised to y_true/y_pred.
+
+    Two shapes exist. The retired runner wrote scenario/judge/y_true/y_pred with
+    the representation folded into `judge`. tools/run_multiseed_corrected.py
+    writes the results_schema frame, which keeps `judge` and `representation`
+    apart, names the columns truth_label/verdict, and -- the reason it exists --
+    carries an explicit error row for every call that produced no judgement.
+
+    Error rows are dropped here. A row with an error_kind carries no verdict, and
+    letting one into a confidence interval is the same fault as letting one into
+    an accuracy denominator.
+    """
+    rows = read_csv(path)
+    if not rows:
+        return []
+    if "y_true" in rows[0]:
+        return [dict(r) for r in rows]
+    out: List[Dict[str, Any]] = []
+    for r in rows:
+        if r.get("error_kind"):
+            continue
+        judge = f"{r['judge']}:{r['representation']}" if r.get("representation") else r["judge"]
+        out.append({**r, "judge": judge, "scenario": r["scenario_id"],
+                    "y_true": r["truth_label"], "y_pred": r["verdict"]})
+    return out
+
+
 def write_csv(path: Path, header: List[str], rows: List[List[Any]]) -> None:
     with path.open("w", newline="") as f:
         w = csv.writer(f)
@@ -67,11 +95,11 @@ def write_csv(path: Path, header: List[str], rows: List[List[Any]]) -> None:
 
 # Part A: multi-seed re-aggregation from results/agg/long_results.csv
 # (fixes metrics_with_ci.csv and family_recall_with_ci.csv)
-def part_a_multiseed() -> Tuple[int, int]:
-    rows = read_csv(AGG_DIR / "long_results.csv")
+def part_a_multiseed(long_path: Path) -> Tuple[int, int]:
+    rows = read_long(long_path)
     for r in rows:
         r["seed"] = int(r["seed"])
-        r["correct"] = int(r["correct"])
+        r["correct"] = int(float(r["correct"]))
 
     seeds = sorted(set(r["seed"] for r in rows))
     n_seeds = len(seeds)
@@ -187,6 +215,14 @@ def part_a_multiseed() -> Tuple[int, int]:
 # results/summary.csv (TP/FP/TN/FN), results/family_matrix.csv, and
 # results/results_raw.csv (row-level bootstrap population).
 def part_b_headline() -> int:
+    """The single-seed table. Returns -1 when that run is not present.
+
+    Part A works from the multi-seed frame alone, so a user who has run the
+    multi-seed sweep but not `make experiment` should get their intervals and a
+    clear note, not a traceback three functions deep.
+    """
+    if not (RESULTS_DIR / "summary.csv").is_file():
+        return -1
     summary = read_csv(RESULTS_DIR / "summary.csv")
     family_matrix = read_csv(RESULTS_DIR / "family_matrix.csv")
     raw = read_csv(RESULTS_DIR / "results_raw.csv")
@@ -272,14 +308,33 @@ def part_b_headline() -> int:
     return len(out_rows)
 
 
+DEFAULT_LONG = REPO_ROOT / "results" / "n5-corrected" / "long_results.csv"
+
+
 def main() -> int:
-    n_ci, n_fam = part_a_multiseed()
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--long", default=None,
+                    help="multi-seed long_results.csv (default: "
+                         "results/n5-corrected/, falling back to results/agg/)")
+    args = ap.parse_args()
+    long_path = Path(args.long) if args.long else (
+        DEFAULT_LONG if DEFAULT_LONG.is_file() else AGG_DIR / "long_results.csv")
+    if not long_path.is_file():
+        print(f"[bounded_confidence_intervals] no multi-seed frame at {long_path}; "
+              "run tools/run_multiseed_corrected.py first.", file=sys.stderr)
+        return 2
+    print(f"[bounded_confidence_intervals] multi-seed frame: {long_path}")
+    n_ci, n_fam = part_a_multiseed(long_path)
     n_head = part_b_headline()
     print(f"[bounded_confidence_intervals] metrics_with_ci.csv: {n_ci} rows")
     print(f"[bounded_confidence_intervals] family_recall_with_ci.csv: {n_fam} rows")
-    print(f"[bounded_confidence_intervals] headline_metrics_with_ci.csv: {n_head} rows")
-    print("[bounded_confidence_intervals] statistical headline accuracy "
-          "check passed (0.544)")
+    if n_head < 0:
+        print("[bounded_confidence_intervals] headline_metrics_with_ci.csv: SKIPPED "
+              "(no results/summary.csv; run `make experiment` for the single-seed run)")
+    else:
+        print(f"[bounded_confidence_intervals] headline_metrics_with_ci.csv: {n_head} rows")
+        print("[bounded_confidence_intervals] statistical headline accuracy "
+              "check passed (0.544)")
     return 0
 
 
