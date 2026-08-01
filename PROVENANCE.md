@@ -201,5 +201,5 @@ multi-seed file it gives an **upper bound of 37** for moondream, not a count.
 
 That bound has since been replaced by a measurement. The five-seed sweep was
 repeated under the fixed harness, which records failed calls explicitly; the
-count and what it changes are in `audit/FIVE-SEED-CORRECTED.md`, and the
-corrected artefact is `results/n5-corrected/`.
+count and what it changes are reported with the paper, and the corrected
+artefact is `results/n5-corrected/` in the data deposit.
