@@ -123,12 +123,18 @@ needs no model.
 
 ### Running against the bundled example data
 
-`make demo` renders a figure from data committed to this repository. No stack, no
-model, no network:
+`make demo` renders a figure from data committed to this repository — no stack,
+no model, and after the first run no network:
 
 ```bash
+make build                  # once: figures render inside the judge-service image
 make demo                   # -> results/figures-demo/
 ```
+
+The `make build` step is what needs the network. Figures are drawn inside that
+image because matplotlib is deliberately kept out of the host virtualenv, so the
+image has to exist before `make demo` will run. Once it does, the demo reads
+nothing but committed files.
 
 The input is `example-results/`, a small slice of a real run kept so the analysis
 and figure path can be exercised without spending hours of inference first. It is
@@ -162,6 +168,7 @@ The stack itself is small. What costs time is inference.
 |---|---|
 | Docker with Compose v2, and `make` | required |
 | Python 3.11 on the host | the `make` targets build a `.venv` from `tools/requirements.txt` |
+| one reachable Python package, `requests` | the venv is created with `--system-site-packages`, so a host-installed copy is inherited; behind a gated index with no system copy, `make venv` fails loudly and every host-side target is unavailable |
 | RAM | ~6 GB for the seven-service stack, plus whatever the models need |
 | Disk | the stack images are ~3 GB; the eight models in the study are ~40 GB together, from 1.7 GB (Moondream) to 9.1 GB (Phi-4) |
 | GPU | not required. Ollama runs on the host because the Metal GPU is not reachable from Docker on macOS |

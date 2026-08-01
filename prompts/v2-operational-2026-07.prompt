@@ -1,5 +1,5 @@
 @id v2-operational-2026-07
-@description v1 plus one sentence naming what the promotion decision is. Pre-registered ablation variant.
+@description v1 plus two sentences naming what the promotion decision is and when in the window it is judged. Pre-registered ablation variant.
 
 # v1 with a single sentence appended to the rubric, and nothing else changed. The sentence
 # states the semantics of the gate the judge is standing in -- that a promotion is a decision

@@ -52,10 +52,17 @@ Most changes here are meant to be behaviour-preserving under the default configu
 Two checks prove it, and neither needs a cloud credential:
 
 ```bash
-make replay-logs                                # re-parse every archived response; verdicts and scores must not move
-python tools/test_failed_call_is_not_scored.py  # a failed call must still produce no verdict
-make demo                                       # the committed example data must still render
+make venv                                             # once: the host tools need `requests`
+make up                                               # test-judge-mock runs inside the service
+
+make replay-logs                                      # re-parse every archived response; verdicts and scores must not move
+.venv/bin/python tools/test_failed_call_is_not_scored.py  # a failed call must still produce no verdict
+make test-judge-mock                                  # representation, parse and mapping, model stubbed
+make demo                                             # the committed example data must still render
 ```
+
+Run the test through `.venv/bin/python`, not a bare `python`: it imports
+`judge_clients`, which imports `requests`, which lives in the virtualenv.
 
 `replay-logs` is the sensitive one. It re-runs the tolerant parser over every archived
 model response and compares the verdict, the score and the rationale string. A verdict
