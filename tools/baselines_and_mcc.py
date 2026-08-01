@@ -31,6 +31,8 @@ Usage:
 
 from __future__ import annotations
 
+import argparse
+
 import csv
 import sys
 from pathlib import Path
@@ -78,7 +80,17 @@ def metrics_and_extras(tp: float, fp: float, tn: float, fn: float) -> Dict[str, 
 
 
 def main() -> int:
-    summary = read_csv(RESULTS_DIR / "summary.csv")
+    # --results lets the same table be built from a corrected or alternative run
+    # without editing the module. The default is unchanged, so an existing
+    # invocation behaves exactly as before.
+    ap = argparse.ArgumentParser(description="Scoreboard with trivial baselines and MCC")
+    ap.add_argument("--results", default=str(RESULTS_DIR),
+                    help="directory holding summary.csv; output goes to <results>/agg/")
+    args = ap.parse_args()
+    results_dir = Path(args.results)
+    agg_dir = results_dir / "agg"
+
+    summary = read_csv(results_dir / "summary.csv")
 
     header = ["judge", "model", "n", "accuracy", "precision", "recall", "f1", "fpr", "fnr",
               "balanced_accuracy", "mcc", "TP", "FP", "TN", "FN", "avg_latency"]
@@ -110,13 +122,13 @@ def main() -> int:
     always_fail_acc = r3(metrics_and_extras(*baselines["always_fail"])["accuracy"])
     assert always_fail_acc == 0.667, f"always-FAIL accuracy = {always_fail_acc}, expected 0.667"
 
-    AGG_DIR.mkdir(parents=True, exist_ok=True)
-    write_csv(AGG_DIR / "scoreboard_with_baselines_and_mcc.csv", header, out_rows)
+    agg_dir.mkdir(parents=True, exist_ok=True)
+    write_csv(agg_dir / "scoreboard_with_baselines_and_mcc.csv", header, out_rows)
 
     stat_acc = next(r for r in out_rows if r[0] == "statistical")[3]
     print(f"[baselines] always-FAIL accuracy = {always_fail_acc} (statistical judge: {stat_acc})")
     print(f"[baselines] wrote {len(out_rows)} rows -> "
-          f"{AGG_DIR / 'scoreboard_with_baselines_and_mcc.csv'}")
+          f"{agg_dir / 'scoreboard_with_baselines_and_mcc.csv'}")
     return 0
 
 

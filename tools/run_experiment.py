@@ -45,12 +45,24 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import requests
 
+# .env must be loaded before any argparse default reads os.environ; see the
+# module docstring for the incident this prevents.
+import repo_env  # noqa: E402,F401
 import eval_dataset as ed
 import judge_clients
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "judge-service" / "app"))
 import hybrid_policy  # noqa: E402  (shared pure policy, imported from the service)
+import prompt_registry  # noqa: E402  (same registry the service resolves against)
+
+# Resolved once, at import: which rubric this process will attribute its rows to.
+# Selection is the service's decision, so this mirrors the service's precedence
+# (env, then the frozen default) and would disagree only if a caller overrode the
+# prompt per-request, which the local sweep does not do.
+active_prompt = prompt_registry.load(
+    os.environ.get("JUDGE_PROMPT_ID") or prompt_registry.DEFAULT_PROMPT_ID
+)
 
 RESULTS_DIR = REPO_ROOT / "results"
 FIG_DIR = RESULTS_DIR / "figures"
@@ -192,12 +204,15 @@ def judge_key(kind: str, sub: str) -> str:
 
 # Run one scenario across all judges/models.
 def run_scenario(sc: ed.Scenario, present: List[Dict[str, str]], base_millis: int,
-                 modes_text: List[str], modes_vision: List[str]) -> List[Dict[str, Any]]:
+                 modes_text: List[str], modes_vision: List[str],
+                 errors: Optional[List[Dict[str, Any]]] = None) -> List[Dict[str, Any]]:
     series = ed.series_for_scenario(sc)
     pairs = ed.build_pairs(sc, series, base_millis)
     stat_cfg = ed.build_canary_config(sc, {"name": "NetflixACAJudge-v1.0", "judgeConfigurations": {}})
 
     rows: List[Dict[str, Any]] = []
+    if errors is None:
+        errors = []
 
     # statistical (the real NetflixACAJudge)
     stat = judge_clients.run_default_judge(pairs, stat_cfg, PASS_T, MARGINAL_T)
@@ -214,8 +229,34 @@ def run_scenario(sc: ed.Scenario, present: List[Dict[str, str]], base_millis: in
         for mode in modes:
             ai = judge_clients.judge_ai(pairs, ed.build_canary_config(sc, {}), mode, alias, PASS_T, MARGINAL_T)
             ai_by_mode[mode] = ai
+            if not ai["ok"]:
+                # A failed call is not a judgement. judge_clients._err() returns
+                # verdict "FAIL" at score 0.0 so the caller has a well-formed
+                # object to inspect, and scoring that object is exactly the fault
+                # Section 11 of the paper describes: because both affected
+                # families were FAIL-truth, the fabricated rows scored as correct
+                # and flattered the configurations they damaged. The row is
+                # recorded as an error and never reaches the results file, so it
+                # cannot enter an accuracy denominator; write_outputs() reports
+                # the count and writes errors.csv.
+                errors.append({
+                    "scenario": sc.id, "family": sc.family, "truth": sc.truth,
+                    "judge": judge_key("ai", mode), "model": alias,
+                    "error_kind": ai.get("error_kind", "") or "unspecified",
+                    "error": (ai.get("error") or "")[:300],
+                    "latency": round(float(ai["latency"]), 2),
+                    # finish_reason separates a model that ran out of completion
+                    # budget from one the gateway never answered for, which is
+                    # the distinction the two observed failure modes turn on.
+                    "finish_reason": ai.get("finish_reason", "") or "",
+                    "prompt_id": ai.get("prompt_id", "") or "",
+                    "prompt_hash": ai.get("prompt_hash", "") or "",
+                    "tokens_in": ai.get("tokens_in") if ai.get("tokens_in") is not None else "",
+                    "tokens_out": ai.get("tokens_out") if ai.get("tokens_out") is not None else "",
+                })
+                continue
             rows.append(_row(sc, "ai", mode, alias, ai["verdict"], ai["score"], ai["latency"],
-                             ai["error"], rationale=ai["rationale"]))
+                             ai["error"], rationale=ai["rationale"], call=ai))
 
         # hybrid uses this model's primary representation as the AI half
         prim = PRIMARY_MODE[modality]
@@ -235,8 +276,14 @@ def run_scenario(sc: ed.Scenario, present: List[Dict[str, str]], base_millis: in
 
 
 def _row(sc: ed.Scenario, kind: str, sub: str, model: str, verdict: str, score: float,
-         latency: float, error: str, rationale: str = "", note: str = "") -> Dict[str, Any]:
+         latency: float, error: str, rationale: str = "", note: str = "",
+         call: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     jk = judge_key(kind, sub)
+    # `call` is the judge_clients response the row came from. Its provenance
+    # fields travel with the row so a downstream writer can record which rubric
+    # produced the verdict and whether the completion was truncated; the
+    # statistical and hybrid judges make no model call and leave them empty.
+    c = call or {}
     return {
         "scenario": sc.id, "family": sc.family, "truth": sc.truth,
         "judge": jk, "kind": kind, "rep_or_policy": sub, "model": model,
@@ -244,6 +291,11 @@ def _row(sc: ed.Scenario, kind: str, sub: str, model: str, verdict: str, score: 
         "correct": int(verdict == sc.truth),
         "latency": round(float(latency), 2), "error": error[:140],
         "rationale": rationale[:200].replace("\n", " "), "note": note,
+        "prompt_id": c.get("prompt_id", "") or "",
+        "prompt_hash": c.get("prompt_hash", "") or "",
+        "finish_reason": c.get("finish_reason", "") or "",
+        "tokens_in": c.get("tokens_in") if c.get("tokens_in") is not None else "",
+        "tokens_out": c.get("tokens_out") if c.get("tokens_out") is not None else "",
     }
 
 
@@ -326,6 +378,7 @@ def main() -> int:
     t_start = time.time()
     print("=" * 80)
     print(f"kayenta-ai-canary-judge scored experiment  (n={n}/family, seed={args.seed}, quick={args.quick})")
+    print(f"  prompt={active_prompt.id} ({active_prompt.hash})  config: {repo_env.describe()}")
     print("=" * 80)
 
     # Health.
@@ -366,14 +419,37 @@ def main() -> int:
     vision_models = [m for m in present if m["modality"] == "vision"]
     n_ai = len(text_models) * len(TEXT_MODES) + len(vision_models) * len(VISION_MODES)
     print(f"[experiment] {len(scenarios)} scenarios x ({n_ai} AI calls + statistical + hybrids) ...")
+    call_errors: List[Dict[str, Any]] = []
     for i, sc in enumerate(scenarios, 1):
         t0 = time.time()
-        rows = run_scenario(sc, present, base_millis, TEXT_MODES, VISION_MODES)
+        rows = run_scenario(sc, present, base_millis, TEXT_MODES, VISION_MODES, call_errors)
         all_rows.extend(rows)
         print(f"  [{i:3d}/{len(scenarios)}] {sc.id:24s} truth={sc.truth} "
               f"({time.time()-t0:.0f}s)")
 
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Failed calls, reported loudly and written beside the results rather than
+    # scored. An empty errors.csv is the normal outcome and is still written, so
+    # "no error file" cannot be confused with "no errors".
+    err_path = RESULTS_DIR / "errors.csv"
+    with err_path.open("w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=["scenario", "family", "truth", "judge",
+                                          "model", "error_kind", "error", "latency",
+                                          "finish_reason", "prompt_id", "prompt_hash",
+                                          "tokens_in", "tokens_out"])
+        w.writeheader()
+        w.writerows(call_errors)
+    if call_errors:
+        by_cfg: Dict[Tuple[str, str], int] = defaultdict(int)
+        for e in call_errors:
+            by_cfg[(e["judge"], e["model"])] += 1
+        print(f"[experiment] {len(call_errors)} call(s) returned no usable response and were "
+              f"EXCLUDED, not scored -> {err_path}", file=sys.stderr)
+        for (judge, model), k in sorted(by_cfg.items()):
+            print(f"              {judge:12s} {model:22s} {k}", file=sys.stderr)
+    else:
+        print(f"[experiment] 0 failed calls -> {err_path}")
     write_outputs(all_rows, present, skipped, det, manifest, args, n,
                   no_figures=args.no_figures, elapsed=time.time() - t_start)
     print(f"\n[experiment] DONE in {(time.time()-t_start)/60:.1f} min -> {RESULTS_DIR}")
@@ -678,12 +754,16 @@ def _write_results_md(rows, agg, order, families, present, skipped, det, manifes
 
 
 def _prompt_version() -> str:
+    """The rubric this run judged under, as `id (hash)`.
+
+    Read from the prompt registry rather than scraped out of the judge source,
+    which is what it used to do. The hash is included because the id alone is a
+    label an editor can leave stale; the hash cannot be.
+    """
     try:
-        txt = (REPO_ROOT / "judge-service" / "app" / "llm_judge.py").read_text()
-        m = re.search(r'PROMPT_VERSION\s*=\s*"([^"]+)"', txt)
-        return m.group(1) if m else "frozen"
-    except OSError:
-        return "frozen"
+        return f"{active_prompt.id} ({active_prompt.hash})"
+    except Exception:  # noqa: BLE001 - a manifest string must never fail a run
+        return os.environ.get("JUDGE_PROMPT_ID", prompt_registry.DEFAULT_PROMPT_ID)
 
 
 if __name__ == "__main__":

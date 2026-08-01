@@ -38,9 +38,21 @@ def _settings(mode: str) -> JudgeSettings:
     )
 
 
+# _call_model returns (content, finish_reason, usage), so a stub has to return
+# all three. Returning the content alone makes every call raise on unpacking, and
+# the judge correctly converts that into an api_error result -- which is a
+# well-formed object, so the test failed with a parse-looking message rather than
+# the shape mismatch that caused it.
+STUB_USAGE = {"prompt_tokens": 100, "completion_tokens": 50, "total_tokens": 150}
+
+
+def _stub(content: str, finish_reason: str = "stop"):
+    return lambda settings, messages: (content, finish_reason, dict(STUB_USAGE))
+
+
 def main() -> int:
     # Stub the only network call.
-    llm_judge._call_model = lambda settings, messages: CANNED  # type: ignore
+    llm_judge._call_model = _stub(CANNED)  # type: ignore
 
     failures = []
     for mode in ("summary", "raw"):
@@ -59,7 +71,7 @@ def main() -> int:
             failures.append(mode)
 
     # Also assert the tolerant path: garbage -> valid Error result (never crash).
-    llm_judge._call_model = lambda settings, messages: "not json at all"  # type: ignore
+    llm_judge._call_model = _stub("not json at all")  # type: ignore
     err = llm_judge.judge_ai(_settings("summary"), PAIRS)
     err_ok = err.score.classification == "Fail" and all(r.classification == "Error" for r in err.results)
     print(f"[mock] garbage-response -> {'OK (valid Error result)' if err_ok else 'FAIL'}")

@@ -78,3 +78,10 @@ class CanaryJudgeResult(BaseModel):
     results: List[CanaryAnalysisResult] = Field(default_factory=list)
     groupScores: List[CanaryJudgeGroupScore] = Field(default_factory=list)
     score: CanaryJudgeScore
+    # Not part of Kayenta's contract; Jackson ignores unknown properties, so it
+    # travels harmlessly through a real analysis. It exists because a failed AI
+    # call still has to return a structurally valid CanaryJudgeResult, and a
+    # valid result whose score is 0.0/Fail is indistinguishable from a judgement
+    # of Fail. That ambiguity fabricated 21% of one representation while every
+    # clean-run indicator read green. Callers key on judgeMetadata['ok'].
+    judgeMetadata: Dict[str, Any] = Field(default_factory=dict)

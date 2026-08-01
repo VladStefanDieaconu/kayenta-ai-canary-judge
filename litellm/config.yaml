@@ -22,7 +22,7 @@ model_list:
       api_base: os.environ/OLLAMA_BASE_URL
   - model_name: phi4-llm           # Phi-4 14B, MIT
     litellm_params:
-      model: ollama_chat/phi4:latest
+      model: ollama_chat/phi4:14b
       api_base: os.environ/OLLAMA_BASE_URL
   - model_name: olmo2-llm          # OLMo 2 7B, Apache-2.0 (fully open)
     litellm_params:
@@ -44,11 +44,11 @@ model_list:
       api_base: os.environ/OLLAMA_BASE_URL
   - model_name: granite-vision-vlm # Granite 3.2 Vision 2B, Apache-2.0 (built for charts)
     litellm_params:
-      model: ollama/granite3.2-vision:latest
+      model: ollama/granite3.2-vision:2b
       api_base: os.environ/OLLAMA_BASE_URL
   - model_name: minicpm-v-vlm      # MiniCPM-V 8B, vision
     litellm_params:
-      model: ollama/minicpm-v:latest
+      model: ollama/minicpm-v:8b
       api_base: os.environ/OLLAMA_BASE_URL
 
   # Cloud providers (no judge change). Set creds in .env and uncomment. The judge
@@ -84,6 +84,34 @@ model_list:
   - model_name: claude-sonnet-5-vlm
     litellm_params:
       model: bedrock/us.anthropic.claude-sonnet-5
+      aws_region_name: os.environ/AWS_REGION_NAME
+      api_key: os.environ/AWS_BEARER_TOKEN_BEDROCK
+      num_retries: 2
+  # OpenAI gpt-oss-120b (open-weight, TEXT-only). Unlike the Anthropic entries above
+  # this is NOT behind a cross-region inference profile: Bedrock exposes it by direct
+  # model ID carrying an explicit version suffix (-1:0), so it pins more precisely than
+  # the us.* profiles do. TEXT-only input, so the `plot` representation cannot be served
+  # by this alias -- it is registered as an LLM, not a VLM.
+  - model_name: gpt-oss-120b-llm
+    litellm_params:
+      model: bedrock/openai.gpt-oss-120b-1:0
+      aws_region_name: os.environ/AWS_REGION_NAME
+      api_key: os.environ/AWS_BEARER_TOKEN_BEDROCK
+      num_retries: 2
+  # Claude Opus 5 -- the most capable vision-capable model available in this account.
+  # Behind a cross-region inference profile (us.*), so NOT client-pinnable: same
+  # Table S1 caveat as claude-opus-4-8-vlm.
+  - model_name: claude-opus-5-vlm
+    litellm_params:
+      model: bedrock/us.anthropic.claude-opus-5
+      aws_region_name: os.environ/AWS_REGION_NAME
+      api_key: os.environ/AWS_BEARER_TOKEN_BEDROCK
+      num_retries: 2
+  # Qwen3-VL 235B-A22B -- largest non-Anthropic VLM available. No inference profile,
+  # so it is addressed by direct model id and IS client-pinnable (like gpt-oss).
+  - model_name: qwen3-vl-235b-vlm
+    litellm_params:
+      model: bedrock/qwen.qwen3-vl-235b-a22b
       aws_region_name: os.environ/AWS_REGION_NAME
       api_key: os.environ/AWS_BEARER_TOKEN_BEDROCK
       num_retries: 2

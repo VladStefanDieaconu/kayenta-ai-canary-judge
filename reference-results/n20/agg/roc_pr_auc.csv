@@ -1,6 +1,0 @@
-judge,model,n,auc_roc,auc_pr,note
-statistical,-,180,0.6583,0.8861,n_thresholds=4
-ai:summary,phi4-llm,180,0.7395,0.8429,n_thresholds=9
-hybrid:gated,phi4-llm,180,0.7611,0.8888,n_thresholds=6
-ai:raw,claude-opus-4-8-vlm,180,0.9032,0.95,n_thresholds=25
-hybrid:gated,claude-opus-4-8-vlm,180,0.8558,0.9414,n_thresholds=17

@@ -51,6 +51,17 @@ def _normalise(result: Dict[str, Any], pass_t: float, marginal_t: float,
         })
         if not model:
             model = str((r.get("resultMetadata") or {}).get("model", "") or "")
+
+    # judgeMetadata is how the AI path signals that no judgement was made. A 200
+    # carrying a structurally valid result is not evidence that a model answered:
+    # an empty completion also returns 200, with score 0.0 and classification
+    # Fail, which reads exactly like a verdict of FAIL. Absent metadata (the
+    # statistical and dummy paths, and any archived response) means ok.
+    meta = result.get("judgeMetadata") or {}
+    ok = bool(meta.get("ok", True))
+    error = str(meta.get("error", "") or "")
+    usage = meta.get("usage") or {}
+
     return {
         "verdict": "PASS" if score >= pass_t else "FAIL",
         "classification": classification,
@@ -60,15 +71,23 @@ def _normalise(result: Dict[str, Any], pass_t: float, marginal_t: float,
         "judge_name": str(result.get("judgeName", "") or ""),
         "model": model,
         "latency": latency,
-        "ok": True,
-        "error": "",
+        "ok": ok,
+        "error": error[:300],
+        "error_kind": str(meta.get("error_kind", "") or ""),
+        "prompt_id": str(meta.get("prompt_id", "") or ""),
+        "prompt_hash": str(meta.get("prompt_hash", "") or ""),
+        "finish_reason": str(meta.get("finish_reason") or ""),
+        "tokens_in": usage.get("prompt_tokens"),
+        "tokens_out": usage.get("completion_tokens"),
     }
 
 
-def _err(msg: str, latency: float = 0.0) -> Dict[str, Any]:
+def _err(msg: str, latency: float = 0.0, error_kind: str = "transport") -> Dict[str, Any]:
     return {"verdict": "FAIL", "classification": "Fail", "score": 0.0, "per_metric": [],
             "rationale": "", "judge_name": "", "model": "", "latency": latency,
-            "ok": False, "error": msg[:300]}
+            "ok": False, "error": msg[:300], "error_kind": error_kind,
+            "prompt_id": "", "prompt_hash": "", "finish_reason": "",
+            "tokens_in": None, "tokens_out": None}
 
 
 # Real NetflixACAJudge via the Kayenta callback (from the host).
@@ -116,9 +135,16 @@ def run_default_judge(pairs: List[Dict[str, Any]], config: Dict[str, Any],
 # Configurable AI judge via judge-service /judge.
 def judge_ai(pairs: List[Dict[str, Any]], config: Dict[str, Any], mode: str, model: str,
              pass_t: float = 75.0, marginal_t: float = 50.0,
-             judge_url: str = JUDGE_URL, timeout: int = 300) -> Dict[str, Any]:
+             judge_url: str = JUDGE_URL, timeout: int = 300,
+             prompt_id: str = "") -> Dict[str, Any]:
     cfg = dict(config)
-    cfg["judge"] = {"name": "RemoteJudge-v1.0", "judgeConfigurations": {"mode": mode, "model": model}}
+    judge_cfg: Dict[str, Any] = {"mode": mode, "model": model}
+    # Omitted rather than blank: an empty prompt_id in the config would have to be
+    # distinguished from an absent one by the service, and the service's default
+    # is the frozen rubric, which is what an unspecified caller wants.
+    if prompt_id:
+        judge_cfg["prompt_id"] = prompt_id
+    cfg["judge"] = {"name": "RemoteJudge-v1.0", "judgeConfigurations": judge_cfg}
     body = {
         "canaryConfig": cfg,
         "scoreThresholds": {"pass": pass_t, "marginal": marginal_t},

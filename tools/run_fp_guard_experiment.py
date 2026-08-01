@@ -40,6 +40,10 @@ import hybrid_policy  # noqa: E402
 from series_guards import detect_recovered_transient, detect_equal_variance_noise  # noqa: E402
 import run_experiment as exp  # noqa: E402
 
+# Module-level so the existing call sites keep working; rebound by main() when
+# --results / --out are given. The replay has to be runnable against the
+# corrected artefact (results/corrected/) as well as the published one, and
+# pointing it at a different input must never overwrite the published outputs.
 RESULTS_DIR = REPO_ROOT / "results"
 AGG_DIR = RESULTS_DIR / "agg"
 PASS_T, MARGINAL_T = ed.SCORE_THRESHOLDS["pass"], ed.SCORE_THRESHOLDS["marginal"]
@@ -60,11 +64,11 @@ def build_guard_signals(master_seed: int, n_per_family: int) -> Dict[str, Dict[s
     `equal_variance_noise` is deliberately scoped to single-metric scenarios
     only. `cross_metric_marginal` (the only multi-metric family) is designed so
     each individual metric looks statistically unremarkable in isolation (small
-    mean shift, unchanged spread), which is exactly what this guard would
-    otherwise flag as "equal variance noise", wrongly suppressing a genuine
-    blind-spot FAIL. `noise_equivalent`/`healed_transient` (this guard's actual
-    targets) are single-metric families in this dataset, so the scoping costs
-    nothing against the two families the guard targets.
+    mean shift, unchanged spread), which this guard would otherwise flag as
+    "equal variance noise", wrongly suppressing a genuine blind-spot FAIL.
+    `noise_equivalent`/`healed_transient` (this guard's actual targets) are
+    single-metric families in this dataset, so the scoping costs nothing against
+    the two families the guard targets.
     """
     scenarios = ed.build_scenarios(master_seed, n_per_family)
     base_millis = ed.aligned_base_millis()
@@ -88,10 +92,9 @@ def build_guard_signals(master_seed: int, n_per_family: int) -> Dict[str, Dict[s
 
 def recompute_hybrid_gated(raw_rows: List[Dict[str, str]], guard_signals: Dict[str, Dict[str, Any]],
                            use_guards: bool) -> List[Dict[str, Any]]:
-    # keyed by (judge, model), not judge alone: ai:summary/ai:raw/ai:plot each
-    # have one row per model for a given scenario. Keying by judge alone was a
-    # real bug that silently kept only the last model's row (Python dict
-    # overwrite), collapsing 8 models down to 2 in the first run.
+    # Key by (judge, model): ai:summary/ai:raw/ai:plot each contribute one row
+    # per model per scenario, so keying by judge alone keeps only the last model
+    # (Python dict overwrite), collapsing 8 models down to 2.
     stat_by_scenario: Dict[str, Dict[str, str]] = {}
     ai_by_scenario: Dict[str, List[Dict[str, str]]] = defaultdict(list)
     for r in raw_rows:
@@ -142,6 +145,19 @@ def recompute_hybrid_gated(raw_rows: List[Dict[str, str]], guard_signals: Dict[s
 
 
 def main() -> int:
+    global RESULTS_DIR, AGG_DIR
+    import argparse
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--results", default=str(RESULTS_DIR),
+                    help="directory holding results_raw.csv and summary.csv "
+                         "(default: results/)")
+    ap.add_argument("--out", default=None,
+                    help="directory for the two fp_guard_*.csv outputs "
+                         "(default: <results>/agg)")
+    args = ap.parse_args()
+    RESULTS_DIR = Path(args.results)
+    AGG_DIR = Path(args.out) if args.out else RESULTS_DIR / "agg"
+
     raw_path = RESULTS_DIR / "results_raw.csv"
     if not raw_path.exists():
         print(f"[fp-guard] {raw_path} not found; run `make experiment` first.", file=sys.stderr)
@@ -199,8 +215,8 @@ def sanity_check(rows_off: List[Dict[str, Any]]) -> None:
             print(f"[fp-guard] SANITY MISMATCH {model}: recomputed acc={m['accuracy']:.4f} "
                   f"vs published {pub_acc:.4f}", file=sys.stderr)
     if mismatches == 0:
-        print("[fp-guard] sanity check OK: guards-off recomputation matches "
-              "results/summary.csv hybrid:gated exactly for every model")
+        print(f"[fp-guard] sanity check OK: guards-off recomputation matches "
+              f"{published} hybrid:gated exactly for every model")
     else:
         print(f"[fp-guard] sanity check: {mismatches} model(s) mismatched (see above)", file=sys.stderr)
 

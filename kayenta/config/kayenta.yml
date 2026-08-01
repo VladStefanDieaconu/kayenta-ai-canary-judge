@@ -37,8 +37,13 @@ kayenta:
         region: us-east-1
         endpoint: http://minio:9000
         explicitCredentials:
-          accessKey: ${MINIO_ROOT_USER:kayentaadmin}
-          secretKey: ${MINIO_ROOT_PASSWORD:kayentaadmin123}
+          # No fallback value. These used to default to a working pair, which
+          # meant the credential was published here as well as in .env.example
+          # and that a missing .env started the stack with a known password
+          # instead of failing. Kayenta fails loudly on an unset variable, which
+          # is the behaviour worth having.
+          accessKey: ${MINIO_ROOT_USER}
+          secretKey: ${MINIO_ROOT_PASSWORD}
         supportedTypes:
           - OBJECT_STORE
           - CONFIGURATION_STORE

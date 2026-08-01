@@ -28,6 +28,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from openai import OpenAI
 
+from . import prompt_registry, verdict_parser
 from .dummy_judge import _stats  # NPE-safe {"stats": {count, ...}} metadata
 from .judge_config import JudgeSettings
 from .models import (
@@ -46,40 +47,12 @@ log = logging.getLogger("judge-service.llm")
 
 LOG_DIR = Path(os.environ.get("AI_LOG_DIR", "/app/data/ai-logs"))
 
-# Frozen prompt
-# Bump PROMPT_VERSION only when the prompt text below changes. For the scored
-# experiment the prompt is frozen at v1: don't tune it against scenario outcomes,
-# that would overfit to the baseline's known weaknesses. It's the same for every
-# model and representation, never includes a ground-truth label, always presents
-# control before experiment (position bias), and bounds the rationale (verbosity
-# bias). Changing it means bumping PROMPT_VERSION and re-running the whole sweep.
-PROMPT_VERSION = "v1-frozen-2026-06"
-
-# Fixed verdict schema (one template, never includes any ground-truth label).
-SYSTEM_PROMPT = (
-    "You are an automated canary-release judge. You compare a baseline (control) "
-    "against a new version (canary, the experiment) using the provided metrics "
-    "and decide whether the canary is safe to promote. Be objective and concise."
-)
-
-VERDICT_INSTRUCTION = (
-    "Decide a verdict for the canary. Reply with STRICT JSON ONLY, no prose, "
-    "matching exactly this schema:\n"
-    "{\n"
-    '  "overallVerdict": "pass" | "marginal" | "fail",\n'
-    '  "overallScore": <integer 0-100, higher = healthier canary>,\n'
-    '  "metrics": [ { "name": "<metric name>", '
-    '"classification": "pass" | "high" | "low" | "nodata", "reason": "<short>" } ],\n'
-    '  "rationale": "<= 60 words"\n'
-    "}\n"
-    "Judge HOLISTICALLY — do not look at the mean/median alone. A canary is "
-    "unhealthy ('high') if, versus control, it shows materially higher spread/"
-    "variance (instability/flapping), a worse tail (p90/p95/p99/max), or an "
-    "emerging upward trend over time (positive slope), EVEN IF the median is "
-    "similar. Rules: clearly worse on an error/latency/resource metric is 'high'; "
-    "clearly better/lower is 'low'; comparable and stable is 'pass'; missing data "
-    "is 'nodata'. overallScore is 0-100 (higher = healthier). Rationale < 60 words."
-)
+# The rubric now lives in prompts/, one file per variant, selected by id (see
+# prompt_registry). For the scored experiment it is frozen at v1: don't tune it
+# against scenario outcomes, that would overfit to the baseline's known
+# weaknesses. Comparing variants is a configuration change, not a code change,
+# and the resolved id and text hash are stamped into every row this module
+# produces so no result is ever ambiguous about which rubric judged it.
 
 _CLASS_MAP = {"pass": "Pass", "high": "High", "low": "Low", "nodata": "Nodata"}
 _VERDICT_MAP = {"pass": "Pass", "marginal": "Marginal", "fail": "Fail"}
@@ -94,7 +67,9 @@ def _client(settings: JudgeSettings) -> OpenAI:
 
 
 def _build_messages(
-    settings: JudgeSettings, metric_set_pair_list: List[Dict[str, Any]]
+    settings: JudgeSettings,
+    metric_set_pair_list: List[Dict[str, Any]],
+    prompt: prompt_registry.Prompt,
 ) -> Tuple[List[Dict[str, Any]], Optional[str]]:
     """Return (messages, image_b64 or None)."""
     image_b64: Optional[str] = None
@@ -105,7 +80,7 @@ def _build_messages(
     # plus the image. For summary/raw we send text only.
     text_mode = "summary" if settings.mode == "plot" else settings.mode
     rep_text = representation_text(text_mode, metric_set_pair_list)
-    user_text = f"{rep_text}\n\n{VERDICT_INSTRUCTION}"
+    user_text = f"{rep_text}\n\n{prompt.rubric}"
 
     if image_b64:
         user_content: Any = [
@@ -116,7 +91,7 @@ def _build_messages(
         user_content = user_text
 
     messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "system", "content": prompt.system},
         {"role": "user", "content": user_content},
     ]
     return messages, image_b64
@@ -125,7 +100,27 @@ def _build_messages(
 _UNSUPPORTED_SAMPLING_RE = re.compile(r"`?(temperature|top_p)`?\s+is\s+deprecated", re.IGNORECASE)
 
 
-def _call_model(settings: JudgeSettings, messages: List[Dict[str, Any]]) -> str:
+def _usage_dict(resp: Any) -> Dict[str, Any]:
+    """The gateway's usage block, flattened to the three counts that matter.
+
+    Captured because without it the paper's cost figure is an estimate. It also
+    makes a truncation diagnosis immediate: completion_tokens equal to the cap
+    alongside finish_reason='length' is the gpt-oss failure exactly.
+    """
+    usage = getattr(resp, "usage", None)
+    if usage is None:
+        return {}
+    return {
+        "prompt_tokens": getattr(usage, "prompt_tokens", None),
+        "completion_tokens": getattr(usage, "completion_tokens", None),
+        "total_tokens": getattr(usage, "total_tokens", None),
+    }
+
+
+def _call_model(
+    settings: JudgeSettings, messages: List[Dict[str, Any]]
+) -> Tuple[str, Optional[str], Dict[str, Any]]:
+    """Return (content, finish_reason, usage). Content may legitimately be ''."""
     client = _client(settings)
     kwargs: Dict[str, Any] = {
         "model": settings.model,
@@ -152,91 +147,22 @@ def _call_model(settings: JudgeSettings, messages: List[Dict[str, Any]]) -> str:
         log.warning("model rejected temperature/top_p (%s); retrying without them", settings.model)
         fallback_kwargs = {k: v for k, v in kwargs.items() if k not in ("temperature", "top_p")}
         resp = client.chat.completions.create(**fallback_kwargs)
-    return resp.choices[0].message.content or ""
+    choice = resp.choices[0] if resp.choices else None
+    content = (getattr(getattr(choice, "message", None), "content", None) or "") if choice else ""
+    finish_reason = getattr(choice, "finish_reason", None) if choice else None
+    return content, finish_reason, _usage_dict(resp)
 
 
-_THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
-_FENCE_RE = re.compile(r"```(?:json)?\s*(.*?)```", re.DOTALL | re.IGNORECASE)
+# The tolerant parser lives in verdict_parser so it can be replayed against the
+# archive without the OpenAI SDK or a gateway. Re-exported under their previous
+# private names because callers (and the replay tool) already reference them.
+_parse_json = verdict_parser.parse_json
+_iter_balanced_objects = verdict_parser.iter_balanced_objects
+_looks_like_verdict = verdict_parser.looks_like_verdict
 
 
-def _iter_balanced_objects(text: str):
-    """Yield every top-level {...} substring with balanced braces (string-aware).
-
-    More robust than a greedy `\\{.*\\}` regex, which over-captures when the model
-    emits prose or several objects (e.g. reasoning models that wrap JSON)."""
-    depth = 0
-    start = -1
-    in_str = False
-    esc = False
-    for i, ch in enumerate(text):
-        if in_str:
-            if esc:
-                esc = False
-            elif ch == "\\":
-                esc = True
-            elif ch == '"':
-                in_str = False
-            continue
-        if ch == '"':
-            in_str = True
-        elif ch == "{":
-            if depth == 0:
-                start = i
-            depth += 1
-        elif ch == "}":
-            if depth > 0:
-                depth -= 1
-                if depth == 0 and start >= 0:
-                    yield text[start : i + 1]
-
-
-def _looks_like_verdict(obj: Any) -> bool:
-    return isinstance(obj, dict) and (
-        "overallVerdict" in obj or "overallScore" in obj or "metrics" in obj
-    )
-
-
-def _parse_json(content: str) -> Optional[Dict[str, Any]]:
-    """Tolerant JSON extraction that prefers a real verdict object.
-
-    Handles clean JSON, markdown ```json fences, reasoning models that emit a
-    <think>...</think> preamble (e.g. deepseek-r1), and stray prose around the
-    object. Scans every balanced {...} block and keeps the first that looks like
-    a verdict, falling back to the first valid object."""
-    if not content:
-        return None
-    # 1) strip reasoning preamble and code fences.
-    cleaned = _THINK_RE.sub(" ", content)
-    fence = _FENCE_RE.search(cleaned)
-    candidates: List[str] = []
-    if fence:
-        candidates.append(fence.group(1))
-    candidates.append(cleaned)
-
-    # 2) try a direct parse of each candidate first (cheapest).
-    for cand in candidates:
-        try:
-            obj = json.loads(cand.strip())
-            if isinstance(obj, dict):
-                return obj
-        except json.JSONDecodeError:
-            pass
-
-    # 3) scan balanced {...} blocks; prefer one that looks like a verdict.
-    fallback: Optional[Dict[str, Any]] = None
-    for block in _iter_balanced_objects(cleaned):
-        try:
-            obj = json.loads(block)
-        except json.JSONDecodeError:
-            continue
-        if _looks_like_verdict(obj):
-            return obj
-        if fallback is None and isinstance(obj, dict):
-            fallback = obj
-    return fallback
-
-
-def _save_log(settings: JudgeSettings, messages, image_b64, raw, parsed) -> Optional[str]:
+def _save_log(settings: JudgeSettings, messages, image_b64, raw, parsed,
+              prompt: prompt_registry.Prompt, outcome: Dict[str, Any]) -> Optional[str]:
     """Persist prompt/response/verdict (+ image) for reproducibility."""
     try:
         LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -257,7 +183,12 @@ def _save_log(settings: JudgeSettings, messages, image_b64, raw, parsed) -> Opti
                     if part.get("type") == "image_url":
                         part["image_url"] = {"url": f"<png sha256:{image_hash}>"}
         record = {
-            "prompt_version": PROMPT_VERSION,
+            # prompt_version is retained under its original name so the 20k
+            # archived payloads stay readable by the same tooling; prompt_id and
+            # prompt_hash are the fields to key on from here on.
+            "prompt_version": prompt.id,
+            "prompt_id": prompt.id,
+            "prompt_hash": prompt.hash,
             "mode": settings.mode,
             "model": settings.model,
             "modality": settings.modality,
@@ -269,6 +200,10 @@ def _save_log(settings: JudgeSettings, messages, image_b64, raw, parsed) -> Opti
             "messages": safe_msgs,
             "raw_response": raw,
             "parsed_verdict": parsed,
+            "finish_reason": outcome.get("finish_reason"),
+            "usage": outcome.get("usage") or {},
+            "error_kind": outcome.get("error_kind", ""),
+            "error": outcome.get("error", ""),
         }
         path = LOG_DIR / f"{stamp}.json"
         path.write_text(json.dumps(record, indent=2))
@@ -302,6 +237,26 @@ def _groups_from_config(canary_config: Dict[str, Any]) -> Tuple[Dict[str, List[s
         weights = ((canary_config or {}).get("classifier") or {}).get("groupWeights") or {}
         all_groups = [str(g) for g in weights.keys()] or ["dummy-group"]
     return metric_groups, all_groups
+
+
+def _judge_metadata(
+    settings: JudgeSettings, prompt: prompt_registry.Prompt, outcome: Dict[str, Any], ok: bool
+) -> Dict[str, Any]:
+    """Provenance and outcome, carried out of band from the Kayenta contract."""
+    return {
+        "ok": ok,
+        "error_kind": outcome.get("error_kind", ""),
+        "error": outcome.get("error", ""),
+        "prompt_id": prompt.id,
+        "prompt_hash": prompt.hash,
+        "mode": settings.mode,
+        "model": settings.model,
+        "modality": settings.modality,
+        "max_tokens": settings.max_tokens,
+        "finish_reason": outcome.get("finish_reason"),
+        "usage": outcome.get("usage") or {},
+        "attempts": outcome.get("attempts", 0),
+    }
 
 
 def _map_to_result(
@@ -386,7 +341,8 @@ def _group_scores(
 
 
 def _error_result(
-    settings: JudgeSettings, metric_set_pair_list: List[Dict[str, Any]], err: str, canary_config: Dict[str, Any]
+    settings: JudgeSettings, metric_set_pair_list: List[Dict[str, Any]], err: str,
+    canary_config: Dict[str, Any], judge_metadata: Optional[Dict[str, Any]] = None,
 ) -> CanaryJudgeResult:
     """Valid CanaryJudgeResult signalling the AI path failed (never crash)."""
     metric_groups, all_groups = _groups_from_config(canary_config)
@@ -415,6 +371,7 @@ def _error_result(
         groupScores=[CanaryJudgeGroupScore(name=g, score=0.0, classification="Fail", classificationReason=reason)
                      for g in all_groups],
         score=CanaryJudgeScore(score=0.0, classification="Fail", classificationReason=reason),
+        judgeMetadata=judge_metadata or {"ok": False, "error": err, "error_kind": "unspecified"},
     )
 
 
@@ -425,38 +382,88 @@ def judge_ai(
 ) -> CanaryJudgeResult:
     """Run the configurable AI judge. Returns a valid CanaryJudgeResult always."""
     canary_config = canary_config or {}
-    messages, image_b64 = _build_messages(settings, metric_set_pair_list)
+
+    # Resolve the rubric first. An unknown id is a configuration error and must
+    # stop the call: silently judging under some other prompt is precisely the
+    # class of fault that produced a run nobody could reconstruct afterwards.
+    try:
+        prompt = prompt_registry.load(settings.prompt_id)
+    except (prompt_registry.UnknownPromptError, ValueError, OSError) as e:
+        log.error("prompt selection failed: %s", e)
+        return _error_result(
+            settings, metric_set_pair_list, f"prompt selection failed: {e}", canary_config,
+            {"ok": False, "error_kind": "unknown_prompt", "error": str(e),
+             "prompt_id": settings.prompt_id, "prompt_hash": "",
+             "mode": settings.mode, "model": settings.model},
+        )
+
+    messages, image_b64 = _build_messages(settings, metric_set_pair_list, prompt)
     log.info(
-        "AI judge: mode=%s model=%s modality=%s image=%s",
+        "AI judge: mode=%s model=%s modality=%s image=%s prompt=%s(%s)",
         settings.mode, settings.model, settings.modality, bool(image_b64),
+        prompt.id, prompt.hash,
     )
 
     raw = ""
     parsed: Optional[Dict[str, Any]] = None
-    err: Optional[str] = None
+    outcome: Dict[str, Any] = {"error_kind": "", "error": "", "finish_reason": None, "usage": {}}
+    attempts = 0
     for attempt in (1, 2):  # one tolerant retry
+        attempts = attempt
         try:
-            raw = _call_model(settings, messages)
-            parsed = _parse_json(raw)
-            if parsed is not None:
-                break
-            err = "model did not return valid JSON"
+            raw, finish_reason, usage = _call_model(settings, messages)
+            outcome["finish_reason"] = finish_reason
+            outcome["usage"] = usage
+            if not (raw or "").strip():
+                # An empty completion is not a verdict of any kind. It is the
+                # gpt-oss failure: the model spent its whole budget on reasoning
+                # tokens and returned no content, with finish_reason='length'.
+                # Kept distinct from a parse failure because the two have
+                # different causes and different fixes -- one is a token budget,
+                # the other is a model that will not follow the schema.
+                outcome["error_kind"] = "empty_completion"
+                outcome["error"] = (
+                    f"model returned an empty completion (finish_reason={finish_reason!r}, "
+                    f"completion_tokens={usage.get('completion_tokens')}, max_tokens={settings.max_tokens})"
+                )
+                parsed = None
+            else:
+                parsed = _parse_json(raw)
+                if parsed is not None:
+                    outcome["error_kind"] = ""
+                    outcome["error"] = ""
+                    break
+                outcome["error_kind"] = "parse_failure"
+                outcome["error"] = "model returned a non-empty completion that is not valid JSON"
             # tighten instruction for the retry
             messages = messages + [
                 {"role": "user", "content": "Your previous reply was not valid JSON. Reply with STRICT JSON ONLY."}
             ]
         except Exception as e:  # noqa: BLE001
-            err = str(e)
-            log.warning("AI call attempt %d failed: %s", attempt, err)
+            outcome["error_kind"] = "api_error"
+            outcome["error"] = str(e)
+            log.warning("AI call attempt %d failed: %s", attempt, outcome["error"])
+    outcome["attempts"] = attempts
 
-    log_path = _save_log(settings, messages, image_b64, raw, parsed)
+    log_path = _save_log(settings, messages, image_b64, raw, parsed, prompt, outcome)
     log.info("AI judge raw response (logged at %s): %s", log_path, (raw or "")[:500])
 
     if parsed is None:
-        log.warning("AI judge falling back to Error result: %s", err)
-        return _error_result(settings, metric_set_pair_list, err or "no response", canary_config)
+        # Error, never a verdict. The returned object stays a structurally valid
+        # CanaryJudgeResult so a live analysis does not crash, but judgeMetadata
+        # marks it not-ok so the experiment runner records an error row and its
+        # retry and abort logic can see it.
+        log.error(
+            "AI judge FAILED (%s) mode=%s model=%s prompt=%s: %s",
+            outcome["error_kind"], settings.mode, settings.model, prompt.id, outcome["error"],
+        )
+        return _error_result(
+            settings, metric_set_pair_list, outcome["error"] or "no response", canary_config,
+            _judge_metadata(settings, prompt, outcome, ok=False),
+        )
 
     result = _map_to_result(settings, metric_set_pair_list, parsed, canary_config)
+    result.judgeMetadata = _judge_metadata(settings, prompt, outcome, ok=True)
     log.info(
         "AI verdict: score=%.1f classification=%s per-metric=%s",
         result.score.score, result.score.classification,

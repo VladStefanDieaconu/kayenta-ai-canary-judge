@@ -14,19 +14,27 @@ plus per-metric classification, the fastest way to confirm the data embodies eac
 statistical blind spot before the full experiment.
 
 Usage:
-  python tools/seed_eval_dataset.py [--n 12] [--seed 20260621] [--probe]
+  python tools/seed_eval_dataset.py [--n 20] [--seed 20260621] [--probe]
+
+`--n` and `--seed` default to $EVAL_N / $EVAL_SEED when set, matching
+run_experiment.py, so a direct invocation seeds the same dataset the experiment
+expects. Flags still win over the environment.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Dict, List
 
 import requests
 
+# .env must be loaded before any argparse default reads os.environ; see the
+# module docstring for the incident this prevents.
+import repo_env  # noqa: E402,F401
 import eval_dataset as ed
 import judge_clients
 
@@ -124,8 +132,8 @@ def probe(scenarios: List[ed.Scenario], base_millis: int) -> None:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="Seed the labelled evaluation dataset")
-    ap.add_argument("--n", type=int, default=ed.DEFAULT_N_PER_FAMILY)
-    ap.add_argument("--seed", type=int, default=ed.DEFAULT_MASTER_SEED)
+    ap.add_argument("--n", type=int, default=int(os.environ.get("EVAL_N", ed.DEFAULT_N_PER_FAMILY)))
+    ap.add_argument("--seed", type=int, default=int(os.environ.get("EVAL_SEED", ed.DEFAULT_MASTER_SEED)))
     ap.add_argument("--vm-url", default=VM_URL)
     ap.add_argument("--probe", action="store_true", help="also run the genuine NetflixACAJudge per family")
     ap.add_argument("--no-verify", action="store_true")

@@ -66,8 +66,9 @@ PASS_FAMILIES = ["no_change", "noise_equivalent", "healed_transient"]
 # per-scenario result (the only part that needs a network call) and keep the
 # raw pairs alongside it. Every candidate ensemble config then runs only pure
 # in-memory computation over this cached list.
-def materialise(seed: int, n_per_family: int) -> List[Dict[str, Any]]:
-    scenarios = ed.build_scenarios(seed, n_per_family)
+def materialise(seed: int, n_per_family: int,
+                dataset_id: str = ed.DEFAULT_DATASET_ID) -> List[Dict[str, Any]]:
+    scenarios = ed.build_scenarios(seed, n_per_family, dataset_id)
     base_millis = ed.aligned_base_millis()
     out = []
     for sc in scenarios:
@@ -76,6 +77,7 @@ def materialise(seed: int, n_per_family: int) -> List[Dict[str, Any]]:
         cfg = ed.build_canary_config(sc, {"name": "NetflixACAJudge-v1.0", "judgeConfigurations": {}})
         stat = judge_clients.run_default_judge(pairs, cfg, PASS_T, MARGINAL_T)
         out.append({"scenario": sc.id, "family": sc.family, "truth": sc.truth,
+                    "seed": sc.seed, "series": series,
                     "pairs": pairs, "stat_verdict": stat["verdict"], "stat_score": stat["score"],
                     "stat_per_metric": stat["per_metric"]})
     return out

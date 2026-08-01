@@ -3,7 +3,7 @@
 
 Re-runs the ensemble (tools/run_ensemble_experiment.py's
 materialise()/evaluate_config()) across the same 5 seeds used by
-tools/run_experiment_multiseed.py (20260621/1/2/3/4, n=5/family), using the
+tools/run_multiseed_corrected.py (20260621/1/2/3/4, n=5/family), using the
 already-tuned config from results/agg/ensemble_config.json (6 knobs:
 variance_ratio_threshold=2.06, variance_alpha=0.181, tail_ratio_threshold=1.40,
 tail_alpha=0.174, trend_alpha=0.181, cross_metric_alpha=0.050) rather than

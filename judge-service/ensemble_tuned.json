@@ -1,0 +1,40 @@
+{
+  "_comment": [
+    "The tuned parameters of the statistical ensemble judge, as published.",
+    "",
+    "These eight values are configuration, not a result: ensemble_judge.py needs",
+    "them to reproduce the tuned ensemble, and its dataclass defaults are the",
+    "untuned starting point rather than these. They were extracted from the",
+    "tuning run's own artefact so the ensemble stays reproducible after the",
+    "result data was archived away from this repository.",
+    "",
+    "Provenance: 300 random-search trials over 6 knobs, tuned on seeds",
+    "111/222/333 at 10 instances per family and reported on seed 20260621 at 20.",
+    "Best objective 0.825, mean 0.753, worst 0.642 across the 300 trials. The",
+    "full trial log lives with the archived result data, in",
+    "reference-results/n20/agg/ensemble_config.json.",
+    "",
+    "use_recovery_guard is a structural ablation switch, not a tuned magnitude,",
+    "which is why the knob count is 6 and not 7."
+  ],
+  "tuned_config": {
+    "variance_ratio_threshold": 2.063123379804374,
+    "variance_alpha": 0.1808064828610921,
+    "tail_ratio_threshold": 1.40213870634626,
+    "tail_alpha": 0.17353349058017153,
+    "trend_alpha": 0.18079568094003018,
+    "cross_metric_alpha": 0.04991454228455327,
+    "use_recovery_guard": true
+  },
+  "knob_count_tunable": 6,
+  "knob_count_structural_ablation": 1,
+  "tuning_seeds": [111, 222, 333],
+  "tuning_n_per_family": 10,
+  "reported_seed": 20260621,
+  "reported_n_per_family": 20,
+  "trials": 300,
+  "objective_best": 0.825,
+  "objective_worst": 0.6417,
+  "objective_mean": 0.7527763333333333,
+  "objective_std": 0.03401756222730972
+}

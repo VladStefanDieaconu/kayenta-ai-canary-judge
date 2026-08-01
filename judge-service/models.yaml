@@ -34,3 +34,17 @@ models:
   # tolerant parser handles the rest, so JSON mode is not needed (see judge_config.py).
   claude-opus-4-8-vlm:   { modality: vision, also_text: true, json_mode: false }  # Claude Opus 4.8 (Bedrock, frontier)
   claude-sonnet-5-vlm:   { modality: vision, also_text: true, json_mode: false }  # Claude Sonnet 5 (Bedrock, frontier)
+  # OpenAI gpt-oss-120b (Bedrock, frontier, open-weight). modality: text because
+  # Bedrock's ListFoundationModels reports inputModalities=['TEXT'] for
+  # openai.gpt-oss-120b-1:0 -- there is no IMAGE input, so the `plot`
+  # representation cannot be served by this model. summary and raw are viable.
+  # max_tokens: this model interleaves its reasoning into the completion budget,
+  # and on the raw representation at the global 1024 it spends the whole budget
+  # thinking and returns empty content with finish_reason='length'. 21% of one
+  # representation came back empty that way. Every other alias leaves this unset
+  # and inherits JUDGE_MAX_TOKENS; the longest completion observed across 1085
+  # archived Opus and Qwen responses is ~252 tokens, so the global 1024 has never
+  # bound for any of them and raising it here changes nothing but this model.
+  gpt-oss-120b-llm:      { modality: text, json_mode: false, max_tokens: 4096 }  # OpenAI gpt-oss-120b (Bedrock, frontier)
+  claude-opus-5-vlm:     { modality: vision, also_text: true, json_mode: false }  # Claude Opus 5 (Bedrock, frontier)
+  qwen3-vl-235b-vlm:     { modality: vision, also_text: true, json_mode: false }  # Qwen3-VL 235B-A22B (Bedrock, frontier)
