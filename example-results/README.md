@@ -5,9 +5,9 @@ the analysis path can be exercised from a fresh clone with no stack, no model an
 no network.
 
 **This is not the dataset behind the paper.** It is 45 scenarios from a single
-seed. Do not read a rate off it and do not cite it. The study's own artefacts —
-the 180-scenario run, the five-seed sweep, the hosted-model runs and every
-derived table — are archived separately. That archive is deposited when the
+seed. Do not read a rate off it and do not cite it. The study's own artefacts (the
+180-scenario run, the five-seed sweep, the hosted-model runs and every derived
+table) are archived separately. That archive is deposited when the
 article is published, and its DOI is added to the main README then; see
 [the study section](../README.md#the-study-and-its-data).
 
@@ -21,9 +21,8 @@ article is published, and its DOI is added to the main README then; see
 | `errors.csv` | the 5 failed calls, with their `error_kind` |
 
 Provenance: seed `20260621`, five instances of each of nine families, eight local
-models, rubric `v1-frozen-2026-06`. Cut from `results/n5-corrected/` — the
-five-seed sweep run under the corrected harness — by
-`build_example_results.py`, which is archived with the paper's tooling.
+models, rubric `v1-frozen-2026-06`. Cut from `results/n5-corrected/`, the
+five-seed sweep run under the corrected harness, by `build_example_results.py`.
 
 ## The error rows are the point
 
@@ -39,4 +38,4 @@ the cell read a perfect 1.000. Under this harness they are errors, that cell has
 denominator unless you ask for them.
 
 A `family_matrix.csv` cell with no surviving measurement is left **empty**, not
-printed as 0.000. See [`PROVENANCE.md`](../PROVENANCE.md).
+printed as 0.000.

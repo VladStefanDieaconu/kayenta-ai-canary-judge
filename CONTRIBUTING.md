@@ -42,7 +42,7 @@ make experiment-quick  # a small scored run
   dummy fallback (`dummy_judge.py`) are the parts you are most likely to touch.
 - `prompts/` holds the rubrics, one file per variant.
 - `tools/` is the host-run experiment and seeding code. `results_schema.py` defines the
-  long-format result row and is the only thing that reads it — figure generators select
+  long-format result row and is the only thing that reads it; figure generators select
   through it rather than parsing raw files.
 - `kayenta/canary-configs/` holds one JSON per judge and representation.
 

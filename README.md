@@ -36,7 +36,6 @@ Start here:
 
 - [What automated canary analysis is](#what-automated-canary-analysis-is)
 - [The three judges](#the-three-judges)
-
 - [Quick start](#quick-start)
 - [Hardware and runtime](#hardware-and-runtime)
 
@@ -68,7 +67,6 @@ Reference:
 
 ## What automated canary analysis is
 
-
 Automated canary analysis is how a continuous-delivery system decides whether a new
 build is safe to promote. Route a slice of traffic to the new version (the canary,
 or experiment), keep the rest on the current version (the baseline, or control),
@@ -88,7 +86,6 @@ how a median shift is graded; none of them help when the median has not moved.
 That blind spot is the thing this harness measures.
 
 ## The three judges
-
 
 All three run as real Kayenta analyses and are chosen entirely by canary config. One
 judge service plays every role:
@@ -130,8 +127,8 @@ second when you want a scoreboard.
 
 ### Running against the bundled example data
 
-`make demo` renders a figure from data committed to this repository — no stack,
-no model, and after the first run no network:
+`make demo` renders a figure from data committed to this repository, with no
+stack, no model, and after the first run no network:
 
 ```bash
 make build                  # once: figures render inside the judge-service image
@@ -203,7 +200,6 @@ Both long runs checkpoint after every seed and can be killed and restarted.
 
 ## Using your own metrics
 
-
 The synthetic dataset exists so the judges can be scored against ground truth. To point
 the harness at a real service instead, four things change and one capability is lost.
 The worked example below uses a service that exports
@@ -261,7 +257,7 @@ entry names the metric, the PromQL that fetches it, and the group it scores unde
 ```
 
 The `customInlineTemplate` **must** collapse the label that distinguishes the two
-deployments — `sum without(version) (...)` above. Kayenta substitutes `${scope}` once
+deployments, as in `sum without(version) (...)` above. Kayenta substitutes `${scope}` once
 for the control and once for the experiment and expects each query to return exactly
 one series. Leave the label in place and each query returns two, the two scopes never
 pair, and every metric comes back `Nodata` with no error.
@@ -328,7 +324,7 @@ To use the AI or hybrid judge instead, set `judge.name` to `RemoteJudge-v1.0` an
 **Without ground-truth labels there is no accuracy, precision or recall.** The
 scoreboard exists because every synthetic scenario carries a known PASS or FAIL label to
 score the verdict against. Your own traffic has no such label, so on your own metrics
-you get verdicts, scores and Referee reports — the operational output — and no
+you get verdicts, scores and Referee reports (the operational output) and no
 scoreboard.
 
 `make experiment` will not work on your data. It generates its own labelled dataset,
@@ -337,7 +333,6 @@ configuration. Scoring judges on your own service means labelling your own incid
 first, which is a data-collection exercise this repository does not automate.
 
 ## Bringing your own model or provider
-
 
 The judge always calls the one OpenAI-compatible gateway with a model alias, so
 switching between local, Bedrock, OpenAI, and Anthropic is three edits and no code
@@ -362,7 +357,6 @@ mode, mark the alias `modality: vision` so the judge attaches the chart image.
 
 ## Adding your own scenario family
 
-
 The evaluation dataset is generated, not recorded: 31 samples per series over a 30-minute
 window, from a per-instance seeded RNG, so every scenario is reproducible from the master
 seed alone. A **family** is one failure shape plus its ground-truth label, and each
@@ -371,7 +365,7 @@ than one hand-picked example.
 
 Everything lives in `tools/eval_dataset.py`:
 
-1. **Declare it** in a dataset's spec — the truth label and which metric kinds it uses:
+1. **Declare it** in a dataset's spec, giving the truth label and which metric kinds it uses:
 
    ```python
    "my_family": {"truth": "FAIL", "kinds": ["latency"]},
@@ -398,7 +392,7 @@ Two constraints that are easy to miss:
 - **Never insert a family into the middle of `FAMILY_SPEC`.** The `gid` counter runs across
   all families in declaration order and feeds each scenario's seed, so inserting one
   re-seeds every scenario after it and renames every metric. Append, or add a new dataset
-  entry in `DATASETS` with its own `gid_base` — which is what `generalisation-60` does, so
+  entry in `DATASETS` with its own `gid_base`, which is what `generalisation-60` does, so
   that the original 180 stay byte-identical.
 - **The family name must never reach the prompt.** Metric names are namespaced with an
   opaque global id (`http_request_duration_seconds_g1042`), never the family, or the
@@ -410,7 +404,7 @@ The three families in `generalisation-60` (`partial_recovery`, `late_transient`,
 ## Rendering figures from your own results
 
 Every figure generator takes the results directory as an argument. None of them
-globs a fixed path — that is how a figure in the original study silently gained
+globs a fixed path. That is how a figure in the original study silently gained
 six columns when unrelated files landed in the directory it was scanning.
 
 ```bash
@@ -453,51 +447,25 @@ at your own frame and edit that constant to your own aliases.
 
 ## The study and its data
 
-Everything to do with the paper is in this one section. The rest of this README
-is about the testbed.
-
 This repository was built for a study of whether a language or vision model can
-cover the Mann-Whitney judge's blind spots. [`CITATION.cff`](CITATION.cff) is how
-to cite the testbed itself; the study is a separate work and carries its own
-citation. [`PROVENANCE.md`](PROVENANCE.md) documents a defect found in the study's
-run and what changed in the harness because of it.
+cover the Mann-Whitney judge's blind spots. The rest of this README is about the
+testbed; this section is the only part about the paper.
+
+[`CITATION.cff`](CITATION.cff) is how to cite the testbed. The study is a separate
+work and carries its own citation.
 
 ### The data
 
-The result artefacts are data for the paper, not code for this testbed, and they
-are large: 8,550 verdicts across eight models in the multi-seed run alone. Cloning
-this repository to judge your own canaries should not cost you a copy of somebody
-else's DeepSeek-R1 verdicts, so they are archived separately and are **not** in
-this repository.
+The study's result artefacts are not in this repository. They are data for the
+paper rather than code for the testbed, and they are large: 8,550 verdicts in the
+multi-seed run alone. Cloning this to judge your own canaries should not cost you
+a copy of somebody else's DeepSeek-R1 verdicts, so they are archived separately.
+The archive is deposited when the article is published, and its DOI goes here.
 
-> **Where to get the archive.** It is deposited when the article is published, and
-> its DOI is added here at that point. It is not available yet, and this section
-> is the place that will carry the link — nothing else in the repository holds a
-> copy. A DOI is deliberately not guessed in advance: `CITATION.cff` leaves the
-> same field blank for the same reason, because a wrong identifier is propagated
-> automatically by every tool that reads these files.
-
-| artefact | what it is |
-|---|---|
-| `reference-results/n20/`, `reference-results/n5/` | the two runs exactly as first published, including the rows in which a failed call was recorded as a verdict |
-| `results/corrected/` | the 180-scenario run with both affected configurations re-measured under the fixed harness |
-| `results/corrected-n5/` | the pilot with its failed calls dropped rather than re-measured |
-| `results/n5-corrected/` | the five-seed run repeated under the fixed harness, written through the long-format schema |
-| `results/agg/` | the derived tables: confidence intervals, McNemar, ROC/PR, ensemble and frontier sweeps |
-
-Both the pre-correction and the post-correction artefacts are kept. The paper
-reports a defect in the original, and that report is only checkable if the
-original survives alongside the correction.
-
-[`PROVENANCE.md`](PROVENANCE.md) is the short version: what the defect was, how it
-was found, how many rows it touched, and what changed in the harness. It ships
-with this repository because the harness behaviour it describes is the behaviour
-you get.
-
-The dataset is generated deterministically from a fixed master seed (`20260621`),
-so the published runs can be regenerated on any machine with the same model tags
-pulled — `make up && make experiment`. Two cautions before you read a zero from a
-comparison:
+The dataset itself is generated deterministically from a fixed master seed
+(`20260621`), so the published runs can be regenerated on any machine with the
+same model tags pulled: `make up && make experiment`. Two cautions before you read
+a zero from a comparison:
 
 - A model must be pulled at the **same tag**. `ollama pull <model>:latest` will
   overwrite a pinned tag and change the artefact behind the numbers.
@@ -506,7 +474,6 @@ comparison:
   Read the `error_kind` column, not just the verdict.
 
 ## Command reference
-
 
 | Command | What it does | Needs a model? |
 |---|---|---|
@@ -537,7 +504,6 @@ entirely healthy. A variable already set in the real environment still wins, so
 its configuration came from in its banner.
 
 ## Architecture
-
 
 Seven Compose services share one Docker bridge network (`canary-net`) and address each
 other by service name. Host ports are published so that you, and the host-run tools,
@@ -593,7 +559,6 @@ Useful URLs once the stack is up:
 
 ## The AI judge
 
-
 The AI judge is a single code path for every model and provider. Two things are pure
 configuration.
 
@@ -622,7 +587,7 @@ Kayenta ──POST /judge {canaryConfig, metricSetPairList, scoreThresholds}─�
 
 The rubric is a file, not a string literal. Each variant lives in `prompts/` under an
 explicit identifier, and the identifier plus a hash of the prompt text is recorded on
-every result row and in every `data/ai-logs/` payload — so no row is ever ambiguous
+every result row and in every `data/ai-logs/` payload, so no row is ever ambiguous
 about which rubric produced it.
 
 ```bash
@@ -718,7 +683,6 @@ OpenAI `image_url` parts into Ollama's `images` field.
 
 ## The hybrid judge
 
-
 The hybrid is not a reimplementation of either judge. When Kayenta calls
 `judge-service` for a `mode=hybrid` analysis, the service:
 
@@ -754,7 +718,6 @@ because Kayenta re-derives promote-versus-roll-back from the score.
 
 ## The evaluation dataset
 
-
 `tools/eval_dataset.py` generates, deterministically from one master seed, N instances
 per family. Each instance is a control-and-experiment pair of series for one to three
 metrics over a 30-minute window at 60-second resolution, written to VictoriaMetrics
@@ -784,7 +747,6 @@ so the FAIL numbers mean something: a judge that always says FAIL is penalised o
 
 ## Configuring the statistical judge fairly
 
-
 For the comparison to be honest, the statistical judge has to run at its best, so any
 shortfall is a real structural blind spot and not a misconfiguration. One consistent,
 best-practice config is applied to every metric in every scenario, with no
@@ -811,7 +773,6 @@ conditions. That is why `variance_increase`, `tail_regression`, `gradual_drift`,
 There is no location shift for the test to find.
 
 ## Running the experiment and reading `results/`
-
 
 ```bash
 make seed-eval                 # load the dataset into VM + manifest (+ probe the real judge per family)
@@ -891,7 +852,6 @@ are append-only; nothing rewrites an existing file.
 
 ## The stress test
 
-
 For a fast visual demonstration, separate from the scored experiment, `make scenario`
 seeds two realistic Prometheus metrics: an unstable-tail latency
 (`http_request_duration_seconds`, same median as control but roughly 20× the variance)
@@ -902,7 +862,6 @@ it. It is the same blind spot the scored experiment measures across many seeded
 instances.
 
 ## Reading a single result
-
 
 Every judge returns the same `CanaryJudgeResult`:
 
@@ -942,7 +901,6 @@ Referee serves its SPA under `/dashboard` and reverse-proxies Kayenta under
 source Prometheus, account `vm`, control scope `Control`, experiment scope `Experiment`).
 
 ## Configuration reference
-
 
 Nothing you would want to change is hardcoded; it lives in a handful of files.
 
@@ -1016,7 +974,6 @@ credentials. Alias names have to match across the two files. Reload the gateway 
 
 ## Build notes and operational constraints
 
-
 ### Images
 
 - Pulled and pinned, no build: `redis`, `minio`, `minio/mc`, `victoriametrics`,
@@ -1069,7 +1026,6 @@ canaryLLM/
 |- docker-compose.yml         # the 7-service stack (+ host.docker.internal for Ollama)
 |- .env / .env.example        # pinned image tags, ports, creds, judge defaults, model tags
 |- Makefile                   # every workflow (validate, demo, experiment, scenario, ...)
-|- PROVENANCE.md              # the fabricated-verdict defect, and what changed because of it
 |- kayenta/
 |  |- config/kayenta.yml      # Kayenta config (mounted into the container)
 |  \- canary-configs/         # one JSON per judge/representation
@@ -1115,7 +1071,6 @@ published; regenerate it with `make experiment`.
 
 ## Scope and limitations
 
-
 What the harness produces is the numbers, tables, and figures for the judge comparison,
 in `results/`.
 
@@ -1147,10 +1102,20 @@ excludes such rows from every denominator.
 asserting it, by stubbing the AI judge to fail in each of the five ways the
 harness can observe.
 
-[`PROVENANCE.md`](PROVENANCE.md) has the full account: what the defect was, how it
-was found, how many rows it touched in each artefact, and which published results
-are pre- and post-correction. `make replay-logs` re-derives the evidence from the
-archived payloads.
+Three checks on your own results, cheapest first:
+
+1. **Read `errors.csv` and the `error_kind` column.** A configuration with error
+   rows has a reduced denominator on the affected families. That is correct
+   behaviour, but a rate over four scenarios is not the same measurement as a rate
+   over twenty, and only the `n` tells you which one you have.
+2. **Distrust a perfect cell**, particularly from a weak model on a hard family
+   whose ground truth matches the failure verdict.
+3. **Do not read a reproduction check as a validity check.** If a model fails the
+   same way on the same scenarios in two runs, both runs record the same failure
+   and a row-by-row diff reports zero differences.
+
+`make replay-logs` re-parses every archived payload and checks that no verdict or
+score moves.
 
 If you want to extend it, the seams are all inside the service:
 
@@ -1171,7 +1136,6 @@ If you want to extend it, the seams are all inside the service:
   regression with every service healthy.
 
 ## License
-
 
 Released under the Apache License 2.0; see [`LICENSE`](LICENSE). The evaluated
 models are used under their own licenses (Apache-2.0 or MIT; each is named with
