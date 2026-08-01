@@ -242,6 +242,8 @@ def main() -> int:
     ap.add_argument("--dpi", type=int, default=200,
                     help="output resolution; the figure size is fixed, so this "
                          "scales the pixels without changing the aspect ratio")
+    ap.add_argument("--out", default=None,
+                    help="output directory (default: results/figures)")
     ap.add_argument("--experiments", default=None,
                     help="directory of long-format result CSVs "
                          "(default: results/agg/experiments)")
@@ -253,7 +255,7 @@ def main() -> int:
     if not any(m["accuracy"] for m in spec["models"]):
         print("[figure] no ablation rows in the frame", file=sys.stderr)
         return 1
-    info = container_plot.render(PLOT, spec)
+    info = container_plot.render(PLOT, spec, out_dir=args.out)
     print(container_plot.report(info))
     print(json.dumps({m["label"]: {"accuracy": m["accuracy"], "target": m["target"],
                                    "paired": m["paired"]}

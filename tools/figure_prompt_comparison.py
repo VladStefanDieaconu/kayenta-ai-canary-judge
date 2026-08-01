@@ -166,6 +166,8 @@ def main() -> int:
     ap.add_argument("--min-rubrics", type=int, default=2,
                     help="drop models that ran fewer rubrics than this "
                          "(default 2: an ablation figure shows ablated models)")
+    ap.add_argument("--out", default=None,
+                    help="output directory (default: results/figures)")
     ap.add_argument("--experiments", default=None,
                     help="directory of long-format result CSVs "
                          "(default: results/agg/experiments)")
@@ -190,7 +192,7 @@ def main() -> int:
     if not spec["models"]:
         print(f"[figure] no rows for dataset={args.dataset}", file=sys.stderr)
         return 1
-    info = container_plot.render(PLOT, spec)
+    info = container_plot.render(PLOT, spec, out_dir=args.out)
     print(container_plot.report(info))
     print(json.dumps(info, indent=2))
     return 0

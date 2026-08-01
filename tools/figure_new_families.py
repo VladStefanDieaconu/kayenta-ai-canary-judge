@@ -62,6 +62,8 @@ def main() -> int:
                     help="output resolution; the figure size is fixed, so this "
                          "scales the pixels without changing the aspect ratio")
     ap.add_argument("--outfile", default="new_families.png")
+    ap.add_argument("--out", default=None,
+                    help="output directory (default: results/figures)")
     args = ap.parse_args()
 
     scenarios = ed.build_scenarios(args.seed, args.n, "generalisation-60")
@@ -101,7 +103,7 @@ def main() -> int:
         })
 
     info = container_plot.render(PLOT, {"families": panels, "dpi": args.dpi,
-                                        "outfile": args.outfile})
+                                        "outfile": args.outfile}, out_dir=args.out)
     print(container_plot.report(info))
     print(json.dumps(info, indent=2))
     return 0

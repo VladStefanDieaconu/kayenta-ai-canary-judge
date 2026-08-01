@@ -72,7 +72,8 @@ def png_size(path: Path) -> Dict[str, Any]:
             "bytes": path.stat().st_size}
 
 
-def render(plot_code: str, spec: Dict[str, Any], timeout: int = 300) -> List[Dict[str, Any]]:
+def render(plot_code: str, spec: Dict[str, Any], timeout: int = 300,
+           out_dir: Path | None = None) -> List[Dict[str, Any]]:
     """Run `plot_code` in the container with `spec` available, return figure info.
 
     The script receives its spec on the first line of stdin and calls save(fig,
@@ -94,8 +95,8 @@ def render(plot_code: str, spec: Dict[str, Any], timeout: int = 300) -> List[Dic
           "canaryllm-judge-service", "python", "-c", runner]),
     ]
     proc = None
-    for out_dir, cmd in attempts:
-        script = _PREAMBLE.format(out=out_dir) + "\n" + plot_code
+    for container_out, cmd in attempts:
+        script = _PREAMBLE.format(out=container_out) + "\n" + plot_code
         payload = json.dumps(spec, separators=(",", ":")) + "\n" + script
         proc = subprocess.run(cmd, input=payload, capture_output=True, text=True,
                               cwd=str(REPO_ROOT), timeout=timeout)
@@ -108,11 +109,12 @@ def render(plot_code: str, spec: Dict[str, Any], timeout: int = 300) -> List[Dic
     if not written:
         raise RuntimeError(f"figure script wrote nothing:\n{proc.stdout[-2000:]}")
 
-    FIG_DIR.mkdir(parents=True, exist_ok=True)
+    dest = Path(out_dir) if out_dir else FIG_DIR
+    dest.mkdir(parents=True, exist_ok=True)
     info = []
     for name in written:
         src = HOST_OUT / name
-        dst = FIG_DIR / name
+        dst = dest / name
         shutil.copy(src, dst)
         info.append(png_size(dst))
     return info
