@@ -28,7 +28,7 @@ locally on open-weight models through Ollama; the same judge code reaches AWS
 Bedrock, OpenAI or Anthropic by editing one config file, with no code change.
 
 The results of the study this testbed was built for are published separately; see
-[where the paper's data lives](#where-the-papers-data-lives).
+[the study section](#the-study-its-data-and-how-to-cite-it).
 
 ## Contents
 
@@ -46,7 +46,7 @@ Making it yours:
 - [Bringing your own model or provider](#bringing-your-own-model-or-provider)
 - [Adding your own scenario family](#adding-your-own-scenario-family)
 - [Rendering figures from your own results](#rendering-figures-from-your-own-results)
-- [Where the paper's data lives](#where-the-papers-data-lives)
+- [The study, its data and how to cite it](#the-study-its-data-and-how-to-cite-it)
 
 Reference:
 
@@ -147,7 +147,7 @@ The input is `example-results/`, a small slice of a real run kept so the analysi
 and figure path can be exercised without spending hours of inference first. It is
 example data and nothing more: it is far too small to draw a conclusion from, and
 it is not the dataset behind the paper. See
-[where the paper's data lives](#where-the-papers-data-lives) for that.
+[the study section](#the-study-its-data-and-how-to-cite-it) for that.
 
 ### Running the real thing
 
@@ -420,16 +420,22 @@ python tools/figure_threshold_summaries.py --results my-run --out my-run/figures
 python tools/figure_prompt_comparison.py --experiments my-run/agg/experiments
 ```
 
-| generator | reads | draws |
-|---|---|---|
-| `figure_distributions.py` | the scenario generator | location shift against equal-median shape change |
-| `figure_blindspot_series.py` | the scenario generator | two blind-spot scenarios as time series |
-| `figure_approach_bars.py` | `<results>/summary.csv`, `<results>/agg/` | the strongest configuration of each approach |
-| `figure_threshold_summaries.py` | `<results>/agg/roc_pr_auc.csv` | AUC-ROC and both precision-recall summaries |
-| `figure_multiseed_intervals.py` | `<results>/agg/long_results.csv` | per-configuration accuracy with confidence intervals |
-| `figure_prompt_comparison.py` | `--experiments` long-format frame | one rubric against another, per family |
-| `figure_ablation_summary.py` | `--experiments` long-format frame | the same comparison in one panel |
-| `render_figures.py` | `--spec` plus `<results>/` | accuracy bars, family heatmap, confusion matrices |
+Every one takes an input and an output:
+
+| generator | input | output | draws |
+|---|---|---|---|
+| `figure_distributions.py` | `--results`, `--seed`, `--n` | `--out` | location shift against equal-median shape change |
+| `figure_blindspot_series.py` | `--results`, `--seed`, `--n` | `--out` | two blind-spot scenarios as time series |
+| `figure_new_families.py` | `--seed`, `--n` | `--out`, `--outfile` | one instance of each added family |
+| `figure_approach_bars.py` | `--results` (`summary.csv` + `agg/`) | `--out` | the strongest configuration of each approach |
+| `figure_threshold_summaries.py` | `--results` (`agg/roc_pr_auc.csv`) | `--out` | AUC-ROC and both precision-recall summaries |
+| `figure_multiseed_intervals.py` | `--results` (`agg/metrics_with_ci.csv`) | `--out` | per-configuration accuracy with confidence intervals |
+| `figure_prompt_comparison.py` | `--experiments` long-format frame | `--out`, `--outfile` | one rubric against another, per family |
+| `figure_ablation_summary.py` | `--experiments` long-format frame | `--out`, `--outfile` | the same comparison in one panel |
+| `render_figures.py` | `--results`, `--spec` | `--out` | accuracy bars, family heatmap, confusion matrices |
+
+The three that take `--seed`/`--n` draw from the scenario generator rather than
+from a results file, because what they illustrate is the dataset itself.
 
 Figures render inside the `judge-service` image, which already carries matplotlib
 for the `plot` representation, so the host virtualenv stays dependency-light:
@@ -445,7 +451,19 @@ Two generators still name the study's three hosted models in a display-label
 constant (`figure_prompt_comparison.py`, `figure_ablation_summary.py`). Point them
 at your own frame and edit that constant to your own aliases.
 
-## Where the paper's data lives
+## The study, its data and how to cite it
+
+Everything to do with the paper is in this one section. The rest of this README
+is about the testbed.
+
+This repository was built for a study of whether a language or vision model can
+cover the Mann-Whitney judge's blind spots, published in *Future Internet*.
+[`CITATION.cff`](CITATION.cff) carries the citation metadata; cite the paper
+rather than the repository alone if you use this in academic work.
+[`PROVENANCE.md`](PROVENANCE.md) documents a defect found in the published run
+and what changed in the harness because of it.
+
+### The data
 
 The result artefacts are data for the paper, not code for this testbed, and they
 are large: 8,550 verdicts across eight models in the multi-seed run alone. Cloning
@@ -1154,5 +1172,5 @@ models are used under their own licenses (Apache-2.0 or MIT; each is named with
 its licence in `judge-service/models.yaml`). Kayenta, Referee, and the other
 components keep their upstream licenses.
 
-If you use this in academic work, [`CITATION.cff`](CITATION.cff) has the citation
-metadata.
+For the paper, the data deposit and the citation, see
+[the study section](#the-study-its-data-and-how-to-cite-it).
