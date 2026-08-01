@@ -29,8 +29,9 @@ data/*
 # The study's result artefacts are excluded on purpose too, which is a different
 # decision and worth writing down. They are data for the paper, not code for the
 # testbed: 8,550 verdicts in the multi-seed run alone, none of it useful to
-# someone judging their own canaries. They are archived separately with a DOI and
-# the README says where. Unpacking that archive back into this working tree must
+# someone judging their own canaries. They are archived separately, and the DOI
+# goes in the README once the article is published. Unpacking that archive back
+# into this working tree must
 # not make it committable by accident, so the reference directories are named
 # here even though this repository does not contain them.
 #

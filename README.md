@@ -28,7 +28,7 @@ locally on open-weight models through Ollama; the same judge code reaches AWS
 Bedrock, OpenAI or Anthropic by editing one config file, with no code change.
 
 The results of the study this testbed was built for are published separately; see
-[the study section](#the-study-its-data-and-how-to-cite-it).
+[the study section](#the-study-and-its-data).
 
 ## Contents
 
@@ -46,7 +46,7 @@ Making it yours:
 - [Bringing your own model or provider](#bringing-your-own-model-or-provider)
 - [Adding your own scenario family](#adding-your-own-scenario-family)
 - [Rendering figures from your own results](#rendering-figures-from-your-own-results)
-- [The study, its data and how to cite it](#the-study-its-data-and-how-to-cite-it)
+- [The study and its data](#the-study-and-its-data)
 
 Reference:
 
@@ -147,7 +147,7 @@ The input is `example-results/`, a small slice of a real run kept so the analysi
 and figure path can be exercised without spending hours of inference first. It is
 example data and nothing more: it is far too small to draw a conclusion from, and
 it is not the dataset behind the paper. See
-[the study section](#the-study-its-data-and-how-to-cite-it) for that.
+[the study section](#the-study-and-its-data) for that.
 
 ### Running the real thing
 
@@ -451,17 +451,16 @@ Two generators still name the study's three hosted models in a display-label
 constant (`figure_prompt_comparison.py`, `figure_ablation_summary.py`). Point them
 at your own frame and edit that constant to your own aliases.
 
-## The study, its data and how to cite it
+## The study and its data
 
 Everything to do with the paper is in this one section. The rest of this README
 is about the testbed.
 
 This repository was built for a study of whether a language or vision model can
-cover the Mann-Whitney judge's blind spots, published in *Future Internet*.
-[`CITATION.cff`](CITATION.cff) carries the citation metadata; cite the paper
-rather than the repository alone if you use this in academic work.
-[`PROVENANCE.md`](PROVENANCE.md) documents a defect found in the published run
-and what changed in the harness because of it.
+cover the Mann-Whitney judge's blind spots. [`CITATION.cff`](CITATION.cff) is how
+to cite the testbed itself; the study is a separate work and carries its own
+citation. [`PROVENANCE.md`](PROVENANCE.md) documents a defect found in the study's
+run and what changed in the harness because of it.
 
 ### The data
 
@@ -470,6 +469,13 @@ are large: 8,550 verdicts across eight models in the multi-seed run alone. Cloni
 this repository to judge your own canaries should not cost you a copy of somebody
 else's DeepSeek-R1 verdicts, so they are archived separately and are **not** in
 this repository.
+
+> **Where to get the archive.** It is deposited when the article is published, and
+> its DOI is added here at that point. It is not available yet, and this section
+> is the place that will carry the link — nothing else in the repository holds a
+> copy. A DOI is deliberately not guessed in advance: `CITATION.cff` leaves the
+> same field blank for the same reason, because a wrong identifier is propagated
+> automatically by every tool that reads these files.
 
 | artefact | what it is |
 |---|---|
@@ -1172,5 +1178,6 @@ models are used under their own licenses (Apache-2.0 or MIT; each is named with
 its licence in `judge-service/models.yaml`). Kayenta, Referee, and the other
 components keep their upstream licenses.
 
-For the paper, the data deposit and the citation, see
-[the study section](#the-study-its-data-and-how-to-cite-it).
+For how to cite this testbed, see [`CITATION.cff`](CITATION.cff). For the study it
+was built for and where its data lives, see
+[the study section](#the-study-and-its-data).

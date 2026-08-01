@@ -154,8 +154,10 @@ Three checks, cheapest first:
 Both the pre- and the post-correction artefacts are preserved. The paper reports
 a defect in the original, and that report is only checkable if the original
 survives alongside the correction. All of them are in the data archive
-distributed with the paper, not in this repository; see the README section on
-where the paper's data lives.
+distributed with the paper, not in this repository. That archive is deposited when
+the article is published and its DOI is added to the README then; every reference
+to "the data archive" or "the data deposit" below means that deposit, which is not
+available yet.
 
 | artefact | state | how it was produced |
 |---|---|---|

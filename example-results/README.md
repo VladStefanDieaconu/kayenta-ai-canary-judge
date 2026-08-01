@@ -7,7 +7,9 @@ no network.
 **This is not the dataset behind the paper.** It is 45 scenarios from a single
 seed. Do not read a rate off it and do not cite it. The study's own artefacts —
 the 180-scenario run, the five-seed sweep, the hosted-model runs and every
-derived table — are archived separately with a DOI; the README says where.
+derived table — are archived separately. That archive is deposited when the
+article is published, and its DOI is added to the main README then; see
+[the study section](../README.md#the-study-and-its-data).
 
 ## What is here
 
