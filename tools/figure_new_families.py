@@ -49,7 +49,7 @@ for i, f in enumerate(fams):
 fig.suptitle("generalisation-60: three held-out scenario families", fontsize=14, fontweight="bold")
 fig.tight_layout(rect=[0, 0, 1, 0.975])
 fig.subplots_adjust(hspace=0.95)
-save(fig, "new_families.png", dpi=200)
+save(fig, spec.get("outfile", "new_families.png"), dpi=spec.get("dpi", 200))
 """
 
 
@@ -58,6 +58,10 @@ def main() -> int:
     ap.add_argument("--n", type=int, default=20)
     ap.add_argument("--seed", type=int, default=ed.DEFAULT_MASTER_SEED)
     ap.add_argument("--index", type=int, default=0, help="which instance of each family")
+    ap.add_argument("--dpi", type=int, default=200,
+                    help="output resolution; the figure size is fixed, so this "
+                         "scales the pixels without changing the aspect ratio")
+    ap.add_argument("--outfile", default="new_families.png")
     args = ap.parse_args()
 
     scenarios = ed.build_scenarios(args.seed, args.n, "generalisation-60")
@@ -96,7 +100,8 @@ def main() -> int:
             "unit": "latency (s)", "note": note,
         })
 
-    info = container_plot.render(PLOT, {"families": panels})
+    info = container_plot.render(PLOT, {"families": panels, "dpi": args.dpi,
+                                        "outfile": args.outfile})
     print(container_plot.report(info))
     print(json.dumps(info, indent=2))
     return 0

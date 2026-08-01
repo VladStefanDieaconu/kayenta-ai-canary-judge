@@ -133,7 +133,7 @@ ax.set_title("(c)  paired against the frozen rubric", loc="left",
 fig.suptitle(spec["title"], fontsize=13.5, fontweight="bold")
 fig.text(0.5, 0.012, spec["footer"], ha="center", fontsize=8.6, color="#444444")
 fig.tight_layout(rect=[0, 0.135, 1, 0.955])
-save(fig, spec["outfile"], dpi=200)
+save(fig, spec["outfile"], dpi=spec.get("dpi", 200))
 """
 
 
@@ -239,6 +239,9 @@ def main() -> int:
     ap.add_argument("--dataset", default="original-180")
     ap.add_argument("--representation", default="raw")
     ap.add_argument("--outfile", default="ablation_summary.png")
+    ap.add_argument("--dpi", type=int, default=200,
+                    help="output resolution; the figure size is fixed, so this "
+                         "scales the pixels without changing the aspect ratio")
     ap.add_argument("--experiments", default=None,
                     help="directory of long-format result CSVs "
                          "(default: results/agg/experiments)")
@@ -246,6 +249,7 @@ def main() -> int:
 
     spec = build(args.dataset, args.representation, args.outfile,
                  Path(args.experiments) if args.experiments else None)
+    spec["dpi"] = args.dpi
     if not any(m["accuracy"] for m in spec["models"]):
         print("[figure] no ablation rows in the frame", file=sys.stderr)
         return 1
