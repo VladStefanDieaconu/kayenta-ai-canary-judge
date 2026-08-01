@@ -45,11 +45,82 @@ LABEL = {FROZEN: "v1 frozen", "v2-operational-2026-07": "v2 operational",
          "v3-temporal-2026-07": "v3 temporal"}
 COLOUR = {FROZEN: "#4c72b0", "v2-operational-2026-07": "#dd8452",
           "v3-temporal-2026-07": "#55a868"}
+# Display names for the aliases this study ablated. This is a labelling
+# courtesy, not a model list: which models appear is decided by the frame, not
+# by this dict, so pointing the script at someone else's results shows their
+# models under their own aliases.
 DISPLAY = {"claude-opus-4-8-vlm": "Claude Opus 4.8",
            "gpt-oss-120b-llm": "gpt-oss-120b",
            "qwen3-vl-235b-vlm": "Qwen3-VL 235B"}
-MODELS = list(DISPLAY)
 TARGET_FAMILY = "healed_transient"
+
+
+PALETTE = ["#4c72b0", "#dd8452", "#55a868", "#c44e52", "#8172b3", "#937860"]
+
+
+def display_name(alias: str) -> str:
+    return DISPLAY.get(alias, alias)
+
+
+def prompts_in_frame(dataset: str, representation: str, experiments):
+    """Rubric ids present, this study's first and any others after.
+
+    The baseline is whichever rubric comes first: v1-frozen when the frame is
+    this study's, otherwise the first the frame offers. Filtering to PROMPT_ORDER
+    alone would give an empty figure on any other rubric set.
+    """
+    found = {r["prompt_id"] for r in rs.load(experiments, dataset_id=dataset,
+                                             judge="ai", representation=representation)
+             if r["prompt_id"]}
+    known = [p for p in PROMPT_ORDER if p in found]
+    return known + sorted(found - set(PROMPT_ORDER))
+
+
+def models_in_frame(dataset: str, representation: str, experiments, min_rubrics: int = 2):
+    """Aliases that ran at least `min_rubrics` rubrics, in a stable order.
+
+    An ablation figure shows ablated models. A model that ran one rubric has
+    nothing to compare against, and drawing it produces a panel with a single bar
+    per family that reads as a result about the model rather than as a missing
+    arm. On the study's own frame this returns exactly the three hosted models,
+    which is what the script used to hardcode.
+    """
+    per: Dict[str, set] = {}
+    for r in rs.load(experiments, dataset_id=dataset, judge="ai",
+                     representation=representation):
+        per.setdefault(r["model"], set()).add(r["prompt_id"])
+    eligible = [m for m, ps in per.items() if len(ps) >= min_rubrics]
+    known = [m for m in DISPLAY if m in eligible]
+    return known + sorted(m for m in eligible if m not in DISPLAY), per
+
+
+def resolve_models(requested, dataset: str, representation: str, experiments,
+                   min_rubrics: int = 2):
+    """The models to draw, or a SystemExit naming what is actually in the frame."""
+    available, per = models_in_frame(dataset, representation, experiments, min_rubrics)
+    if requested:
+        missing = [m for m in requested if m not in per]
+        if missing:
+            raise SystemExit(
+                f"[figure] requested model(s) not in the frame: {', '.join(missing)}\n"
+                f"         the frame contains: {', '.join(sorted(per)) or '(nothing)'}\n"
+                f"         dataset={dataset} representation={representation}")
+        thin = [m for m in requested if len(per[m]) < min_rubrics]
+        if thin:
+            raise SystemExit(
+                f"[figure] requested model(s) ran fewer than {min_rubrics} rubrics, so there "
+                f"is nothing to ablate: {', '.join(thin)}\n"
+                f"         rubrics per model: "
+                + "; ".join(f"{m}={len(per[m])}" for m in sorted(per)))
+        return requested
+    if not available:
+        raise SystemExit(
+            f"[figure] no model in the frame ran {min_rubrics} or more rubrics, so there is "
+            f"no ablation to draw.\n"
+            f"         rubrics per model: "
+            + ("; ".join(f"{m}={len(per[m])}" for m in sorted(per)) or "(frame is empty)")
+            + f"\n         dataset={dataset} representation={representation}")
+    return available
 
 PLOT = r"""
 models = spec["models"]
@@ -158,21 +229,30 @@ def mcnemar_p(fixed: int, broken: int) -> float:
 
 
 def build(dataset: str, representation: str, outfile: str,
-          experiments: Optional[Path] = None) -> Dict[str, Any]:
-    variants = [p for p in PROMPT_ORDER if p != FROZEN]
+          experiments: Optional[Path] = None,
+          models: Optional[List[str]] = None,
+          min_rubrics: int = 2) -> Dict[str, Any]:
+    MODELS = resolve_models(models, dataset, representation, experiments, min_rubrics)
+    prompt_order = prompts_in_frame(dataset, representation, experiments)
+    if not prompt_order:
+        raise SystemExit(
+            f"[figure] no rubric ids in the frame for dataset={dataset} "
+            f"representation={representation}")
+    frozen = prompt_order[0]
+    variants = prompt_order[1:]
     out_models: List[Dict[str, Any]] = []
     raw_p: Dict[tuple, float] = {}
 
     per_model_rows = {}
     for model in MODELS:
         per_prompt = {}
-        for p in PROMPT_ORDER:
+        for p in prompt_order:
             per_prompt[p] = rs.load(experiments, dataset_id=dataset, judge="ai",
                                     representation=representation,
                                     model=model, prompt_id=p)
         per_model_rows[model] = per_prompt
         for v in variants:
-            a = {r["scenario_id"]: r for r in per_prompt[FROZEN]}
+            a = {r["scenario_id"]: r for r in per_prompt[frozen]}
             b = {r["scenario_id"]: r for r in per_prompt[v]}
             shared = set(a) & set(b)
             fixed = sum(1 for s in shared if a[s]["correct"] != 1 and b[s]["correct"] == 1)
@@ -190,7 +270,7 @@ def build(dataset: str, representation: str, outfile: str,
     for model in MODELS:
         per_prompt = per_model_rows[model]
         acc, target, n_by, paired = {}, {}, {}, {}
-        for p in PROMPT_ORDER:
+        for p in prompt_order:
             rows = per_prompt[p]
             if not rows:
                 continue
@@ -199,7 +279,7 @@ def build(dataset: str, representation: str, outfile: str,
             sub = [r for r in rows if r["family"] == TARGET_FAMILY]
             target[p] = (sum(r["correct"] for r in sub) / len(sub)) if sub else None
         for v in variants:
-            a = {r["scenario_id"]: r for r in per_prompt[FROZEN]}
+            a = {r["scenario_id"]: r for r in per_prompt[frozen]}
             b = {r["scenario_id"]: r for r in per_prompt[v]}
             shared = set(a) & set(b)
             paired[v] = {
@@ -210,13 +290,16 @@ def build(dataset: str, representation: str, outfile: str,
                 "p_holm": holm[(model, v)],
                 "stars": stars(holm[(model, v)]),
             }
-        out_models.append({"model": model, "label": DISPLAY[model],
+        out_models.append({"model": model, "label": display_name(model),
                            "accuracy": acc, "target": target,
                            "n_by_prompt": n_by, "paired": paired})
 
+    labels = {p_: LABEL.get(p_, p_) for p_ in prompt_order}
+    colours = {p_: COLOUR.get(p_, PALETTE[i % len(PALETTE)])
+               for i, p_ in enumerate(prompt_order)}
     return {
-        "models": out_models, "prompts": PROMPT_ORDER, "variants": variants,
-        "labels": LABEL, "colours": COLOUR, "outfile": outfile,
+        "models": out_models, "prompts": prompt_order, "variants": variants,
+        "labels": labels, "colours": colours, "outfile": outfile,
         "title": "One added instruction, three hosted models: a complete repair, "
                  "a partial one, and none",
         # Hard-wrapped: the footer is drawn in figure coordinates and
@@ -239,6 +322,11 @@ def main() -> int:
     ap.add_argument("--dataset", default="original-180")
     ap.add_argument("--representation", default="raw")
     ap.add_argument("--outfile", default="ablation_summary.png")
+    ap.add_argument("--models", default="",
+                    help="comma-separated aliases to draw (default: every model in "
+                         "the frame that ran at least --min-rubrics rubrics)")
+    ap.add_argument("--min-rubrics", type=int, default=2,
+                    help="a model with fewer rubrics than this has nothing to ablate")
     ap.add_argument("--dpi", type=int, default=200,
                     help="output resolution; the figure size is fixed, so this "
                          "scales the pixels without changing the aspect ratio")
@@ -249,8 +337,10 @@ def main() -> int:
                          "(default: results/agg/experiments)")
     args = ap.parse_args()
 
+    requested = [m.strip() for m in args.models.split(",") if m.strip()]
     spec = build(args.dataset, args.representation, args.outfile,
-                 Path(args.experiments) if args.experiments else None)
+                 Path(args.experiments) if args.experiments else None,
+                 requested, args.min_rubrics)
     spec["dpi"] = args.dpi
     if not any(m["accuracy"] for m in spec["models"]):
         print("[figure] no ablation rows in the frame", file=sys.stderr)

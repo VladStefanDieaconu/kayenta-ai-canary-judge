@@ -33,10 +33,29 @@ import results_schema as rs  # noqa: E402
 
 FROZEN = "v1-frozen-2026-06"
 PROMPT_ORDER = [FROZEN, "v2-operational-2026-07", "v3-temporal-2026-07"]
+# Display names and a palette for the rubrics this study ablated. Neither
+# decides which rubrics appear -- that comes from the frame -- so another
+# rubric set renders under its own ids in the same colours.
 LABEL = {FROZEN: "v1 frozen", "v2-operational-2026-07": "v2 operational",
          "v3-temporal-2026-07": "v3 temporal"}
 COLOUR = {FROZEN: "#4c72b0", "v2-operational-2026-07": "#dd8452",
           "v3-temporal-2026-07": "#55a868"}
+PALETTE = ["#4c72b0", "#dd8452", "#55a868", "#c44e52", "#8172b3", "#937860"]
+
+
+def prompts_in_frame(dataset, representation, experiments):
+    """Rubric ids present, the study's three first and any others after.
+
+    PROMPT_ORDER is this study's rubric set. Filtering to it alone means a frame
+    written with different rubric ids produces an empty figure and no
+    explanation, which is the one thing a figure script must not do to someone
+    else's data.
+    """
+    found = {r["prompt_id"] for r in rs.load(experiments, dataset_id=dataset,
+                                             judge="ai", representation=representation)
+             if r["prompt_id"]}
+    known = [p for p in PROMPT_ORDER if p in found]
+    return known + sorted(found - set(PROMPT_ORDER))
 
 PLOT = r"""
 models = spec["models"]
@@ -112,11 +131,18 @@ save(fig, spec["outfile"], dpi=200)
 
 def build(dataset: str, representation: str, outfile: str, title: str,
           highlight: List[str], footer: str, min_rubrics: int = 2,
-          experiments: Optional[Path] = None) -> Dict[str, Any]:
+          experiments: Optional[Path] = None,
+          requested_models: Optional[List[str]] = None) -> Dict[str, Any]:
     models = sorted({r["model"] for r in rs.load(experiments, dataset_id=dataset, judge="ai")})
-    prompts = [p for p in PROMPT_ORDER
-               if rs.load(experiments, dataset_id=dataset, judge="ai", prompt_id=p,
-                          representation=representation)]
+    if requested_models:
+        missing = [m for m in requested_models if m not in models]
+        if missing:
+            raise SystemExit(
+                f"[figure] requested model(s) not in the frame: {', '.join(missing)}\n"
+                f"         the frame contains: {', '.join(models) or '(nothing)'}\n"
+                f"         dataset={dataset}")
+        models = [m for m in requested_models]
+    prompts = prompts_in_frame(dataset, representation, experiments)
     families = sorted({r["family"] for r in rs.load(experiments, dataset_id=dataset, judge="ai")},
                       key=ed.family_order)
     truth = {}
@@ -152,8 +178,11 @@ def build(dataset: str, representation: str, outfile: str, title: str,
             out_models.append({"model": model, "family": fam, "overall": overall,
                                "n": n, "n_by_prompt": n_by_prompt})
 
+    # Labels and colours cover whatever rubrics the frame actually holds.
+    labels = {p: LABEL.get(p, p) for p in prompts}
+    colours = {p: COLOUR.get(p, PALETTE[i % len(PALETTE)]) for i, p in enumerate(prompts)}
     return {"models": out_models, "families": families, "prompts": prompts,
-            "labels": LABEL, "colours": COLOUR, "frozen": FROZEN,
+            "labels": labels, "colours": colours, "frozen": prompts[0] if prompts else FROZEN,
             "highlight": highlight, "truth": truth, "title": title,
             "footer": footer, "outfile": outfile}
 
@@ -166,6 +195,8 @@ def main() -> int:
     ap.add_argument("--min-rubrics", type=int, default=2,
                     help="drop models that ran fewer rubrics than this "
                          "(default 2: an ablation figure shows ablated models)")
+    ap.add_argument("--models", default="",
+                    help="comma-separated aliases to draw (default: every model in the frame)")
     ap.add_argument("--out", default=None,
                     help="output directory (default: results/figures)")
     ap.add_argument("--experiments", default=None,
@@ -188,9 +219,16 @@ def main() -> int:
                   "All three families are labelled FAIL, so accuracy here is recall.")
 
     spec = build(args.dataset, args.representation, outfile, title, highlight,
-                 footer, args.min_rubrics, experiments)
+                 footer, args.min_rubrics, experiments,
+                 [m.strip() for m in args.models.split(",") if m.strip()])
+    if not spec["prompts"]:
+        print(f"[figure] no rubric ids in the frame for dataset={args.dataset} "
+              f"representation={args.representation}", file=sys.stderr)
+        return 1
     if not spec["models"]:
-        print(f"[figure] no rows for dataset={args.dataset}", file=sys.stderr)
+        print(f"[figure] no model in the frame ran at least {args.min_rubrics} rubrics "
+              f"for dataset={args.dataset}; rubrics present: "
+              f"{', '.join(spec['prompts'])}", file=sys.stderr)
         return 1
     info = container_plot.render(PLOT, spec, out_dir=args.out)
     print(container_plot.report(info))
