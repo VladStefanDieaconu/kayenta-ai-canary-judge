@@ -28,10 +28,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 IN = "/app/data/ai-logs/_exp_figdata.json"
-# The published figures were drawn at 120. MDPI asks for 300 in print, so the
-# resolution is a flag rather than three literals -- but the default is the
-# published value, so re-rendering without asking changes nothing.
-DPI = 120
+DPI = 300
 OUT = "/app/data/ai-logs/_exp_figs"
 
 # The heatmap's extra rows, when their table is reachable. Each entry is
@@ -115,7 +112,7 @@ def main() -> int:
                          "ensemble and frontier rows; omit to draw the main "
                          "sweep's judges only")
     ap.add_argument("--dpi", type=int, default=DPI,
-                    help=f"figure resolution (default {DPI}, the published value)")
+                    help=f"figure resolution (default {DPI})")
     ap.add_argument("--include-or", action="store_true",
                     help="keep the hybrid:or row, which is verdict-identical to "
                          "hybrid:gated on this benchmark (Section 7.1)")

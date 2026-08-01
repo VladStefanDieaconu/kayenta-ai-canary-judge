@@ -49,7 +49,7 @@ for i, f in enumerate(fams):
 fig.suptitle("generalisation-60: three held-out scenario families", fontsize=14, fontweight="bold")
 fig.tight_layout(rect=[0, 0, 1, 0.975])
 fig.subplots_adjust(hspace=0.95)
-save(fig, spec.get("outfile", "fig12_new_families.png"), dpi=spec.get("dpi", 200))
+save(fig, spec.get("outfile", "fig12_new_families.png"), dpi=spec.get("dpi", 300))
 """
 
 
@@ -58,7 +58,7 @@ def main() -> int:
     ap.add_argument("--n", type=int, default=20)
     ap.add_argument("--seed", type=int, default=ed.DEFAULT_MASTER_SEED)
     ap.add_argument("--index", type=int, default=0, help="which instance of each family")
-    ap.add_argument("--dpi", type=int, default=200,
+    ap.add_argument("--dpi", type=int, default=300,
                     help="output resolution; the figure size is fixed, so this "
                          "scales the pixels without changing the aspect ratio")
     ap.add_argument("--outfile", default="fig12_new_families.png")

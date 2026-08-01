@@ -204,7 +204,7 @@ ax.set_title("(c)  paired against the frozen rubric", loc="left",
 fig.suptitle(spec["title"], fontsize=13.5, fontweight="bold")
 fig.text(0.5, 0.012, spec["footer"], ha="center", fontsize=8.6, color="#444444")
 fig.tight_layout(rect=[0, 0.135, 1, 0.955])
-save(fig, spec["outfile"], dpi=spec.get("dpi", 200))
+save(fig, spec["outfile"], dpi=spec.get("dpi", 300))
 """
 
 
@@ -327,7 +327,7 @@ def main() -> int:
                          "the frame that ran at least --min-rubrics rubrics)")
     ap.add_argument("--min-rubrics", type=int, default=2,
                     help="a model with fewer rubrics than this has nothing to ablate")
-    ap.add_argument("--dpi", type=int, default=200,
+    ap.add_argument("--dpi", type=int, default=300,
                     help="output resolution; the figure size is fixed, so this "
                          "scales the pixels without changing the aspect ratio")
     ap.add_argument("--out", default=None,
