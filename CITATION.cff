@@ -1,0 +1,34 @@
+cff-version: 1.2.0
+message: >-
+  If you use this software or the benchmark it produces, please cite it as below.
+title: >-
+  Kayenta AI Canary Judge: a model-agnostic remote judge and benchmark for
+  automated canary analysis
+abstract: >-
+  A configurable remote judge for Kayenta that produces a canary verdict from a
+  large language model or a vision-language model, three explicit hybrid policies
+  that combine it with the genuine NetflixACAJudge verdict, a tuned statistical
+  ensemble baseline, and a seeded nine-family fault-injection benchmark of 180
+  labelled scenarios with the harness that scores every judge over it.
+type: software
+license: Apache-2.0
+repository-code: "https://github.com/VladStefanDieaconu/kayenta-ai-canary-judge"
+keywords:
+  - automated canary analysis
+  - continuous delivery
+  - progressive delivery
+  - Mann-Whitney U test
+  - large language models
+  - vision-language models
+  - LLM-as-a-judge
+  - anomaly detection
+  - site reliability engineering
+# This file describes the software in this repository, and nothing else. The
+# study the testbed was built for is a separate work with its own byline and its
+# own citation; it is not restated here.
+authors:
+  - family-names: Dieaconu
+    given-names: Vlad-Ștefan
+    affiliation: >-
+      Faculty of Automatic Control and Computers, National University of Science
+      and Technology POLITEHNICA Bucharest, Bucharest, Romania

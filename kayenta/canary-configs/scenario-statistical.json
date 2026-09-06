@@ -1,0 +1,72 @@
+{
+  "name": "scenario-statistical",
+  "description": "MANN-WHITNEY BLIND-SPOT scenario judged by the built-in NetflixACAJudge-v1.0. Realistic metrics: http_request_duration_seconds (p99 latency) with a stable median but blown-up variance/tail (issue #6278 Case 1), and process_resident_memory_bytes with an emerging late-window leak. Uses ADVANCED metric config (direction=increase + effectSize thresholds) and STILL passes the bad canary, because Mann-Whitney only tests the median/location.",
+  "configVersion": "1.0",
+  "applications": ["ad-hoc"],
+  "judge": {
+    "name": "NetflixACAJudge-v1.0",
+    "judgeConfigurations": {}
+  },
+  "metrics": [
+    {
+      "name": "http_request_duration_seconds",
+      "query": {
+        "type": "prometheus",
+        "serviceType": "prometheus",
+        "metricName": "http_request_duration_seconds",
+        "customInlineTemplate": "PromQL:sum without(Canary) (http_request_duration_seconds{Canary=\"${scope}\"})",
+        "labelBindings": []
+      },
+      "groups": ["latency"],
+      "analysisConfigurations": {
+        "canary": {
+          "direction": "increase",
+          "nanStrategy": "replace",
+          "effectSize": {
+            "allowedIncrease": 1.1,
+            "criticalIncrease": 1.5
+          },
+          "outliers": {
+            "strategy": "keep"
+          }
+        }
+      },
+      "scopeName": "default"
+    },
+    {
+      "name": "process_resident_memory_bytes",
+      "query": {
+        "type": "prometheus",
+        "serviceType": "prometheus",
+        "metricName": "process_resident_memory_bytes",
+        "customInlineTemplate": "PromQL:sum without(Canary) (process_resident_memory_bytes{Canary=\"${scope}\"})",
+        "labelBindings": []
+      },
+      "groups": ["resources"],
+      "analysisConfigurations": {
+        "canary": {
+          "direction": "increase",
+          "nanStrategy": "replace",
+          "effectSize": {
+            "allowedIncrease": 1.1,
+            "criticalIncrease": 1.5
+          },
+          "outliers": {
+            "strategy": "keep"
+          }
+        }
+      },
+      "scopeName": "default"
+    }
+  ],
+  "classifier": {
+    "groupWeights": {
+      "latency": 50,
+      "resources": 50
+    },
+    "scoreThresholds": {
+      "pass": 75,
+      "marginal": 50
+    }
+  }
+}

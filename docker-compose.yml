@@ -1,0 +1,213 @@
+# kayenta-ai-canary-judge: Dockerized Kayenta canary-judge testing framework.
+# Services: redis, minio (+ one-shot bucket init), victoriametrics, litellm,
+# judge-service (configurable remote judge), kayenta, referee (UI). See README.md.
+
+services:
+  # --- 1. Redis: backs Kayenta's embedded Orca (non-clustered) -------------
+  redis:
+    image: redis:${REDIS_IMAGE_TAG}
+    container_name: canary-redis
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "${REDIS_PORT}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [canary]
+
+  # --- 2. MinIO: S3-compatible object store for Kayenta -------------------
+  minio:
+    image: minio/minio:${MINIO_IMAGE_TAG}
+    container_name: canary-minio
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "${MINIO_API_PORT}:9000"
+      - "${MINIO_CONSOLE_PORT}:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [canary]
+
+  # One-shot: wait for MinIO, create the kayenta bucket, then exit 0.
+  # Kayenta gates on this completing successfully.
+  minio-init:
+    image: minio/mc:${MINIO_MC_IMAGE_TAG}
+    container_name: canary-minio-init
+    depends_on:
+      minio:
+        condition: service_started
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      KAYENTA_S3_BUCKET: ${KAYENTA_S3_BUCKET}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        until mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"; do
+          echo "waiting for minio..."; sleep 2;
+        done
+        mc mb --ignore-existing "local/$$KAYENTA_S3_BUCKET"
+        echo "bucket '$$KAYENTA_S3_BUCKET' ready"
+    networks: [canary]
+
+  # --- 3. VictoriaMetrics: Prometheus-compatible metric store -------------
+  # Accepts back-dated samples (unlike plain Prometheus). No shell in the
+  # image, so readiness is polled host-side (Makefile / pipeline), not via a
+  # container healthcheck.
+  victoriametrics:
+    image: victoriametrics/victoria-metrics:${VICTORIAMETRICS_IMAGE_TAG}
+    container_name: canary-victoriametrics
+    command:
+      - "-storageDataPath=/victoria-metrics-data"
+      - "-retentionPeriod=1y"
+      - "-search.latencyOffset=1s"
+    ports:
+      - "${VICTORIAMETRICS_PORT}:8428"
+    volumes:
+      - vm-data:/victoria-metrics-data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8428/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [canary]
+
+  # --- 4. LiteLLM gateway: one OpenAI-compatible endpoint for all providers ---
+  # The judge talks only to this. Local models are served by Ollama
+  # on the host; provider selection lives entirely in litellm/config.yaml.
+  litellm:
+    image: ghcr.io/berriai/litellm:${LITELLM_IMAGE_TAG}
+    container_name: canary-litellm
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    environment:
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      # Reader cloud creds pass through if set in .env (no-op when unset).
+      AWS_REGION_NAME: ${AWS_REGION_NAME:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_BEARER_TOKEN_BEDROCK: ${AWS_BEARER_TOKEN_BEDROCK:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    volumes:
+      - ./litellm/config.yaml:/app/config.yaml:ro
+    ports:
+      - "${LITELLM_PORT:-4000}:4000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:4000/health/liveliness').status==200 else 1)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks: [canary]
+
+  # --- 6. judge-service: configurable remote AI judge (Remote Judge contract) ----
+  judge-service:
+    build:
+      context: ./judge-service
+    container_name: canary-judge-service
+    depends_on:
+      litellm:
+        condition: service_started
+    environment:
+      # Used only by hybrid mode: the service calls back into Kayenta to run the
+      # genuine NetflixACAJudge on the same pairs (no statistical reimplementation).
+      KAYENTA_BASE_URL: http://kayenta:8090
+      # The single OpenAI-compatible gateway the AI modes call.
+      LITELLM_BASE_URL: http://litellm:4000
+      # Judge defaults (canary-config judgeConfigurations override these per-run).
+      JUDGE_MODE: ${JUDGE_MODE:-dummy}
+      JUDGE_MODEL: ${JUDGE_MODEL:-qwen-llm}
+      JUDGE_TEMPERATURE: ${JUDGE_TEMPERATURE:-0}
+      JUDGE_TOP_P: ${JUDGE_TOP_P:-1.0}
+      JUDGE_MAX_TOKENS: ${JUDGE_MAX_TOKENS:-1024}
+      JUDGE_SEED: ${JUDGE_SEED:-42}
+      # Which rubric to judge under, by id (a filename stem in prompts/). The
+      # canary config's judgeConfigurations.prompt_id overrides this per-run.
+      # An unknown id fails the call; it never falls back to another prompt.
+      JUDGE_PROMPT_ID: ${JUDGE_PROMPT_ID:-v1-frozen-2026-06}
+    volumes:
+      # AI-mode reproducibility logs (prompt, image hash, raw response, verdict).
+      - ./data/ai-logs:/app/data/ai-logs
+      # The rubric variants, mounted rather than baked so adding a prompt is a
+      # file, not a rebuild (same reasoning as litellm's config.yaml above).
+      - ./prompts:/app/prompts:ro
+    ports:
+      - "${JUDGE_SERVICE_PORT}:5000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://localhost:5000/health').status==200 else sys.exit(1)"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [canary]
+
+  # --- 5. Kayenta: the ACA service (standalone) ---------------------------
+  kayenta:
+    image: armory/kayenta:${KAYENTA_IMAGE_TAG}
+    container_name: canary-kayenta
+    depends_on:
+      redis:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+      victoriametrics:
+        condition: service_started
+      judge-service:
+        condition: service_started
+    environment:
+      # Surfaced into kayenta.yml via Spring property placeholders.
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      KAYENTA_S3_BUCKET: ${KAYENTA_S3_BUCKET}
+      KAYENTA_S3_ROOT_FOLDER: ${KAYENTA_S3_ROOT_FOLDER}
+      JAVA_OPTS: "-Xmx1g"
+    volumes:
+      - ./kayenta/config/kayenta.yml:/opt/kayenta/config/kayenta.yml:ro
+    ports:
+      - "${KAYENTA_PORT}:8090"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8090/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+    networks: [canary]
+
+  # --- 7. Referee: standalone Kayenta UI (built from source) --------------
+  referee:
+    build:
+      context: ./referee
+    container_name: canary-referee
+    depends_on:
+      kayenta:
+        condition: service_started
+    environment:
+      KAYENTA_BASE_URL: http://kayenta:8090
+    ports:
+      - "${REFEREE_PORT}:3001"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/dashboard',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks: [canary]
+
+networks:
+  canary:
+    name: canary-net
+
+volumes:
+  minio-data:
+  vm-data:

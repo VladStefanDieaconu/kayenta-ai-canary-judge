@@ -1,0 +1,55 @@
+{
+  "name": "ai-llm-raw",
+  "description": "AI Remote Judge, raw representation (serialized value arrays) judged by an LLM. Identical metrics block to the dummy configs; differs only in judgeConfigurations (mode=summary, model=qwen-llm).",
+  "configVersion": "1.0",
+  "applications": ["ad-hoc"],
+  "judge": {
+    "name": "RemoteJudge-v1.0",
+    "judgeConfigurations": { "mode": "raw", "model": "qwen-llm" }
+  },
+  "metrics": [
+    {
+      "name": "dummy_latency",
+      "query": {
+        "type": "prometheus",
+        "serviceType": "prometheus",
+        "metricName": "dummy_latency",
+        "customInlineTemplate": "PromQL:sum without(Canary) (dummy_latency{Canary=\"${scope}\"})",
+        "labelBindings": []
+      },
+      "groups": ["dummy-group"],
+      "analysisConfigurations": {
+        "canary": {
+          "direction": "either"
+        }
+      },
+      "scopeName": "default"
+    },
+    {
+      "name": "dummy_error_rate",
+      "query": {
+        "type": "prometheus",
+        "serviceType": "prometheus",
+        "metricName": "dummy_error_rate",
+        "customInlineTemplate": "PromQL:sum without(Canary) (dummy_error_rate{Canary=\"${scope}\"})",
+        "labelBindings": []
+      },
+      "groups": ["dummy-group"],
+      "analysisConfigurations": {
+        "canary": {
+          "direction": "increase"
+        }
+      },
+      "scopeName": "default"
+    }
+  ],
+  "classifier": {
+    "groupWeights": {
+      "dummy-group": 100
+    },
+    "scoreThresholds": {
+      "pass": 75,
+      "marginal": 50
+    }
+  }
+}

@@ -1,0 +1,50 @@
+# Model registry: maps a friendly alias (the `model` the judge sends to the
+# LiteLLM gateway) to its modality. The judge uses `modality` to decide whether
+# to render and attach a chart image (vision) or send text only. That is the only
+# thing the judge branches on; provider and serving live entirely in
+# litellm/config.yaml. Aliases here must match the `model_name` entries there.
+
+models:
+  # --- LLMs (text) ---
+  qwen-llm:         { modality: text }    # Qwen2.5 7B Instruct (Apache-2.0)
+  phi4-llm:         { modality: text }    # Phi-4 14B (MIT)
+  olmo2-llm:        { modality: text }    # OLMo 2 7B (Apache-2.0, fully open)
+  mistral-nemo-llm: { modality: text }    # Mistral-Nemo 12B (Apache-2.0)
+  deepseek-r1-llm:  { modality: text }    # DeepSeek-R1-Distill-Qwen 7B (MIT, reasoning)
+
+  # --- VLMs (vision) ---
+  moondream-vlm:      { modality: vision }  # Moondream2 ~1.8B (Apache-2.0)
+  granite-vision-vlm: { modality: vision }  # Granite 3.2 Vision 2B (Apache-2.0)
+  minicpm-v-vlm:      { modality: vision }  # MiniCPM-V 8B (vision)
+
+  # --- reader cloud providers (modality reflects the underlying model) ---
+  # bedrock-claude:   { modality: vision }
+  # openai-gpt4o:     { modality: vision }
+  # anthropic-claude: { modality: vision }
+
+  # Frontier hosted models (AWS Bedrock via litellm; bearer-token creds in .env,
+  # never committed). `also_text: true` is read only by the frontier sweep tooling
+  # (run_experiment.py's registered_aliases()/discover_models() ignore unknown
+  # keys), so these vision-modality aliases can also run the text-only summary/raw
+  # representations for the frontier representation comparison, without changing
+  # how the existing vision aliases are swept.
+  # json_mode: false because LiteLLM's response_format=json_object translates to a
+  # forced tool call for these Bedrock models and returns empty content (confirmed
+  # with a direct call). The frozen prompt asks for strict JSON itself and the
+  # tolerant parser handles the rest, so JSON mode is not needed (see judge_config.py).
+  claude-opus-4-8-vlm:   { modality: vision, also_text: true, json_mode: false }  # Claude Opus 4.8 (Bedrock, frontier)
+  claude-sonnet-5-vlm:   { modality: vision, also_text: true, json_mode: false }  # Claude Sonnet 5 (Bedrock, frontier)
+  # OpenAI gpt-oss-120b (Bedrock, frontier, open-weight). modality: text because
+  # Bedrock's ListFoundationModels reports inputModalities=['TEXT'] for
+  # openai.gpt-oss-120b-1:0 -- there is no IMAGE input, so the `plot`
+  # representation cannot be served by this model. summary and raw are viable.
+  # max_tokens: this model interleaves its reasoning into the completion budget,
+  # and on the raw representation at the global 1024 it spends the whole budget
+  # thinking and returns empty content with finish_reason='length'. 21% of one
+  # representation came back empty that way. Every other alias leaves this unset
+  # and inherits JUDGE_MAX_TOKENS; the longest completion observed across 1085
+  # archived Opus and Qwen responses is ~252 tokens, so the global 1024 has never
+  # bound for any of them and raising it here changes nothing but this model.
+  gpt-oss-120b-llm:      { modality: text, json_mode: false, max_tokens: 4096 }  # OpenAI gpt-oss-120b (Bedrock, frontier)
+  claude-opus-5-vlm:     { modality: vision, also_text: true, json_mode: false }  # Claude Opus 5 (Bedrock, frontier)
+  qwen3-vl-235b-vlm:     { modality: vision, also_text: true, json_mode: false }  # Qwen3-VL 235B-A22B (Bedrock, frontier)

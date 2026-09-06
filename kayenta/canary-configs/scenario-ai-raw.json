@@ -1,0 +1,81 @@
+{
+  "name": "scenario-ai-raw",
+  "description": "MANN-WHITNEY BLIND-SPOT scenario judged by the configurable AI judge (raw-series LLM). Same metrics/scopes as scenario-statistical; differs only in judgeConfigurations (mode=raw, model=qwen-llm).",
+  "configVersion": "1.0",
+  "applications": [
+    "ad-hoc"
+  ],
+  "judge": {
+    "name": "RemoteJudge-v1.0",
+    "judgeConfigurations": {
+      "mode": "raw",
+      "model": "qwen-llm"
+    }
+  },
+  "metrics": [
+    {
+      "name": "http_request_duration_seconds",
+      "query": {
+        "type": "prometheus",
+        "serviceType": "prometheus",
+        "metricName": "http_request_duration_seconds",
+        "customInlineTemplate": "PromQL:sum without(Canary) (http_request_duration_seconds{Canary=\"${scope}\"})",
+        "labelBindings": []
+      },
+      "groups": [
+        "latency"
+      ],
+      "analysisConfigurations": {
+        "canary": {
+          "direction": "increase",
+          "nanStrategy": "replace",
+          "effectSize": {
+            "allowedIncrease": 1.1,
+            "criticalIncrease": 1.5
+          },
+          "outliers": {
+            "strategy": "keep"
+          }
+        }
+      },
+      "scopeName": "default"
+    },
+    {
+      "name": "process_resident_memory_bytes",
+      "query": {
+        "type": "prometheus",
+        "serviceType": "prometheus",
+        "metricName": "process_resident_memory_bytes",
+        "customInlineTemplate": "PromQL:sum without(Canary) (process_resident_memory_bytes{Canary=\"${scope}\"})",
+        "labelBindings": []
+      },
+      "groups": [
+        "resources"
+      ],
+      "analysisConfigurations": {
+        "canary": {
+          "direction": "increase",
+          "nanStrategy": "replace",
+          "effectSize": {
+            "allowedIncrease": 1.1,
+            "criticalIncrease": 1.5
+          },
+          "outliers": {
+            "strategy": "keep"
+          }
+        }
+      },
+      "scopeName": "default"
+    }
+  ],
+  "classifier": {
+    "groupWeights": {
+      "latency": 50,
+      "resources": 50
+    },
+    "scoreThresholds": {
+      "pass": 75,
+      "marginal": 50
+    }
+  }
+}

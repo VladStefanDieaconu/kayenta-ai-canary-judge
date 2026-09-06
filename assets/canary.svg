@@ -1,0 +1,43 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Kayenta AI Canary Judge">
+  <title>Kayenta AI Canary Judge</title>
+  <!-- tile -->
+  <rect x="2" y="2" width="252" height="252" rx="52" fill="#111722"/>
+  <rect x="2.5" y="2.5" width="251" height="251" rx="51.5" fill="none" stroke="#232c3b" stroke-width="1"/>
+
+  <!-- baseline metric line with a regression spike; the canary perches on it -->
+  <polyline points="30,204 78,204 96,204 108,183 120,204 176,204 226,204"
+            fill="none" stroke="#46c06a" stroke-width="5"
+            stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>
+  <circle cx="108" cy="183" r="4.5" fill="#46c06a"/>
+
+  <!-- legs -->
+  <g stroke="#F2941C" stroke-width="4" stroke-linecap="round">
+    <line x1="124" y1="184" x2="121" y2="202"/>
+    <line x1="141" y1="184" x2="144" y2="202"/>
+  </g>
+
+  <!-- tail -->
+  <path d="M96 150 L56 137 L66 156 L57 177 L101 172 Z" fill="#E0A314"/>
+
+  <!-- body -->
+  <ellipse cx="132" cy="150" rx="46" ry="40" fill="#F6C915"/>
+
+  <!-- wing -->
+  <path d="M108 138 Q141 129 165 152 Q138 167 112 160 Z" fill="#E0A314"/>
+
+  <!-- head -->
+  <circle cx="161" cy="112" r="30" fill="#F6C915"/>
+  <!-- crest -->
+  <path d="M150 85 Q157 71 166 83 Q160 84 156 90 Z" fill="#F6C915"/>
+
+  <!-- beak -->
+  <path d="M187 105 L216 112 L187 119 Z" fill="#F2941C"/>
+  <path d="M187 112 L212 114 L187 121 Z" fill="#D97A12"/>
+
+  <!-- cheek -->
+  <circle cx="157" cy="122" r="6" fill="#F2941C" opacity="0.45"/>
+
+  <!-- eye -->
+  <circle cx="170" cy="105" r="5.4" fill="#141a24"/>
+  <circle cx="171.7" cy="103.3" r="1.7" fill="#ffffff"/>
+</svg>

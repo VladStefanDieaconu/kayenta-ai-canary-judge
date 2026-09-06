@@ -1,0 +1,55 @@
+{
+  "name": "dummy-ai",
+  "description": "DUMMY AI judge (no-op, NO model). Remote Judge with judgeConfigurations.mode=dummy → judge-service returns a trivial deterministic CanaryJudgeResult. Used to validate wiring without any model running. The REAL AI judge is mode=summary/raw/plot (see ai-llm-*.json / scenario-ai-*.json).",
+  "configVersion": "1.0",
+  "applications": ["ad-hoc"],
+  "judge": {
+    "name": "RemoteJudge-v1.0",
+    "judgeConfigurations": { "mode": "dummy" }
+  },
+  "metrics": [
+    {
+      "name": "dummy_latency",
+      "query": {
+        "type": "prometheus",
+        "serviceType": "prometheus",
+        "metricName": "dummy_latency",
+        "customInlineTemplate": "PromQL:sum without(Canary) (dummy_latency{Canary=\"${scope}\"})",
+        "labelBindings": []
+      },
+      "groups": ["dummy-group"],
+      "analysisConfigurations": {
+        "canary": {
+          "direction": "either"
+        }
+      },
+      "scopeName": "default"
+    },
+    {
+      "name": "dummy_error_rate",
+      "query": {
+        "type": "prometheus",
+        "serviceType": "prometheus",
+        "metricName": "dummy_error_rate",
+        "customInlineTemplate": "PromQL:sum without(Canary) (dummy_error_rate{Canary=\"${scope}\"})",
+        "labelBindings": []
+      },
+      "groups": ["dummy-group"],
+      "analysisConfigurations": {
+        "canary": {
+          "direction": "increase"
+        }
+      },
+      "scopeName": "default"
+    }
+  ],
+  "classifier": {
+    "groupWeights": {
+      "dummy-group": 100
+    },
+    "scoreThresholds": {
+      "pass": 75,
+      "marginal": 50
+    }
+  }
+}

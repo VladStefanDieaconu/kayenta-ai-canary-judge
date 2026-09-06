@@ -1,0 +1,55 @@
+{
+  "name": "dummy-hybrid",
+  "description": "HYBRID judge. The judge-service calls Kayenta back to run the genuine NetflixACAJudge on the same pairs and merges it with its AI verdict. Here the AI half is the no-op DUMMY (no aiMode set) so this works with NO model (used by make validate). To use the REAL AI half, add judgeConfigurations.aiMode=summary|raw|plot and model=<alias> (see scenario-ai-hybrid.json).",
+  "configVersion": "1.0",
+  "applications": ["ad-hoc"],
+  "judge": {
+    "name": "RemoteJudge-v1.0",
+    "judgeConfigurations": { "mode": "hybrid" }
+  },
+  "metrics": [
+    {
+      "name": "dummy_latency",
+      "query": {
+        "type": "prometheus",
+        "serviceType": "prometheus",
+        "metricName": "dummy_latency",
+        "customInlineTemplate": "PromQL:sum without(Canary) (dummy_latency{Canary=\"${scope}\"})",
+        "labelBindings": []
+      },
+      "groups": ["dummy-group"],
+      "analysisConfigurations": {
+        "canary": {
+          "direction": "either"
+        }
+      },
+      "scopeName": "default"
+    },
+    {
+      "name": "dummy_error_rate",
+      "query": {
+        "type": "prometheus",
+        "serviceType": "prometheus",
+        "metricName": "dummy_error_rate",
+        "customInlineTemplate": "PromQL:sum without(Canary) (dummy_error_rate{Canary=\"${scope}\"})",
+        "labelBindings": []
+      },
+      "groups": ["dummy-group"],
+      "analysisConfigurations": {
+        "canary": {
+          "direction": "increase"
+        }
+      },
+      "scopeName": "default"
+    }
+  ],
+  "classifier": {
+    "groupWeights": {
+      "dummy-group": 100
+    },
+    "scoreThresholds": {
+      "pass": 75,
+      "marginal": 50
+    }
+  }
+}
