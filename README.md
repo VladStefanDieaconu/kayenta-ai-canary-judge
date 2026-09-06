@@ -9,6 +9,11 @@
   Statistical, LLM/VLM, and hybrid judges, scored on a labelled dataset.
 </p>
 
+<p align="center">
+  <a href="https://doi.org/10.5281/zenodo.22553878"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.22553878.svg" alt="DOI (software)"></a>
+  <a href="https://doi.org/10.5281/zenodo.22551774"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.22551774.svg" alt="DOI (data)"></a>
+</p>
+
 A Docker Compose testbed that runs a complete automated canary analysis pipeline
 three ways and scores the verdicts against ground truth. The three judges are the
 statistical test Spinnaker/Kayenta ships with, a configurable AI judge (a language
@@ -451,16 +456,19 @@ This repository was built for a study of whether a language or vision model can
 cover the Mann-Whitney judge's blind spots. The rest of this README is about the
 testbed; this section is the only part about the paper.
 
-[`CITATION.cff`](CITATION.cff) is how to cite the testbed. The study is a separate
-work and carries its own citation.
+[`CITATION.cff`](CITATION.cff) is how to cite the testbed. It is also archived on
+Zenodo as a versioned software snapshot:
+[10.5281/zenodo.22553878](https://doi.org/10.5281/zenodo.22553878). The study is
+a separate work and carries its own citation.
 
 ### The data
 
 The study's result artefacts are not in this repository. They are data for the
 paper rather than code for the testbed, and they are large: 8,550 verdicts in the
 multi-seed run alone. Cloning this to judge your own canaries should not cost you
-a copy of somebody else's DeepSeek-R1 verdicts, so they are archived separately.
-The archive is deposited when the article is published, and its DOI goes here.
+a copy of somebody else's DeepSeek-R1 verdicts, so they are archived separately,
+on Zenodo: [10.5281/zenodo.22551774](https://doi.org/10.5281/zenodo.22551774)
+(CC-BY-4.0).
 
 The dataset itself is generated deterministically from a fixed master seed
 (`20260621`), so the published runs can be regenerated on any machine with the
