@@ -20,12 +20,22 @@ comparison is fair. Absent models are skipped, not failed. Runs are deterministi
 (temperature 0, fixed seeds); a preflight runs one scenario twice and checks the
 verdict matches.
 
+`--own-data FILE` takes the scenarios from your own exported canary windows
+(tools/own_data.py, specified in docs/own-data.md) instead of generating them,
+skips the VictoriaMetrics seeding step, and writes to results/own-data/.
+Everything after that point is this same file: the scoreboard, the confusion
+matrix, the McNemar test and the kappa are then literally the code that produced
+the article's numbers rather than a second implementation that can drift away
+from it. A window carrying no label is judged and written like any other and is
+excluded from every denominator.
+
 Outputs (results/): results_raw.csv, summary.csv, summary.md, family_matrix.csv,
 mcnemar.csv, kappa.csv, figures/*.png, results.md.
 
 Usage:
   python tools/run_experiment.py [--n 6] [--seed 20260621] [--models a,b]
                                  [--quick] [--no-figures]
+  python tools/run_experiment.py --own-data windows.csv [--keep-ids] [--quick]
 """
 
 from __future__ import annotations
@@ -50,6 +60,7 @@ import requests
 import repo_env  # noqa: E402,F401
 import eval_dataset as ed
 import judge_clients
+import own_data
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "judge-service" / "app"))
@@ -64,7 +75,8 @@ active_prompt = prompt_registry.load(
     os.environ.get("JUDGE_PROMPT_ID") or prompt_registry.DEFAULT_PROMPT_ID
 )
 
-RESULTS_DIR = REPO_ROOT / "results"
+DEFAULT_RESULTS_DIR = REPO_ROOT / "results"
+RESULTS_DIR = DEFAULT_RESULTS_DIR
 FIG_DIR = RESULTS_DIR / "figures"
 REGISTRY = REPO_ROOT / "judge-service" / "models.yaml"
 LITELLM_CONFIG = REPO_ROOT / "litellm" / "config.yaml"
@@ -135,9 +147,28 @@ def discover_models(restrict: Optional[List[str]]) -> Tuple[List[Dict[str, str]]
 
 # Metrics (stdlib only). FAIL is the positive class.
 def confusion(rows: List[Dict[str, Any]]) -> Dict[str, int]:
+    """TP/FP/TN/FN over rows that carry a ground-truth label.
+
+    A row whose truth is empty is refused rather than counted. `truth == "FAIL"`
+    would otherwise read an unlabelled window as a genuine PASS-truth one, so a
+    judge that says PASS to everything would score 1.000 on windows nobody
+    labelled. write_outputs() already filters to the labelled rows before it
+    aggregates, but this is a module-level function that other tools import
+    (run_fp_guard_experiment, run_ensemble_experiment), and unlabelled rows are
+    a supported mode that reaches results_raw.csv (docs/own-data.md). The guard
+    belongs here, not in one careful caller.
+    """
     c = {"TP": 0, "FP": 0, "TN": 0, "FN": 0}
     for r in rows:
-        truth_fail = r["truth"] == "FAIL"
+        truth = r.get("truth")
+        if not truth:
+            raise ValueError(
+                f"confusion() was given a row with no ground truth "
+                f"(scenario={r.get('scenario', '?')!r}, judge={r.get('judge', '?')!r}, "
+                f"model={r.get('model', '?')!r}). An unlabelled window is judged and "
+                f"written, and enters no accuracy denominator; filter to the rows whose "
+                f"truth is set before scoring them.")
+        truth_fail = truth == "FAIL"
         pred_fail = r["verdict"] == "FAIL"
         if truth_fail and pred_fail:
             c["TP"] += 1
@@ -205,9 +236,15 @@ def judge_key(kind: str, sub: str) -> str:
 # Run one scenario across all judges/models.
 def run_scenario(sc: ed.Scenario, present: List[Dict[str, str]], base_millis: int,
                  modes_text: List[str], modes_vision: List[str],
-                 errors: Optional[List[Dict[str, Any]]] = None) -> List[Dict[str, Any]]:
+                 errors: Optional[List[Dict[str, Any]]] = None,
+                 step_millis: Optional[int] = None) -> List[Dict[str, Any]]:
+    # `step_millis` is the window's own resolution. It is appended rather than
+    # inserted, and defaults to the scenario's own step, which for every
+    # generated scenario is the seeded 60s -- so the existing callers
+    # (run_multiseed_corrected, test_failed_call_is_not_scored) are unaffected
+    # by its arrival, positionally and behaviourally.
     series = ed.series_for_scenario(sc)
-    pairs = ed.build_pairs(sc, series, base_millis)
+    pairs = ed.build_pairs(sc, series, base_millis, step_millis or sc.step_seconds * 1000)
     stat_cfg = ed.build_canary_config(sc, {"name": "NetflixACAJudge-v1.0", "judgeConfigurations": {}})
 
     rows: List[Dict[str, Any]] = []
@@ -275,6 +312,12 @@ def run_scenario(sc: ed.Scenario, present: List[Dict[str, str]], base_millis: in
     return rows
 
 
+def _base_for(sc: ed.Scenario, default: int) -> int:
+    """A supplied window starts when its own timestamps say; a generated one at
+    the step-aligned time the whole seeded dataset shares."""
+    return sc.base_millis if sc.base_millis is not None else default
+
+
 def _row(sc: ed.Scenario, kind: str, sub: str, model: str, verdict: str, score: float,
          latency: float, error: str, rationale: str = "", note: str = "",
          call: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -288,7 +331,12 @@ def _row(sc: ed.Scenario, kind: str, sub: str, model: str, verdict: str, score: 
         "scenario": sc.id, "family": sc.family, "truth": sc.truth,
         "judge": jk, "kind": kind, "rep_or_policy": sub, "model": model,
         "verdict": verdict, "score": round(float(score), 2),
-        "correct": int(verdict == sc.truth),
+        # An unlabelled window has no correctness, and the field is left empty
+        # rather than set to 0. Scoring it 0 deflates every denominator it enters
+        # and scoring it 1 fabricates a result -- the same defect Section 11
+        # records, in a different costume. write_outputs() drops these rows from
+        # every aggregate instead.
+        "correct": int(verdict == sc.truth) if sc.truth else "",
         "latency": round(float(latency), 2), "error": error[:140],
         "rationale": rationale[:200].replace("\n", " "), "note": note,
         "prompt_id": c.get("prompt_id", "") or "",
@@ -300,9 +348,10 @@ def _row(sc: ed.Scenario, kind: str, sub: str, model: str, verdict: str, score: 
 
 
 # Determinism preflight.
-def determinism_check(sc: ed.Scenario, model: str, base_millis: int) -> Dict[str, Any]:
+def determinism_check(sc: ed.Scenario, model: str, base_millis: int,
+                      step_millis: Optional[int] = None) -> Dict[str, Any]:
     series = ed.series_for_scenario(sc)
-    pairs = ed.build_pairs(sc, series, base_millis)
+    pairs = ed.build_pairs(sc, series, base_millis, step_millis or sc.step_seconds * 1000)
     cfg = ed.build_canary_config(sc, {})
     r1 = judge_clients.judge_ai(pairs, cfg, "summary", model, PASS_T, MARGINAL_T)
     r2 = judge_clients.judge_ai(pairs, cfg, "summary", model, PASS_T, MARGINAL_T)
@@ -368,6 +417,22 @@ def main() -> int:
                     help="comma-separated alias allow-list (default: all present)")
     ap.add_argument("--quick", action="store_true", help="tiny smoke run (n=1, two default models)")
     ap.add_argument("--no-figures", action="store_true")
+    # Bringing your own windows. Every one of these defaults to the current
+    # behaviour, so a run without them is the run that produced the article's
+    # numbers. See docs/own-data.md.
+    ap.add_argument("--own-data", default=os.environ.get("OWN_DATA", ""),
+                    help="score your own exported canary windows instead of the seeded dataset")
+    ap.add_argument("--stat-config", default=os.environ.get("STAT_CONFIG", ""),
+                    help="JSON of statistical settings merged onto the tuned template "
+                         "(marks the run as not comparable with the published numbers)")
+    ap.add_argument("--out", default="",
+                    help="output directory (default: results, or results/own-data with --own-data)")
+    ap.add_argument("--keep-ids", action="store_true",
+                    help="--own-data: keep your window and metric names (they reach the model)")
+    ap.add_argument("--min-samples", type=int, default=own_data.MIN_SAMPLES_PER_SIDE,
+                    help="--own-data: samples required per side (default 10)")
+    ap.add_argument("--allow-gaps", action="store_true",
+                    help="--own-data: accept windows above the 20%% missing-sample limit")
     args = ap.parse_args()
 
     n = 1 if args.quick else args.n
@@ -375,9 +440,22 @@ def main() -> int:
     if args.quick and not restrict:
         restrict = QUICK_MODELS
 
+    global RESULTS_DIR, FIG_DIR
+    # Resolved, not as it was typed. Everything downstream compares this against
+    # DEFAULT_RESULTS_DIR and takes paths relative to REPO_ROOT, and a relative
+    # --out satisfies neither: a relative path does not compare equal to the
+    # absolute default even when it names the same directory.
+    RESULTS_DIR = Path(args.out).resolve() if args.out else (
+        REPO_ROOT / "results" / "own-data" if args.own_data else DEFAULT_RESULTS_DIR)
+    FIG_DIR = RESULTS_DIR / "figures"
+
     t_start = time.time()
     print("=" * 80)
-    print(f"kayenta-ai-canary-judge scored experiment  (n={n}/family, seed={args.seed}, quick={args.quick})")
+    if args.own_data:
+        print(f"kayenta-ai-canary-judge scored experiment  (your own windows, quick={args.quick})")
+        print(f"  source={args.own_data} -> {RESULTS_DIR}")
+    else:
+        print(f"kayenta-ai-canary-judge scored experiment  (n={n}/family, seed={args.seed}, quick={args.quick})")
     print(f"  prompt={active_prompt.id} ({active_prompt.hash})  config: {repo_env.describe()}")
     print("=" * 80)
 
@@ -399,17 +477,38 @@ def main() -> int:
     if skipped:
         print(f"[experiment] skipped (absent): {[(m['alias'], m['reason']) for m in skipped]}")
 
-    # Build and seed the dataset (load into VM with the Canary scheme, plus manifest).
-    scenarios = ed.build_scenarios(args.seed, n)
     base_millis = ed.aligned_base_millis()
-    print(f"[experiment] seeding {len(scenarios)} scenarios into VictoriaMetrics ...")
-    import seed_eval_dataset as seeder
-    seeder.seed_vm(seeder.build_payload(scenarios, base_millis))
-    manifest = ed.build_manifest(args.seed, n, scenarios, base_millis)
-    (REPO_ROOT / "data" / "eval_manifest.json").write_text(json.dumps(manifest, indent=2))
+    if args.own_data:
+        # Your windows are not written to VictoriaMetrics. They already live in
+        # your own metric store, the judges read the in-memory pairs, and a
+        # second copy inside a container buys no capability.
+        try:
+            scenarios, manifest = own_data.load(
+                args.own_data, anonymise=not args.keep_ids, min_samples=args.min_samples,
+                allow_gaps=args.allow_gaps, stat_config=args.stat_config or None,
+                limit=2 if args.quick else None)
+        except own_data.OwnDataError as e:
+            print(f"[experiment] {args.own_data} cannot be loaded "
+                  f"({len(e.messages)} problem(s)); nothing was judged:", file=sys.stderr)
+            for message in e.messages:
+                print(f"  {message}", file=sys.stderr)
+            return 2
+        print(own_data.describe(scenarios, manifest))
+        RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+        (RESULTS_DIR / "own_data_manifest.json").write_text(json.dumps(manifest, indent=2))
+    else:
+        # Build and seed the dataset (load into VM with the Canary scheme, plus manifest).
+        scenarios = ed.build_scenarios(args.seed, n)
+        print(f"[experiment] seeding {len(scenarios)} scenarios into VictoriaMetrics ...")
+        import seed_eval_dataset as seeder
+        seeder.seed_vm(seeder.build_payload(scenarios, base_millis))
+        manifest = ed.build_manifest(args.seed, n, scenarios, base_millis)
+        (REPO_ROOT / "data" / "eval_manifest.json").write_text(json.dumps(manifest, indent=2))
 
     # Determinism preflight.
-    det = determinism_check(scenarios[0], present[0]["alias"], base_millis)
+    det = determinism_check(scenarios[0], present[0]["alias"],
+                            _base_for(scenarios[0], base_millis),
+                            scenarios[0].step_seconds * 1000)
     print(f"[experiment] determinism: {det['model']} on {det['scenario']} -> "
           f"{det['run1']} vs {det['run2']} -> {'IDENTICAL' if det['identical'] else 'DIFFERENT'}")
 
@@ -422,12 +521,27 @@ def main() -> int:
     call_errors: List[Dict[str, Any]] = []
     for i, sc in enumerate(scenarios, 1):
         t0 = time.time()
-        rows = run_scenario(sc, present, base_millis, TEXT_MODES, VISION_MODES, call_errors)
+        rows = run_scenario(sc, present, _base_for(sc, base_millis), TEXT_MODES, VISION_MODES,
+                            call_errors, sc.step_seconds * 1000)
         all_rows.extend(rows)
-        print(f"  [{i:3d}/{len(scenarios)}] {sc.id:24s} truth={sc.truth} "
+        print(f"  [{i:3d}/{len(scenarios)}] {sc.id:24s} truth={sc.truth or '(unlabelled)'} "
               f"({time.time()-t0:.0f}s)")
 
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+
+    # A seeded run clears the own-data marker out of the directory it is about to
+    # fill. tools/roc_pr_curves.py asks the run what it is by reading
+    # own_data_manifest.json rather than by looking at where the directory sits,
+    # which is what lets the deposited run score as the seeded run wherever it is
+    # unpacked -- and it means one `--own-data --out results` leaves a marker
+    # behind that every later seeded run into results/ inherits. That run's
+    # roc_pr_auc.csv then comes out with a derived configuration list and an
+    # eighth n_unlabelled_dropped column instead of the published five
+    # configurations in the seven columns they have always had. The marker is the
+    # one file only an own-data run writes, so it goes out with everything else
+    # this run is replacing.
+    if not args.own_data:
+        (RESULTS_DIR / "own_data_manifest.json").unlink(missing_ok=True)
 
     # Failed calls, reported loudly and written beside the results rather than
     # scored. An empty errors.csv is the normal outcome and is still written, so
@@ -457,14 +571,24 @@ def main() -> int:
 
 
 def write_outputs(rows, present, skipped, det, manifest, args, n, no_figures, elapsed):
-    # results_raw.csv
+    # results_raw.csv: every judgement, labelled or not.
     raw_header = ["scenario", "family", "truth", "judge", "kind", "rep_or_policy", "model",
                   "verdict", "score", "correct", "latency", "error", "note", "rationale"]
     write_csv(RESULTS_DIR / "results_raw.csv", raw_header,
               [[r[k] for k in raw_header] for r in rows])
 
+    # Everything below is scored, so everything below sees the labelled rows
+    # only. A verdict on a window nobody labelled is a result; it is not a
+    # measurement of accuracy, and it enters no denominator. For the seeded
+    # dataset every window is labelled and this is the whole set.
+    scored = [r for r in rows if r["truth"]]
+    unlabelled = len({r["scenario"] for r in rows}) - len({r["scenario"] for r in scored})
+    if not scored:
+        _write_unscored(rows, manifest, unlabelled, elapsed)
+        return
+
     # aggregate scoreboard (judge x model)
-    agg = aggregate(rows)
+    agg = aggregate(scored)
     order = _judge_order(agg)
     sum_header = ["judge", "model", "n", "accuracy", "precision", "recall", "f1", "fpr", "fnr",
                   "TP", "FP", "TN", "FN", "avg_latency"]
@@ -474,6 +598,13 @@ def write_outputs(rows, present, skipped, det, manifest, args, n, no_figures, el
         sum_rows.append([key[0], key[1], a["n"], r3(a["accuracy"]), r3(a["precision"]), r3(a["recall"]),
                          r3(a["f1"]), r3(a["fpr"]), r3(a["fnr"]), a["TP"], a["FP"], a["TN"], a["FN"],
                          a["avg_latency"]])
+    # A run cut short by --quick says so in its own scoreboard, in a trailing
+    # column added only when there is something to say, so a full run's
+    # summary.csv keeps the header it has always had.
+    quick = _quick_note(manifest)
+    if quick:
+        sum_header = sum_header + ["note"]
+        sum_rows = [row + [quick] for row in sum_rows]
     write_csv(RESULTS_DIR / "summary.csv", sum_header, sum_rows)
 
     # family matrix (judge x model x family accuracy)
@@ -481,7 +612,7 @@ def write_outputs(rows, present, skipped, det, manifest, args, n, no_figures, el
     fam_header = ["judge", "model"] + families
     fam_rows = []
     by_group_family = defaultdict(lambda: defaultdict(list))
-    for r in rows:
+    for r in scored:
         by_group_family[(r["judge"], r["model"])][r["family"]].append(r["correct"])
     for key in order:
         row = [key[0], key[1]]
@@ -492,29 +623,38 @@ def write_outputs(rows, present, skipped, det, manifest, args, n, no_figures, el
     write_csv(RESULTS_DIR / "family_matrix.csv", fam_header, fam_rows)
 
     # McNemar and kappa for key judge pairs (per model)
-    mcnemar_rows, kappa_rows = _paired_stats(rows, present)
+    mcnemar_rows, kappa_rows = _paired_stats(scored, present)
     write_csv(RESULTS_DIR / "mcnemar.csv",
               ["model", "judge_a", "judge_b", "discordant", "n01_a_wrong_b_right",
                "n10_a_right_b_wrong", "chi2_cc", "p_value"], mcnemar_rows)
     # kappa vs ground truth (per judge x model), plus judge-to-judge
     kappa_truth = []
     for key in order:
-        labs = [r["verdict"] for r in rows if (r["judge"], r["model"]) == key]
-        truths = [r["truth"] for r in rows if (r["judge"], r["model"]) == key]
+        labs = [r["verdict"] for r in scored if (r["judge"], r["model"]) == key]
+        truths = [r["truth"] for r in scored if (r["judge"], r["model"]) == key]
         kappa_truth.append([key[0], key[1], "ground_truth", r3(cohen_kappa(labs, truths))])
     write_csv(RESULTS_DIR / "kappa.csv", ["judge_a", "model", "judge_b", "kappa"],
               kappa_truth + kappa_rows)
 
     # figures
+    #
+    # The reports are what this feature exists to produce; the figures are not.
+    # Anything that goes wrong drawing them is reported and the run carries on to
+    # summary.md and results.md, because a figure step that raised here took both
+    # reports with it after every judge call had already been made.
     figs_ok = False
     if not no_figures:
-        _write_figdata(rows, agg, order, families, present)
-        figs_ok = render_figures()
+        try:
+            _write_figdata(scored, agg, order, families, present)
+            figs_ok = render_figures()
+        except Exception as e:  # noqa: BLE001
+            print(f"[experiment] figures skipped ({type(e).__name__}: {e}); the tables "
+                  f"and both reports are unaffected", file=sys.stderr)
 
     # summary.md and results.md
     _write_summary_md(sum_header, sum_rows, order, agg)
-    _write_results_md(rows, agg, order, families, present, skipped, det, manifest, args, n,
-                      mcnemar_rows, figs_ok, elapsed)
+    _write_results_md(scored, agg, order, families, present, skipped, det, manifest, args, n,
+                      mcnemar_rows, figs_ok, elapsed, unlabelled)
 
 
 def r3(x):
@@ -602,6 +742,35 @@ def _write_figdata(rows, agg, order, families, present):
     (AILOG_DIR / "_exp_figdata.json").write_text(json.dumps(figdata))
 
 
+def _quick_note(manifest) -> str:
+    """One sentence saying a run was cut short, or "" when it was not.
+
+    A `--quick` run judges the first N windows of the file and scores exactly
+    those. Its scoreboard is a real scoreboard over a subset, and read a week
+    later, without the console output, nothing in it said so. The manifest now
+    records the file's own window count (own_data.build_manifest), so the
+    scoreboard can carry the sentence rather than the reader having to go and
+    find the manifest to learn that it should not be trusted as the file's.
+    """
+    limit = manifest.get("limited_to")
+    if not limit:
+        return ""
+    return (f"--quick: the first {limit} of the {manifest.get('n_windows_in_file', limit)} "
+            f"window(s) in {manifest.get('source', 'the file')} were judged; a smoke run, "
+            f"not the file's scoreboard")
+
+
+def _quick_markdown(manifest) -> List[str]:
+    """The same fact as a Markdown admonition, or [] when the run was complete."""
+    limit = manifest.get("limited_to")
+    if not limit:
+        return []
+    return [f"> **This is a smoke run.** Only the first {limit} of the "
+            f"{manifest.get('n_windows_in_file', limit)} window(s) in "
+            f"`{manifest.get('source', 'the file')}` were judged. Everything below "
+            f"describes those {limit}. Re-run without `--quick` for the whole file.", ""]
+
+
 def _write_summary_md(sum_header, sum_rows, order, agg):
     lines = ["# Experiment scoreboard (Table 5)", "",
              "FAIL is the positive class. One row per (judge, model).", ""]
@@ -612,8 +781,42 @@ def _write_summary_md(sum_header, sum_rows, order, agg):
     (RESULTS_DIR / "summary.md").write_text("\n".join(lines) + "\n")
 
 
+def _write_unscored(rows, manifest, unlabelled, elapsed):
+    """The scoreboard files for a run in which nothing was labelled.
+
+    They are still written, they say so in one line, and they carry no numbers.
+    An absent summary.csv reads as "the run failed"; a summary.csv full of zeroes
+    reads as "every judge got everything wrong". Neither is what happened: the
+    judges ran, every verdict is in results_raw.csv, and there is nothing to
+    score them against.
+    """
+    quick = _quick_note(manifest)
+    write_csv(RESULTS_DIR / "summary.csv", ["judge", "model", "n", "note"],
+              [["-", "-", 0, "no labelled window in this run; nothing to score"]]
+              + ([["-", "-", 0, quick]] if quick else []))
+    body = "\n".join(_quick_markdown(manifest) + [
+        f"None of the {unlabelled} window(s) in this run carries a label, so there is no",
+        "accuracy, precision, recall, F1, FPR, FNR, McNemar or kappa to report. The judges",
+        "ran and every verdict, score, rationale and latency is in `results_raw.csv`.",
+        "",
+        "Verdicts without labels are a supported mode and a useful one. They are not an",
+        "evaluation. Label the windows you remember -- including the ones you promoted and",
+        "did not regret, which are as much data as the rollbacks -- and run it again;",
+        "see `docs/own-data.md`.",
+        "",
+    ])
+    (RESULTS_DIR / "summary.md").write_text("# Experiment scoreboard\n\n" + body)
+    (RESULTS_DIR / "results.md").write_text(
+        f"# kayenta-ai-canary-judge: your own windows\n\n"
+        f"_Generated {manifest.get('generated_at', '')} · {len(rows)} judgement(s) · "
+        f"{elapsed/60:.1f} min._\n\n" + body)
+    print(f"[experiment] nothing was labelled; {len(rows)} verdict(s) written, none scored",
+          file=sys.stderr)
+
+
 def _write_results_md(rows, agg, order, families, present, skipped, det, manifest, args, n,
-                      mcnemar_rows, figs_ok, elapsed):
+                      mcnemar_rows, figs_ok, elapsed, unlabelled=0):
+    own = bool(manifest.get("own_data"))
     total_scen = len({r["scenario"] for r in rows})
     # best per judge family + overall picks
     by_judge_overall = defaultdict(list)
@@ -646,18 +849,48 @@ def _write_results_md(rows, agg, order, families, present, skipped, det, manifes
     L: List[str] = []
     L.append("# kayenta-ai-canary-judge: scored judge experiment (results)")
     L.append("")
-    L.append(f"_Generated {manifest['generated_at']} · {total_scen} scenarios "
-             f"({len(families)} families × n={n}) · {elapsed/60:.1f} min._")
+    if own:
+        L.append(f"_Generated {manifest['generated_at']} · {total_scen} labelled window(s) scored"
+                 f"{f', {unlabelled} unlabelled and excluded' if unlabelled else ''} · "
+                 f"{elapsed/60:.1f} min._")
+    else:
+        L.append(f"_Generated {manifest['generated_at']} · {total_scen} scenarios "
+                 f"({len(families)} families × n={n}) · {elapsed/60:.1f} min._")
     L.append("")
+    L.extend(_quick_markdown(manifest))
     L.append("## Setup")
-    L.append(f"- **Dataset**: {len(families)} families × {n} instances = {total_scen} labelled scenarios, "
-             f"master seed {manifest['master_seed']}, deterministic.")
+    if own:
+        L.append(f"- **Dataset**: your own windows, read from `{manifest['source']}` "
+                 f"({manifest['n_windows']} window(s), {manifest['n_metrics']} metric series, "
+                 f"{manifest['n_labelled']} labelled). Window and metric names are "
+                 + ("renamed before any prompt sees them." if manifest['anonymised']
+                    else "**not** renamed (`--keep-ids`), so your own names reached the model."))
+        if unlabelled:
+            L.append(f"- **Unlabelled windows**: {unlabelled} judged and written to "
+                     f"`results_raw.csv`, and excluded from every figure below. They are not "
+                     f"counted as wrong; they are not counted at all.")
+    else:
+        L.append(f"- **Dataset**: {len(families)} families × {n} instances = {total_scen} labelled scenarios, "
+                 f"master seed {manifest['master_seed']}, deterministic.")
     L.append(f"- **Models present**: {', '.join(m['alias'] for m in present)}.")
     if skipped:
         L.append(f"- **Models skipped (absent)**: {', '.join(m['alias'] for m in skipped)}.")
-    L.append(f"- **Statistical config (uniform, best-practice)**: direction=increase, "
-             f"effectSize=meanRatio (allowedIncrease 1.05 / criticalIncrease 1.25), nanStrategy=remove, "
-             f"outliers=keep, critical=true, mustHaveData=true; scoreThresholds pass={int(PASS_T)}/marginal={int(MARGINAL_T)}.")
+    if own:
+        # Derived from the template that was actually applied rather than from
+        # the study's sentence about it, which would still read
+        # "allowedIncrease 1.05" after a run that used 1.10.
+        L.append(f"- **Statistical config**: {_stat_config_sentence(manifest)}")
+        if not manifest.get("comparable_with_published", True):
+            L.append(f"- **These numbers are not comparable with the published ones.** The "
+                     f"statistical template was overridden with "
+                     f"`{json.dumps(manifest['statistical_overrides'], sort_keys=True)}`, so the "
+                     f"statistical judge in this run is not the one the article measured.")
+        for warning in manifest.get("warnings", []):
+            L.append(f"- _Loader warning_: {warning}")
+    else:
+        L.append(f"- **Statistical config (uniform, best-practice)**: direction=increase, "
+                 f"effectSize=meanRatio (allowedIncrease 1.05 / criticalIncrease 1.25), nanStrategy=remove, "
+                 f"outliers=keep, critical=true, mustHaveData=true; scoreThresholds pass={int(PASS_T)}/marginal={int(MARGINAL_T)}.")
     L.append(f"- **AI prompt**: frozen ({_prompt_version()}); temperature 0; structured JSON; "
              f"determinism preflight on {det['scenario']}/{det['model']}: "
              f"{'IDENTICAL ✓' if det['identical'] else 'DIFFERENT ✗'} ({det['run1']} vs {det['run2']}).")
@@ -748,9 +981,36 @@ def _write_results_md(rows, agg, order, families, present, skipped, det, manifes
     L.append("- Per-family winner: " + ", ".join(f"{fam}→{fam_best[fam][0]}({fam_best[fam][1]:.0%})"
                                                  for fam in families if fam in fam_best) + ".")
     L.append("")
-    L.append("> FAIL families with genuine PASS counterparts make these numbers meaningful: a judge that "
-             "always says FAIL is penalised on `no_change`/`noise_equivalent`/`healed_transient`.")
+    if own:
+        L.append("> These numbers are only as good as the labels behind them. Nothing here "
+                 "checks that a label is right, and a dataset made only of real incidents "
+                 "makes every judge look excellent, because a judge that always says FAIL "
+                 "then scores 100%. Windows you promoted and did not regret are as much data "
+                 "as the rollbacks. `docs/own-data.md` lists what this does not give you.")
+    else:
+        L.append("> FAIL families with genuine PASS counterparts make these numbers meaningful: a judge that "
+                 "always says FAIL is penalised on `no_change`/`noise_equivalent`/`healed_transient`.")
     (RESULTS_DIR / "results.md").write_text("\n".join(L) + "\n")
+
+
+def _stat_config_sentence(manifest) -> str:
+    """The statistical configuration this run actually applied, in one sentence.
+
+    Generated from the effective template rather than from the study's hardcoded
+    description of it, which would still read "allowedIncrease 1.05" after a run
+    that used 1.10.
+    """
+    canary = dict(manifest["statistical_template"]["canary"])
+    for key, value in (manifest.get("statistical_overrides") or {}).items():
+        canary[key] = {**canary[key], **value} if key in ("effectSize", "outliers") else value
+    effect, thresholds = canary["effectSize"], manifest["statistical_template"]["scoreThresholds"]
+    return (f"direction per metric (from your `direction` column), "
+            f"effectSize={effect['measure']} (allowedIncrease {effect['allowedIncrease']} / "
+            f"criticalIncrease {effect['criticalIncrease']}), "
+            f"nanStrategy={canary['nanStrategy']}, outliers={canary['outliers']['strategy']}, "
+            f"critical={str(canary['critical']).lower()}, "
+            f"mustHaveData={str(canary['mustHaveData']).lower()}; scoreThresholds "
+            f"pass={int(thresholds['pass'])}/marginal={int(thresholds['marginal'])}.")
 
 
 def _prompt_version() -> str:
