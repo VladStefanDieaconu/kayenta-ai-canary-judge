@@ -81,6 +81,28 @@ FIG_DIR = RESULTS_DIR / "figures"
 REGISTRY = REPO_ROOT / "judge-service" / "models.yaml"
 LITELLM_CONFIG = REPO_ROOT / "litellm" / "config.yaml"
 AILOG_DIR = REPO_ROOT / "data" / "ai-logs"
+
+# The figure spec and the PNG scratch directory, which belong to the run rather
+# than to the repository. Both default to where the seeded run has always put
+# them -- under data/ai-logs, the one directory the judge-service container and
+# the host share -- and main() re-points both at the run's own output directory
+# whenever --out or --own-data moves it. Leaving them fixed meant every own-data
+# run overwrote the study's figure spec in place, so the next `make figures`
+# redrew three of the article's figures from someone else's numbers, silently
+# and with nothing in the file to say so.
+FIGDATA_PATH = AILOG_DIR / "_exp_figdata.json"
+FIGSCRATCH_DIR = AILOG_DIR / "_exp_figs"
+# Where the judge-service writes this run's per-call payload records, relative to
+# the ai-logs volume it shares with the host. Empty is the volume's root, which
+# is the study's archive and where the seeded run's payloads have always gone.
+# main() gives an own-data run a subdirectory of its own, because
+# tools/replay_ai_logs.py globs *.json over that root and replays everything it
+# finds: a reader scoring their own windows was changing what `make replay-logs`
+# reports about the study's archive, silently, by running the feature.
+AI_LOG_SUBDIR = ""
+# The locally-built judge-service image, named the way the Makefile names it.
+# Used only when the spec lives somewhere the running service cannot see.
+FIGURE_IMAGE = "canaryllm-judge-service"
 OLLAMA_URL = "http://localhost:11434"
 PASS_T, MARGINAL_T = ed.SCORE_THRESHOLDS["pass"], ed.SCORE_THRESHOLDS["marginal"]
 
@@ -264,7 +286,8 @@ def run_scenario(sc: ed.Scenario, present: List[Dict[str, str]], base_millis: in
         modes = modes_text if modality == "text" else modes_vision
         ai_by_mode: Dict[str, Dict[str, Any]] = {}
         for mode in modes:
-            ai = judge_clients.judge_ai(pairs, ed.build_canary_config(sc, {}), mode, alias, PASS_T, MARGINAL_T)
+            ai = judge_clients.judge_ai(pairs, ed.build_canary_config(sc, {}), mode, alias,
+                                        PASS_T, MARGINAL_T, log_subdir=AI_LOG_SUBDIR)
             ai_by_mode[mode] = ai
             if not ai["ok"]:
                 # A failed call is not a judgement. judge_clients._err() returns
@@ -353,8 +376,10 @@ def determinism_check(sc: ed.Scenario, model: str, base_millis: int,
     series = ed.series_for_scenario(sc)
     pairs = ed.build_pairs(sc, series, base_millis, step_millis or sc.step_seconds * 1000)
     cfg = ed.build_canary_config(sc, {})
-    r1 = judge_clients.judge_ai(pairs, cfg, "summary", model, PASS_T, MARGINAL_T)
-    r2 = judge_clients.judge_ai(pairs, cfg, "summary", model, PASS_T, MARGINAL_T)
+    r1 = judge_clients.judge_ai(pairs, cfg, "summary", model, PASS_T, MARGINAL_T,
+                                log_subdir=AI_LOG_SUBDIR)
+    r2 = judge_clients.judge_ai(pairs, cfg, "summary", model, PASS_T, MARGINAL_T,
+                                log_subdir=AI_LOG_SUBDIR)
     identical = (r1["ok"] and r2["ok"] and r1["verdict"] == r2["verdict"]
                  and abs(r1["score"] - r2["score"]) < 1e-6)
     return {"scenario": sc.id, "model": model, "run1": f"{r1['verdict']}({r1['score']})",
@@ -386,27 +411,124 @@ def write_csv(path: Path, header: List[str], rows: List[List[Any]]) -> None:
         w.writerows(rows)
 
 
-def render_figures() -> bool:
-    script = (REPO_ROOT / "tools" / "render_figures.py").read_text()
+def _mounted_args(spec: Path, out: Path) -> Optional[List[str]]:
+    """`--spec`/`--out` as the running judge-service sees them, or None.
+
+    That container has one directory of this repository mounted, ./data/ai-logs
+    on /app/data/ai-logs (docker-compose.yml). A spec written beside a run's own
+    results is not in it, and no amount of path rewriting makes it visible.
+    """
     try:
-        p = subprocess.run(["docker", "compose", "exec", "-T", "judge-service", "python", "-"],
-                           input=script, capture_output=True, text=True, cwd=str(REPO_ROOT), timeout=180)
-        if p.returncode != 0:
-            print(f"[experiment] figure render failed: {p.stderr[-300:]}", file=sys.stderr)
-            return False
-    except (subprocess.SubprocessError, FileNotFoundError) as e:
-        print(f"[experiment] figure render error: {e}", file=sys.stderr)
+        return ["--spec", f"/app/data/ai-logs/{spec.relative_to(AILOG_DIR)}",
+                "--out", f"/app/data/ai-logs/{out.relative_to(AILOG_DIR)}"]
+    except ValueError:
+        return None
+
+
+def _bind_mount_args(spec: Path, out: Path) -> Optional[List[str]]:
+    """`--spec`/`--out` as a one-off container over a bind mount sees them, or None.
+
+    That container mounts this repository on /work, so a path outside the
+    repository is no more visible to it than to the running service. `--out` may
+    legitimately point outside -- it is a documented flag and nothing else in the
+    run cares -- and when it does there is no runner left that can draw the
+    figures. Saying so is the whole of the fix: unconditional `.relative_to()`
+    here raised ValueError after every model call had been paid for, every table
+    had been written, and before results.md and summary.md were.
+    """
+    try:
+        return ["--spec", str(spec.relative_to(REPO_ROOT)),
+                "--out", str(out.relative_to(REPO_ROOT))]
+    except ValueError:
+        return None
+
+
+def _figures_written(stdout: str) -> List[str]:
+    """The filenames render_figures.py reports on its closing JSON line."""
+    for line in reversed(stdout.splitlines()):
+        line = line.strip()
+        if not line.startswith("{"):
+            continue
+        try:
+            report = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        return [str(name) for name in report.get("figures", [])]
+    return []
+
+
+def render_figures() -> bool:
+    """Draw this run's spec figures and copy the ones it drew into its figures/.
+
+    Two runners, in preference order, the same pair tools/container_plot.py uses.
+    The already-running service is tried first and is the one the seeded run has
+    always taken, so that path is unchanged; it can only reach a spec under
+    data/ai-logs. A run whose --out moved the spec needs the whole repository
+    visible, which is the one-off container over a bind mount that `make figures`
+    uses for the same script. A spec outside the repository -- which an absolute
+    `--out` outside it produces, legitimately -- is visible to neither, and that
+    is a stated skip returning False, not an exception: by the time this runs the
+    windows have been judged and every table written, and the two reports have
+    not.
+
+    Only the figures the renderer reports writing are copied. Globbing *.png out
+    of the scratch directory instead copied everything that happened to be in it,
+    and for the seeded run that directory is shared with every other figure tool:
+    an own-data run published sixteen of the article's figures as its own output,
+    restamped with its finish time and with nothing to distinguish them.
+    """
+    script = (REPO_ROOT / "tools" / "render_figures.py").read_text()
+    attempts: List[List[str]] = []
+    mounted = _mounted_args(FIGDATA_PATH, FIGSCRATCH_DIR)
+    if mounted:
+        attempts.append(["docker", "compose", "exec", "-T", "judge-service",
+                         "python", "-"] + mounted)
+    bind = _bind_mount_args(FIGDATA_PATH, FIGSCRATCH_DIR)
+    if bind:
+        attempts.append(["docker", "run", "--rm", "-i", "-v", f"{REPO_ROOT}:/work",
+                         "-w", "/work", FIGURE_IMAGE, "python", "-"] + bind)
+    if not attempts:
+        print(f"[experiment] figures skipped: the spec for this run is {FIGDATA_PATH}, "
+              f"which is outside {REPO_ROOT}. Neither runner can read it -- the running "
+              f"judge-service has only data/ai-logs mounted, and the one-off container "
+              f"mounts the repository. Every table and both reports are written; to draw "
+              f"the figures, re-run with --out inside the repository, or run "
+              f"tools/render_figures.py yourself against that spec.", file=sys.stderr)
         return False
-    src = AILOG_DIR / "_exp_figs"
-    if not src.exists():
+
+    proc = None
+    for cmd in attempts:
+        try:
+            proc = subprocess.run(cmd, input=script, capture_output=True, text=True,
+                                  cwd=str(REPO_ROOT), timeout=180)
+        except (subprocess.SubprocessError, FileNotFoundError) as e:
+            print(f"[experiment] figure render error: {e}", file=sys.stderr)
+            proc = None
+            continue
+        if proc.returncode == 0:
+            break
+    if proc is None or proc.returncode != 0:
+        detail = proc.stderr[-300:] if proc is not None else "no usable runner"
+        print(f"[experiment] figure render failed: {detail}", file=sys.stderr)
+        return False
+
+    written = _figures_written(proc.stdout)
+    if not written:
+        print(f"[experiment] the renderer reported no figures; nothing copied into "
+              f"{FIG_DIR}", file=sys.stderr)
         return False
     FIG_DIR.mkdir(parents=True, exist_ok=True)
     import shutil
-    n = 0
-    for png in src.glob("*.png"):
-        shutil.copy(png, FIG_DIR / png.name)
-        n += 1
-    return n > 0
+    copied = 0
+    for name in written:
+        src = FIGSCRATCH_DIR / name
+        if not src.is_file():
+            print(f"[experiment] the renderer reported {name}, which is not in "
+                  f"{FIGSCRATCH_DIR}", file=sys.stderr)
+            continue
+        shutil.copy(src, FIG_DIR / name)
+        copied += 1
+    return copied > 0
 
 
 def main() -> int:
@@ -440,20 +562,41 @@ def main() -> int:
     if args.quick and not restrict:
         restrict = QUICK_MODELS
 
-    global RESULTS_DIR, FIG_DIR
+    global RESULTS_DIR, FIG_DIR, FIGDATA_PATH, FIGSCRATCH_DIR, AI_LOG_SUBDIR
     # Resolved, not as it was typed. Everything downstream compares this against
     # DEFAULT_RESULTS_DIR and takes paths relative to REPO_ROOT, and a relative
-    # --out satisfies neither: a relative path does not compare equal to the
-    # absolute default even when it names the same directory.
+    # --out satisfies neither: `--out results/own-data-quick` left FIGDATA_PATH
+    # and FIGSCRATCH_DIR relative, and render_figures() then raised
+    # `'results/own-data-quick/_exp_figdata.json' is not in the subpath of
+    # '<repo>'` -- after both windows had been judged and every table written,
+    # and before results.md and summary.md were. `make own-data` passes an
+    # absolute path and never saw it.
     RESULTS_DIR = Path(args.out).resolve() if args.out else (
         REPO_ROOT / "results" / "own-data" if args.own_data else DEFAULT_RESULTS_DIR)
     FIG_DIR = RESULTS_DIR / "figures"
+    # The figure spec and the PNG scratch directory follow the results directory,
+    # so a run's figures are drawn from a run's own numbers. The seeded run is the
+    # exception and keeps the historical location: that is where the study's spec
+    # lives, where `make figures` has always read it from, and moving it would
+    # change the one workflow this flag exists not to disturb.
+    if RESULTS_DIR.resolve() != DEFAULT_RESULTS_DIR.resolve():
+        FIGDATA_PATH = RESULTS_DIR / "_exp_figdata.json"
+        FIGSCRATCH_DIR = RESULTS_DIR / "_exp_figs"
+    # An own-data run's judge-call payloads go to a directory of their own, one
+    # per run. data/ai-logs itself is the study's provenance archive and
+    # tools/replay_ai_logs.py replays every *.json in it; a subdirectory is
+    # outside that glob, so scoring your own windows can no longer move a number
+    # the paper's Data Availability Statement points at. The seeded run is
+    # untouched and keeps writing where it always has.
+    if args.own_data:
+        AI_LOG_SUBDIR = f"own-data/{time.strftime('%Y%m%dT%H%M%S')}"
 
     t_start = time.time()
     print("=" * 80)
     if args.own_data:
         print(f"kayenta-ai-canary-judge scored experiment  (your own windows, quick={args.quick})")
         print(f"  source={args.own_data} -> {RESULTS_DIR}")
+        print(f"  judge-call payloads -> {AILOG_DIR / AI_LOG_SUBDIR}")
     else:
         print(f"kayenta-ai-canary-judge scored experiment  (n={n}/family, seed={args.seed}, quick={args.quick})")
     print(f"  prompt={active_prompt.id} ({active_prompt.hash})  config: {repo_env.describe()}")
@@ -738,8 +881,11 @@ def _write_figdata(rows, agg, order, families, present):
             rs = [r for r in rows if r["judge"] == j]
             conf[j] = confusion(rs)
     figdata = {"bar": bar, "heatmap": {"rows": judges, "cols": families, "z": z}, "confusion": conf}
-    AILOG_DIR.mkdir(parents=True, exist_ok=True)
-    (AILOG_DIR / "_exp_figdata.json").write_text(json.dumps(figdata))
+    # FIGDATA_PATH, not a fixed path under data/ai-logs: this file is the numbers
+    # of the run that just finished, and it belongs beside that run's results
+    # unless the run is the seeded one. See the module header.
+    FIGDATA_PATH.parent.mkdir(parents=True, exist_ok=True)
+    FIGDATA_PATH.write_text(json.dumps(figdata))
 
 
 def _quick_note(manifest) -> str:

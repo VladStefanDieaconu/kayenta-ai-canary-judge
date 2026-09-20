@@ -47,6 +47,12 @@ log = logging.getLogger("judge-service.llm")
 
 LOG_DIR = Path(os.environ.get("AI_LOG_DIR", "/app/data/ai-logs"))
 
+# A log_subdir that is a plain relative path of ordinary name characters, one or
+# more segments deep. It arrives over the wire in the canary config, so it is
+# checked rather than trusted: no absolute path, no `..` (a segment must start
+# with an alphanumeric), no separators beyond `/`.
+_SAFE_LOG_SUBDIR = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*(?:/[A-Za-z0-9][A-Za-z0-9._-]*)*$")
+
 # The rubric now lives in prompts/, one file per variant, selected by id (see
 # prompt_registry). For the scored experiment it is frozen at v1: don't tune it
 # against scenario outcomes, that would overfit to the baseline's known
@@ -161,11 +167,34 @@ _iter_balanced_objects = verdict_parser.iter_balanced_objects
 _looks_like_verdict = verdict_parser.looks_like_verdict
 
 
+def _log_dir_for(settings: JudgeSettings) -> Path:
+    """Where this call's payload record goes: LOG_DIR, or a subdirectory of it.
+
+    tools/replay_ai_logs.py globs `*.json` over LOG_DIR itself and replays
+    whatever it finds there, which is the study's archive. Every judge call this
+    service makes used to land in that directory, so a reader scoring their own
+    canary windows changed what `make replay-logs` reports about the study --
+    595 of their payloads, attributed to the study's models, in a number the
+    paper's Data Availability Statement points at.
+
+    A caller that names a subdirectory gets one, and the glob does not descend.
+    A caller that names none is unaffected, which is every existing caller.
+    """
+    subdir = (settings.log_subdir or "").strip()
+    if not subdir:
+        return LOG_DIR
+    if not _SAFE_LOG_SUBDIR.match(subdir):
+        log.warning("ignoring log_subdir %r: not a plain relative path", subdir)
+        return LOG_DIR
+    return LOG_DIR / subdir
+
+
 def _save_log(settings: JudgeSettings, messages, image_b64, raw, parsed,
               prompt: prompt_registry.Prompt, outcome: Dict[str, Any]) -> Optional[str]:
     """Persist prompt/response/verdict (+ image) for reproducibility."""
     try:
-        LOG_DIR.mkdir(parents=True, exist_ok=True)
+        log_dir = _log_dir_for(settings)
+        log_dir.mkdir(parents=True, exist_ok=True)
         ts = time.strftime("%Y%m%dT%H%M%S")
         stamp = f"{ts}-{settings.mode}-{settings.model}"
         image_hash = None
@@ -174,7 +203,7 @@ def _save_log(settings: JudgeSettings, messages, image_b64, raw, parsed,
 
             img_bytes = _b64.b64decode(image_b64)
             image_hash = hashlib.sha256(img_bytes).hexdigest()[:16]
-            (LOG_DIR / f"{stamp}-{image_hash}.png").write_bytes(img_bytes)
+            (log_dir / f"{stamp}-{image_hash}.png").write_bytes(img_bytes)
         # Strip the inline image from the saved messages (keep a pointer).
         safe_msgs = json.loads(json.dumps(messages))
         for msg in safe_msgs:
@@ -205,7 +234,7 @@ def _save_log(settings: JudgeSettings, messages, image_b64, raw, parsed,
             "error_kind": outcome.get("error_kind", ""),
             "error": outcome.get("error", ""),
         }
-        path = LOG_DIR / f"{stamp}.json"
+        path = log_dir / f"{stamp}.json"
         path.write_text(json.dumps(record, indent=2))
         return str(path)
     except Exception as e:  # noqa: BLE001 - logging must never break judging

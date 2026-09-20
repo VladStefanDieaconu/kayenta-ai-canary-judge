@@ -15,6 +15,12 @@ what a number means -- it receives values and draws them.
 Figures are written to the ai-logs volume (the one directory the container and
 host share) and copied out, then measured, because Word extents have to be set
 from real pixel dimensions rather than from figsize x dpi arithmetic.
+
+Each render gets its own directory under that volume and removes it again when it
+is done. The transport used to be data/ai-logs/_exp_figs, which is also where
+tools/render_figures.py draws the three spec figures for a scored run, so a
+generator run here overwrote the study's scratch figures under the study's own
+filenames and the next `make figures` picked them up as its own.
 """
 
 from __future__ import annotations
@@ -24,12 +30,18 @@ import shutil
 import struct
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any, Dict, List
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-CONTAINER_OUT = "/app/data/ai-logs/_exp_figs"
-HOST_OUT = REPO_ROOT / "data" / "ai-logs" / "_exp_figs"
+# The host side of the transport. A render creates a fresh directory under this
+# one, writes into it, copies the figures out and removes it, so two renders
+# cannot see each other's files and neither can land in a directory another tool
+# owns. The path has to stay under data/ai-logs because that is the only part of
+# the repository the running judge-service has mounted.
+TRANSPORT_ROOT = REPO_ROOT / "data" / "ai-logs" / "_render_transport"
+CONTAINER_TRANSPORT = "/app/data/ai-logs/_render_transport"
 FIG_DIR = REPO_ROOT / "results" / "figures"
 
 _PREAMBLE = """
@@ -94,10 +106,13 @@ def render(plot_code: str, spec: Dict[str, Any], timeout: int = 300,
     # output directory differs between the two because the mount point does.
     runner = ("import sys; code=sys.stdin.read().split('\\n', 1); "
               "sys.stdin = __import__('io').StringIO(code[0] + '\\n'); exec(code[1])")
+    TRANSPORT_ROOT.mkdir(parents=True, exist_ok=True)
+    host_out = Path(tempfile.mkdtemp(prefix="render-", dir=str(TRANSPORT_ROOT)))
+    leaf = host_out.name
     attempts = [
-        (CONTAINER_OUT,
+        (f"{CONTAINER_TRANSPORT}/{leaf}",
          ["docker", "compose", "exec", "-T", "judge-service", "python", "-c", runner]),
-        ("/work/data/ai-logs/_exp_figs",
+        (f"/work/data/ai-logs/_render_transport/{leaf}",
          ["docker", "run", "--rm", "-i", "-v", f"{REPO_ROOT}:/work", "-w", "/work",
           "canaryllm-judge-service", "python", "-c", runner]),
     ]
@@ -107,7 +122,7 @@ def render(plot_code: str, spec: Dict[str, Any], timeout: int = 300,
     # for is preserved -- the spec still crosses as JSON and the plot code still
     # never parses a results file.
     if _host_has_matplotlib():
-        attempts.append((str(HOST_OUT), [sys.executable, "-c", runner]))
+        attempts.append((str(host_out), [sys.executable, "-c", runner]))
     proc = None
     for container_out, cmd in attempts:
         script = _PREAMBLE.format(out=container_out) + "\n" + plot_code
@@ -121,22 +136,40 @@ def render(plot_code: str, spec: Dict[str, Any], timeout: int = 300,
             continue
         if proc.returncode == 0:
             break
-    if proc is None or proc.returncode != 0:
-        raise RuntimeError(f"figure render failed:\n{proc.stdout[-2000:]}\n{proc.stderr[-2000:]}")
+    try:
+        if proc is None or proc.returncode != 0:
+            raise RuntimeError(
+                f"figure render failed:\n{proc.stdout[-2000:]}\n{proc.stderr[-2000:]}"
+                if proc is not None else "figure render failed: no usable runner")
 
-    written = [line.split(" ", 1)[1] for line in proc.stdout.splitlines() if line.startswith("WROTE ")]
-    if not written:
-        raise RuntimeError(f"figure script wrote nothing:\n{proc.stdout[-2000:]}")
+        written = [line.split(" ", 1)[1] for line in proc.stdout.splitlines()
+                   if line.startswith("WROTE ")]
+        if not written:
+            raise RuntimeError(f"figure script wrote nothing:\n{proc.stdout[-2000:]}")
 
-    dest = Path(out_dir) if out_dir else FIG_DIR
-    dest.mkdir(parents=True, exist_ok=True)
-    info = []
-    for name in written:
-        src = HOST_OUT / name
-        dst = dest / name
-        shutil.copy(src, dst)
-        info.append(png_size(dst))
-    return info
+        dest = Path(out_dir) if out_dir else FIG_DIR
+        dest.mkdir(parents=True, exist_ok=True)
+        info = []
+        for name in written:
+            # Only what this script declared it wrote, out of a directory only
+            # this render put anything into.
+            src = host_out / name
+            dst = dest / name
+            shutil.copy(src, dst)
+            info.append(png_size(dst))
+        return info
+    finally:
+        # The transport is a transport. Leaving the figures in it is what let one
+        # run's output be read as another's.
+        shutil.rmtree(host_out, ignore_errors=True)
+        # And the root of it is this module's too. Left behind it is an empty
+        # directory in the study's ai-logs volume that nobody put there on
+        # purpose and that shows up in every audit of what a run wrote. Removed
+        # only when it is empty, so a render running in parallel keeps its own.
+        try:
+            TRANSPORT_ROOT.rmdir()
+        except OSError:
+            pass
 
 
 def report(info: List[Dict[str, Any]]) -> str:

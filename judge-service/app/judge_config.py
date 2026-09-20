@@ -40,6 +40,7 @@ class JudgeSettings:
     litellm_base_url: str
     json_mode: bool = True  # send response_format={"type":"json_object"} (see json_mode_for)
     prompt_id: str = prompt_registry.DEFAULT_PROMPT_ID  # which rubric; resolved in llm_judge
+    log_subdir: str = ""   # payload records go to AI_LOG_DIR/<this>; see llm_judge._log_dir_for
 
 
 def _load_registry() -> Dict[str, Dict[str, Any]]:
@@ -132,12 +133,23 @@ def resolve(canary_config: Dict[str, Any]) -> JudgeSettings:
         or prompt_registry.DEFAULT_PROMPT_ID
     )
 
+    # Where this call's payload record is written, relative to AI_LOG_DIR. Pure
+    # configuration like everything else here, and per-request rather than per-
+    # container because the service outlives any one run: a caller scoring its
+    # own windows asks for its own subdirectory, and tools/replay_ai_logs.py --
+    # which globs *.json over AI_LOG_DIR itself -- then no longer replays that
+    # caller's payloads as part of the study's archive. Absent means AI_LOG_DIR,
+    # which is where every existing caller's records keep going. The value is
+    # validated in llm_judge, on the side that uses it.
+    log_subdir = str(judge_cfg.get("log_subdir") or "")
+
     return JudgeSettings(
         mode=mode,
         model=model,
         modality=modality_for(model),
         json_mode=json_mode_for(model),
         prompt_id=prompt_id,
+        log_subdir=log_subdir,
         temperature=_env_float("JUDGE_TEMPERATURE", 0.0),
         top_p=_env_float("JUDGE_TOP_P", 1.0),
         max_tokens=max_tokens_for(model, int(_env_float("JUDGE_MAX_TOKENS", 1024))),
