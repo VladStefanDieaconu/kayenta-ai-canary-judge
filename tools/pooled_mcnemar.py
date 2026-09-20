@@ -62,7 +62,24 @@ def write_csv(path: Path, header: List[str], rows: List[List[Any]]) -> None:
 
 
 def main() -> int:
-    rows = read_csv(AGG_DIR / "long_results.csv")
+    # The five-seed sweep has to have been run. Without it this died on a raw
+    # FileNotFoundError from the open() below, which reads as a broken script
+    # rather than as a missing input; its siblings in the Makefile's
+    # SEEDED_ANALYSIS_SCRIPTS say what is missing and why they cannot stand in
+    # for it. There is no degraded mode to fall back to: pooling is the whole
+    # method, and one seed's rows pooled with themselves is just that seed.
+    long_path = AGG_DIR / "long_results.csv"
+    if not long_path.is_file():
+        print(f"[pooled-mcnemar] {long_path} is missing. This test pools the paired "
+              f"per-scenario outcomes of the five-seed sweep into one exact McNemar per "
+              f"comparison, and that file is the sweep's output.\n"
+              f"[pooled-mcnemar] Run `make analysis-live`, which needs the stack up and the "
+              f"local models pulled; tools/run_multiseed_corrected.py is the step that "
+              f"writes it. A single seed at n=5/family is the underpowered case this "
+              f"exists to replace, so there is nothing to compute from results/ alone.\n"
+              f"[pooled-mcnemar] Nothing was written.", file=sys.stderr)
+        return 1
+    rows = read_csv(long_path)
     correct_by: Dict[Tuple[str, str], Dict[Tuple[int, str], bool]] = defaultdict(dict)
     for r in rows:
         key = (r["judge"], r["model"])

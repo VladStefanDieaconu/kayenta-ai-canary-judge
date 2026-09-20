@@ -13,6 +13,14 @@ detectors the statistical-ensemble judge uses). As a consistency check, the
 "guards off" recomputation is diffed against the hybrid:gated rows in
 results/summary.csv and results/family_matrix.csv and should match.
 
+`--results` re-points this at another run of the *same* seeded dataset (the
+corrected artefact, say). It is not a way to run the ablation on other data: the
+guard signals are regenerated from `eval_dataset.build_scenarios` and keyed on
+seeded scenario ids, and the two families the guards target are families of that
+dataset. A results directory whose scenarios are not the seeded ones is refused
+with that reason rather than scored, because every lookup would miss, no guard
+could fire, and "guards on" would equal "guards off" everywhere.
+
 Outputs (results/agg/):
   - fp_guard_before_after.csv   per model: accuracy/precision/recall/F1 with
                                 guards off vs on, plus the FAIL-family recall
@@ -168,6 +176,29 @@ def main() -> int:
     guard_signals = build_guard_signals(ed.DEFAULT_MASTER_SEED, 20)
     print(f"[fp-guard] regenerated guard signals for {len(guard_signals)} scenarios "
           f"(seed={ed.DEFAULT_MASTER_SEED}, n=20 -- the published dataset)")
+
+    # The guard signals are keyed on the seeded scenario ids this module just
+    # regenerated. A results directory whose scenarios are not those -- an
+    # own-data run, whose windows are `own_0000`... -- misses on every lookup, so
+    # no guard can fire, every "guards on" row equals its "guards off" row, and
+    # the ablation reports a difference of zero that means nothing happened
+    # rather than that the guards changed nothing. Refused here rather than
+    # written out.
+    scenarios_scored = {r["scenario"] for r in raw_rows}
+    if not (scenarios_scored & set(guard_signals)):
+        example = sorted(scenarios_scored)[:3]
+        print(f"[fp-guard] {raw_path} scores {len(scenarios_scored)} scenario(s) "
+              f"(e.g. {', '.join(repr(s) for s in example)}) and none of them is one of the "
+              f"{len(guard_signals)} seeded scenarios the guard signals are defined on.\n"
+              f"[fp-guard] This ablation is defined against the seeded families: the two "
+              f"detectors are evaluated on the series `eval_dataset.build_scenarios` "
+              f"regenerates, and its targets (healed_transient, noise_equivalent) are "
+              f"families of that dataset. It cannot be evaluated on supplied windows, and "
+              f"computing the guards from your own series instead would be a different "
+              f"experiment and a new claim, not this one re-pointed.\n"
+              f"[fp-guard] Nothing was written. `make analysis` leaves this step out for a "
+              f"results directory other than the seeded one.", file=sys.stderr)
+        return 1
     n_recovered = sum(1 for v in guard_signals.values() if v["recovered_transient"])
     n_equal_var = sum(1 for v in guard_signals.values() if v["equal_variance_noise"])
     print(f"[fp-guard] recovered_transient fires on {n_recovered}/{len(guard_signals)} scenarios; "
