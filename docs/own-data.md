@@ -643,12 +643,17 @@ That derivation is for **your** run. The seeded run sweeps the five configuratio
 article reports, named in `roc_pr_curves.py` rather than inferred from a directory
 listing, and its `roc_pr_auc.csv` keeps the seven columns it has always had — no
 `n_unlabelled_dropped`, because the seeded dataset labels every window. A run is read as
-yours when it carries `own_data_manifest.json`, which `run_experiment.py --own-data`
-writes and nothing else does, so the answer travels with the directory rather than
-depending on where it was unpacked. Derived for the seeded run instead, the published
-five-row table came out with nine rows — the study's archived `agg/` holds three hosted
-models, not one — and `fig13_threshold_summaries.png`, whose layout is built for five
-groups, regenerated with overprinted tick labels on numbers that had not moved.
+yours when it carries an `own_data_manifest.json` that names the windows in the
+`results_raw.csv` beside it. That file is what `run_experiment.py --own-data` writes and
+nothing else does, so the answer travels with the directory rather than depending on
+where it was unpacked; it is checked against the run it claims to describe, so a manifest
+left behind by an earlier run cannot answer for a later one. A seeded run also unlinks
+any manifest it finds in the directory it is about to fill, so the two halves are that
+the marker is not left behind and that one left behind by any other route does not
+count. Derived for the seeded run instead, the published five-row table came out with
+nine rows — the study's archived `agg/` holds three hosted models, not one — and
+`fig13_threshold_summaries.png`, whose layout is built for five groups, regenerated with
+overprinted tick labels on numbers that had not moved.
 
 `RESULTS` is compared as a directory rather than as a string, so `RESULTS=results`,
 `RESULTS=./results`, `RESULTS=results/` and an absolute path all mean the seeded run.

@@ -76,6 +76,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -132,8 +133,40 @@ def is_own_data_run(results_dir: Path) -> bool:
     the answer travel with it -- the study's deposited run scores as the seeded
     run wherever it is unpacked, which is the point of depositing it, and an
     own-data run scores as one wherever `--out` put it.
+
+    The manifest has to describe the run beside it, not merely sit next to it.
+    Read as a bare marker it made stale state decide the published table: one
+    `--own-data --out results` left a manifest in the study's own directory, and
+    every later seeded run into results/ inherited it, so roc_pr_auc.csv came out
+    with a derived nine-row configuration list and an eighth
+    n_unlabelled_dropped column in place of the published five rows in their
+    seven columns, and fig13_threshold_summaries.png -- laid out for five groups
+    -- was redrawn from it. run_experiment.py unlinks the marker on its seeded
+    branch so it is not left behind; this is the other half, so that one left
+    behind by any other route still cannot decide the question.
+
+    The manifest names the windows the run judged, and results_raw.csv holds a
+    row per judgement of each of them, so the two agree for the run the manifest
+    is about and disagree for any other: a seeded results_raw.csv is
+    clean_mean_shift_000 .. variance_increase_019 and an own-data manifest names
+    own_0000 .. own_NNNN. Containment rather than equality, because a window
+    whose every judge call failed is in the manifest and, correctly, in
+    errors.csv rather than in results_raw.csv.
     """
-    return (results_dir / "own_data_manifest.json").is_file()
+    manifest_path = results_dir / "own_data_manifest.json"
+    raw_path = results_dir / "results_raw.csv"
+    if not manifest_path.is_file() or not raw_path.is_file():
+        return False
+    try:
+        manifest = json.loads(manifest_path.read_text())
+        named = {str(s["id"]) for s in manifest["scenarios"]}
+    except (OSError, ValueError, TypeError, KeyError):
+        # Unreadable, not JSON, or not a manifest this tool wrote. It says
+        # nothing about the run, so it decides nothing about the run.
+        return False
+    judged = {(r.get("scenario") or "").strip() for r in read_csv(raw_path)}
+    judged.discard("")
+    return bool(judged) and judged <= named
 
 
 def published_sources(results_dir: Path) -> List[Dict[str, Any]]:

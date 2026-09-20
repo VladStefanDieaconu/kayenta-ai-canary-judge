@@ -19,7 +19,8 @@ its documentation, so each is checked here by running it:
     and the user's own window and metric names do not reach the prompt;
   * the study's published tables are still the study's -- the seeded run's
     roc_pr_auc.csv is the five configurations the article reports, in the seven
-    columns it has always had, and only an own-data run derives its own list;
+    columns it has always had, only an own-data run derives its own list, and a
+    manifest left behind by some other run does not make a run one;
   * a run that finishes writes its reports -- an `--out` neither figure runner
     can reach costs the figures and nothing else.
 
@@ -714,8 +715,22 @@ def _auc_fixture(tmp: Path, name: str, own_data_run: bool) -> Path:
     # And a tagged re-run beside the real one, which is not the real one.
     (out / "agg" / "frontier_long_phi4-llm__defect-rerun.csv").write_text(raw[0] + "\n")
     if own_data_run:
-        (out / "own_data_manifest.json").write_text(json.dumps({"own_data": True}))
+        # The manifest of this run: the windows it judged, which is what makes it
+        # a record of the directory it sits in rather than a flag.
+        _write_own_data_manifest(out, [r.split(",")[0] for r in raw[1:]])
     return out
+
+
+def _write_own_data_manifest(out: Path, scenario_ids: List[str]) -> None:
+    """own_data_manifest.json, shaped the way tools/own_data.py shapes it.
+
+    Only the keys tools/roc_pr_curves.py reads are filled in; the rest of what
+    own_data.build_manifest() writes is the record of the load and plays no part
+    in deciding what kind of run this is.
+    """
+    manifest = {"own_data": True,
+                "scenarios": [{"id": sid} for sid in dict.fromkeys(scenario_ids)]}
+    (out / "own_data_manifest.json").write_text(json.dumps(manifest, indent=2))
 
 
 def published_tables(tmp: Path) -> List[str]:
@@ -769,6 +784,28 @@ def published_tables(tmp: Path) -> List[str]:
         dropped = {r["n_unlabelled_dropped"] for r in rows if r["model"] == "phi4-llm"}
         if dropped != {"1"}:
             failures.append(f"the unlabelled window was counted as {dropped}, expected 1")
+
+    # A manifest left behind by somebody else's run must not decide this one.
+    # Nothing removed own_data_manifest.json, so one `--own-data --out results`
+    # put one in the study's own directory and every later seeded run into
+    # results/ inherited it: the published five-row, seven-column table came back
+    # as the derived nine-row, eight-column one, and fig13_threshold_summaries.png
+    # with it. The manifest below is a real own-data manifest -- it is simply
+    # about other windows than the ones results_raw.csv holds.
+    stale = _auc_fixture(tmp, "auc-seeded-stale", own_data_run=False)
+    _write_own_data_manifest(stale, ["own_0000", "own_0001"])
+    if roc.is_own_data_run(stale):
+        failures.append("a seeded run was read as own-data because a manifest naming "
+                        "other windows had been left in the directory")
+    stale_names = [src["name"] for src in roc.sources_for(stale)]
+    if stale_names != published:
+        failures.append(f"a stale own_data_manifest.json changed the swept "
+                        f"configurations to {stale_names}, expected the five published "
+                        f"ones {published}")
+    stale_header = _roc_header(stale)
+    if stale_header != want:
+        failures.append(f"a stale own_data_manifest.json changed the seeded "
+                        f"roc_pr_auc.csv header to {stale_header}, expected {want}")
     return failures
 
 

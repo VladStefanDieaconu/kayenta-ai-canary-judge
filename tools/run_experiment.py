@@ -682,7 +682,10 @@ def main() -> int:
     # eighth n_unlabelled_dropped column instead of the published five
     # configurations in the seven columns they have always had. The marker is the
     # one file only an own-data run writes, so it goes out with everything else
-    # this run is replacing.
+    # this run is replacing. That is one half of it. The other is in
+    # roc_pr_curves.py, which reads the marker only when it names the windows in
+    # the results_raw.csv beside it, so a marker that arrives by some route other
+    # than a run of this file decides nothing either.
     if not args.own_data:
         (RESULTS_DIR / "own_data_manifest.json").unlink(missing_ok=True)
 
