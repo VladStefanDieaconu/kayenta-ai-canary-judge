@@ -652,7 +652,9 @@ than left for the first person whose window has two latencies in it.
 comparison, plus a field-by-field inventory of what an export does *not* carry back
 (`Scenario.gid`, `Scenario.seed`, `Scenario.params`, `MetricSpec.base` — each asserted,
 so a fifth joining them fails the check), plus a digest comparison of the current
-`eval_dataset` against `git show main:tools/eval_dataset.py` over both seeded datasets.
+`eval_dataset` against `git show a3707f5:tools/eval_dataset.py` over both seeded datasets
+— the archived v1.0.0 commit the Data Availability Statement names, pinned rather than
+read off a branch ref that this release is about to become.
 
 ---
 

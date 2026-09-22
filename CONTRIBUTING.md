@@ -58,7 +58,7 @@ make up                                               # test-judge-mock runs ins
 make replay-logs                                      # re-parse every archived response; verdicts and scores must not move
 .venv/bin/python tools/test_failed_call_is_not_scored.py  # a failed call must still produce no verdict
 .venv/bin/python tools/test_own_data_roundtrip.py     # your own windows must reach the judges as the study's do
-.venv/bin/python tools/test_own_data_contract.py      # the same over all 180, and the seeded path against `main`
+.venv/bin/python tools/test_own_data_contract.py      # the same over all 180, and the seeded path against a3707f5
 make test-judge-mock                                  # representation, parse and mapping, model stubbed
 make demo                                             # the committed example data must still render
 ```

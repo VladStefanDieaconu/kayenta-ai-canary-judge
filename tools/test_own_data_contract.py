@@ -10,12 +10,13 @@ its documentation, so each is checked here by running it:
     window reaches them as -- the whole seeded dataset is exported, re-imported,
     and the `metricSetPairList` and canary config are compared field by field
     over all 180 scenarios;
-  * the seeded path did not move while that entry point was added -- the
-    pre-change `tools/eval_dataset.py` is read back out of git, run beside the
-    current one, and the two are compared over both datasets, with the one
-    difference 1.1.0 makes on purpose asserted rather than waived: the canary
-    configuration's `name` and `description` no longer carry the family and the
-    ground-truth label, and must not;
+  * the seeded path did not move while that entry point was added -- v1.0.0's
+    `tools/eval_dataset.py` is read back out of git at PRISTINE_REV, the commit
+    the Data Availability Statement names, run beside the current one, and the
+    two are compared over both datasets, with the one difference 1.1.0 makes on
+    purpose asserted rather than waived: the canary configuration's `name` and
+    `description` no longer carry the family and the ground-truth label, and
+    must not;
   * a file that cannot be judged honestly is refused with the file, the line and
     the column, not repaired;
   * a window carrying no label is judged and written but enters no denominator,
@@ -71,6 +72,17 @@ STAT_JUDGE = {"name": "NetflixACAJudge-v1.0", "judgeConfigurations": {}}
 REMOTE_JUDGE = {"name": "RemoteJudge-v1.0", "judgeConfigurations": {"mode": "summary"}}
 FIXED_BASE_MILLIS = 1_760_000_000_000  # so nothing below depends on the clock
 
+# The v1.0.0 baseline `seeded_path_unchanged` reads its pre-change module from.
+# A commit, never a branch ref: `a3707f5` is the archived v1.0.0 commit the
+# article's Data Availability Statement names as tag v1.0.0, so this check
+# verifies the deposited claim literally. `main` cannot be the baseline for a
+# release that `main` is about to become -- the moment the tag is pushed the
+# check would be comparing 1.1.0 with itself, and the two fields it asserts a
+# difference over would be reported as unchanged, which is the inverse of what
+# it exists to say. `a3707f5` is an ancestor of `main` before and after the
+# merge, so it resolves in any fresh clone.
+PRISTINE_REV = "a3707f5"
+
 # What an export is known not to carry back, and why. These are asserted, not
 # annotated: `roundtrip_scenario_fields` fails if a field outside this set
 # diverges AND if a field inside it stops diverging, so the set is a statement
@@ -108,9 +120,9 @@ METRIC_KEPT = ("name", "group", "unit", "direction", "truth")
 # judge and no verdict has ever depended on one, but a ground-truth label has no
 # place in a request, and anyone running this testbed on their own telemetry
 # would otherwise inherit the habit. Removing it is itself a leakage fix, so
-# these two are *expected* to differ -- between `main` and this tree, and across
-# an export and a re-import, which draws the window a fresh handle out of the
-# own-data gid namespace.
+# these two are *expected* to differ -- between v1.0.0 (PRISTINE_REV above) and
+# this tree, and across an export and a re-import, which draws the window a
+# fresh handle out of the own-data gid namespace.
 #
 # Set aside is not ignored. Like KNOWN_LOSSY above, this is asserted rather than
 # annotated: every check that excludes these two also asserts, through
@@ -350,19 +362,22 @@ def roundtrip_scenario_fields(tmp: Path) -> List[str]:
 
 # 2. The seeded path did not move.
 def _pristine_module(tmp: Path) -> Tuple[Optional[Any], str]:
-    """`tools/eval_dataset.py` as `main` has it, imported under its own name.
+    """`tools/eval_dataset.py` as v1.0.0 has it, imported under its own name.
 
     Read out of git rather than out of a file somebody left in a temp directory,
     so this check does not depend on an artefact of the session that made the
-    change.
+    change; and read at PRISTINE_REV -- the commit -- rather than at a branch
+    ref, because the branch this release is merged into stops being 1.0.0 the
+    moment it is.
     """
-    proc = subprocess.run(["git", "-C", str(REPO_ROOT), "show", "main:tools/eval_dataset.py"],
+    rev = f"{PRISTINE_REV}:tools/eval_dataset.py"
+    proc = subprocess.run(["git", "-C", str(REPO_ROOT), "show", rev],
                           capture_output=True, text=True)
     if proc.returncode != 0:
-        return None, f"git show main:tools/eval_dataset.py failed: {proc.stderr.strip()[:200]}"
-    source = tmp / "eval_dataset_main.py"
+        return None, f"git show {rev} failed: {proc.stderr.strip()[:200]}"
+    source = tmp / "eval_dataset_v100.py"
     source.write_text(proc.stdout, encoding="utf-8")
-    spec = importlib.util.spec_from_file_location("eval_dataset_main", source)
+    spec = importlib.util.spec_from_file_location("eval_dataset_v100", source)
     if spec is None or spec.loader is None:
         return None, "could not load the pre-change eval_dataset.py"
     module = importlib.util.module_from_spec(spec)
@@ -433,17 +448,17 @@ def _seeded_digest(module: Any) -> Tuple[Dict[str, str], str, Dict[str, Dict[str
 
 
 def seeded_path_unchanged(tmp: Path) -> List[str]:
-    """Both seeded datasets, every scenario, against the pre-change module.
+    """Both seeded datasets, every scenario, against v1.0.0's module.
 
     The property, stated so the assertion can be read against it: the generated
     series, the metric names, the metricSetPairList, the ground-truth labels,
     the manifest and every canary-configuration field other than `name` and
-    `description` are identical to `main`, over all 240 scenarios of both seeded
-    datasets and both manifests.
+    `description` are identical to v1.0.0 (PRISTINE_REV), over all 240 scenarios
+    of both seeded datasets and both manifests.
 
     Those two fields are the exception, and the exception is asserted rather
     than waived: 1.1.0 takes the family and the label out of them
-    (CONFIG_HANDLE_FIELDS), so they must differ from `main` on every scenario
+    (CONFIG_HANDLE_FIELDS), so they must differ from v1.0.0's on every scenario
     and the new strings must carry neither. Asserting identity over them as well
     would be asserting something this release makes false by design, which is
     worse than not checking at all; asserting nothing over them would let a
@@ -474,7 +489,7 @@ def seeded_path_unchanged(tmp: Path) -> List[str]:
     for key in sorted(after_handles):
         old, new = before_handles.get(key), after_handles[key]
         if old is None:
-            failures.append(f"{key}: present now, absent on main")
+            failures.append(f"{key}: present now, absent at v1.0.0 ({PRISTINE_REV})")
             continue
         for label in ("statistical", "remote"):
             said = _handle_fields_changed(f"{key} ({label})", old[label], new[label],
@@ -1420,8 +1435,11 @@ def main() -> int:
             print(f"  [{name}] {failure}")
         return 1
     print(f"\nThe seeded dataset survives an export and a re-import with an identical\n"
-          f"metricSetPairList and canary config on all {N_PER_FAMILY * len(ed.FAMILIES)} "
-          f"scenarios; the generated path is\nunchanged against `main`; a broken file is "
+          f"metricSetPairList and an identical canary config on all "
+          f"{N_PER_FAMILY * len(ed.FAMILIES)} scenarios, save for\nthe configuration's name "
+          f"and description, which carry an opaque handle rather\nthan the window's family "
+          f"and ground-truth label, as they must; the generated\npath is unchanged against "
+          f"v1.0.0 ({PRISTINE_REV}) on those same terms; a broken file\nis "
           f"refused by file, line and column;\nan unlabelled window is judged and scored "
           f"against nothing; a window that\nnames its own answer does not hand it to "
           f"the model; the seeded ROC table is still the\npublished five in the published "

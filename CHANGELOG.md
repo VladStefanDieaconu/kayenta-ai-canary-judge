@@ -231,7 +231,8 @@ visible.
   forwarding of `prompt_id` and `seed`, score and truncation checks.
 - `tools/test_dataset_naming.py`: legacy names unchanged, opaque tokens, config text.
 - `tools/test_own_data_contract.py`: the window format's contract, the seeded path
-  unchanged against `main`, and `gid_carries_no_order`, which first asserts that the
-  old positional rule leaks -- one cut on the suffix reproduces all forty labels of its
-  fixtures, AUC 1.0 -- and then that the shipped one does not.
+  unchanged against v1.0.0 at commit `a3707f5`, and `gid_carries_no_order`, which
+  first asserts that the old positional rule leaks -- one cut on the suffix
+  reproduces all forty labels of its fixtures, AUC 1.0 -- and then that the shipped
+  one does not.
 - `tools/test_own_data_roundtrip.py`: export and reload are the identity on names.
