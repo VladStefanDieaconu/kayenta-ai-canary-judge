@@ -15,7 +15,11 @@ the generator. This script checks three things that can be checked mechanically:
      and then stops improving. If the guard fires there it is a real defect in
      the guard and belongs in the paper.
 
-Nothing here calls a model. Everything is deterministic and free to re-run.
+Nothing here calls a model, but steps 2 and 3 call the genuine NetflixACAJudge
+through a running Kayenta (`make up`). Without Kayenta the script stops with an
+error and writes nothing. v1.0.0 carried on instead, scored every failed
+statistical call as FAIL, and so reported statistical accuracy 1.0 on all three
+families. Given the same Kayenta image, the results are deterministic.
 
 Usage:
   python tools/validate_new_families.py [--n 20] [--seed 20260621] [--out DIR]
@@ -39,6 +43,7 @@ sys.path.insert(0, str(REPO_ROOT / "judge-service" / "app"))
 
 import ensemble_judge as ej  # noqa: E402
 import eval_dataset as ed  # noqa: E402
+import judge_clients  # noqa: E402
 import results_schema  # noqa: E402
 import run_ensemble_experiment as ens  # noqa: E402
 import series_guards  # noqa: E402
@@ -154,9 +159,19 @@ def main() -> int:
                     help="append statistical and ensemble rows to the long-format frame")
     args = ap.parse_args()
 
+    reachable, why = judge_clients.kayenta_reachable()
+    if not reachable:
+        print(f"[validate] ERROR: Kayenta is not reachable at {judge_clients.KAYENTA_URL} ({why}).\n"
+              "[validate] Steps 2 and 3 need the genuine NetflixACAJudge. Start the stack with "
+              "`make up` and re-run. Nothing was written.", file=sys.stderr)
+        return 2
     print(f"[validate] materialising {DATASET} n={args.n} seed={args.seed} "
           f"(statistical judge runs once per scenario)")
-    mat = ens.materialise(args.seed, args.n, DATASET)
+    try:
+        mat = ens.materialise(args.seed, args.n, DATASET)
+    except ens.StatisticalJudgeUnavailable as e:
+        print(f"[validate] ERROR: {e}\n[validate] Nothing was written.", file=sys.stderr)
+        return 2
     print(f"[validate] {len(mat)} scenarios")
 
     construction = construction_checks(mat)

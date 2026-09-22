@@ -72,6 +72,9 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--results", default=str(REPO_ROOT / "results"),
                     help="directory holding summary.csv and agg/")
+    ap.add_argument("--summary", default=None,
+                    help="summary.csv for the statistical and local-model rows "
+                         "(default: <results>/summary.csv)")
     ap.add_argument("--out", default=None,
                     help="output directory (default: <results>/figures)")
     ap.add_argument("--dpi", type=int, default=300)
@@ -87,7 +90,7 @@ def main() -> int:
     agg = results / "agg"
     out_dir = Path(args.out) if args.out else results / "figures"
 
-    summary = read_csv(results / "summary.csv")
+    summary = read_csv(Path(args.summary) if args.summary else results / "summary.csv")
     # Frontier tables are written to a FIXED filename by every
     # run_frontier_experiment.py invocation, so agg/frontier_representation.csv only
     # ever holds whichever model ran last. Each run is preserved under

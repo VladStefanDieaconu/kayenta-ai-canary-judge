@@ -127,6 +127,38 @@ def control() -> List[str]:
     return failures
 
 
+def statistical_failure() -> List[str]:
+    """A failed statistical call must not become a statistical or hybrid verdict.
+
+    v1.0.0 scored the FAIL/0.0 object of a failed Kayenta call as the statistical
+    verdict and derived every hybrid from it, all correct on a FAIL-truth scenario.
+    """
+    failures: List[str] = []
+    sc = next(s for s in ed.build_scenarios(ed.DEFAULT_MASTER_SEED, 1) if s.truth == "FAIL")
+    present = [{"alias": "stub-llm", "modality": "text", "tag": "stub"}]
+    good = {**PASSING_STAT, "verdict": "FAIL", "score": 10.0, "model": "stub-llm",
+            "rationale": "variance is materially higher"}
+    orig_ai, orig_stat = judge_clients.judge_ai, judge_clients.run_default_judge
+    judge_clients.judge_ai = lambda *a, **k: dict(good)
+    judge_clients.run_default_judge = lambda *a, **k: judge_clients._err("stubbed Kayenta outage", 0.01)
+    try:
+        errors: List[Dict[str, Any]] = []
+        rows = exp.run_scenario(sc, present, ed.aligned_base_millis(),
+                                ["summary", "raw"], ["plot"], errors)
+    finally:
+        judge_clients.judge_ai, judge_clients.run_default_judge = orig_ai, orig_stat
+    if any(r["judge"] == "statistical" for r in rows):
+        failures.append("statistical_failure: a statistical row was written for a failed call")
+    if any(r["judge"].startswith("hybrid:") for r in rows):
+        failures.append("statistical_failure: hybrid rows derived from a failed statistical call")
+    stat_errors = [e for e in errors if e.get("judge") == "statistical"]
+    if len(stat_errors) != 1:
+        failures.append(f"statistical_failure: expected 1 statistical error record, got {len(stat_errors)}")
+    if len([r for r in rows if r["judge"].startswith("ai:")]) != 2:
+        failures.append("statistical_failure: the AI rows of a working model should still be written")
+    return failures
+
+
 def main() -> int:
     all_failures: List[str] = []
     fs = control()
@@ -136,6 +168,9 @@ def main() -> int:
         fs = check(kind)
         print(f"  {kind:18s} {'FAIL' if fs else 'ok'}")
         all_failures.extend(fs)
+    fs = statistical_failure()
+    print(f"  {'statistical_fail':18s} {'FAIL' if fs else 'ok'}")
+    all_failures.extend(fs)
 
     # results_schema, the frame the newer runners write through, must exclude
     # error rows from a default load. Same guarantee, different writer.

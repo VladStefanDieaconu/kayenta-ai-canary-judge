@@ -86,6 +86,9 @@ def max_tokens_for(model: str, default: int) -> int:
 
     An alias with no `max_tokens` key resolves to the global value exactly as
     before, so every existing configuration is unaffected.
+
+    models.yaml is copied into the judge-service image at build time rather than
+    mounted, so a change to it takes effect only after a rebuild (`make build`).
     """
     reg = _load_registry()
     entry = reg.get(model) or {}

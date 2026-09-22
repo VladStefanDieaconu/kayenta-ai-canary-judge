@@ -1,8 +1,11 @@
 # Model registry: maps a friendly alias (the `model` the judge sends to the
-# LiteLLM gateway) to its modality. The judge uses `modality` to decide whether
-# to render and attach a chart image (vision) or send text only. That is the only
-# thing the judge branches on; provider and serving live entirely in
-# litellm/config.yaml. Aliases here must match the `model_name` entries there.
+# LiteLLM gateway) to its modality and its per-alias request settings. The judge
+# uses `modality` to decide whether to render and attach a chart image (vision) or
+# send text only. It also reads `json_mode` (whether response_format is sent) and
+# `max_tokens` (the completion budget); the frontier sweep reads `also_text`.
+# Provider routes live in litellm/config.yaml, and aliases here must match the
+# `model_name` entries there. This file is copied into the judge-service image at
+# build time (it is not mounted), so an edit takes effect after `make build`.
 
 models:
   # --- LLMs (text) ---
@@ -10,7 +13,7 @@ models:
   phi4-llm:         { modality: text }    # Phi-4 14B (MIT)
   olmo2-llm:        { modality: text }    # OLMo 2 7B (Apache-2.0, fully open)
   mistral-nemo-llm: { modality: text }    # Mistral-Nemo 12B (Apache-2.0)
-  deepseek-r1-llm:  { modality: text }    # DeepSeek-R1-Distill-Qwen 7B (MIT, reasoning)
+  deepseek-r1-llm:  { modality: text }    # DeepSeek-R1-Distill-Qwen 7B (MIT; base Qwen2.5-Math-7B, Apache-2.0; reasoning)
 
   # --- VLMs (vision) ---
   moondream-vlm:      { modality: vision }  # Moondream2 ~1.8B (Apache-2.0)
@@ -39,12 +42,15 @@ models:
   # openai.gpt-oss-120b-1:0 -- there is no IMAGE input, so the `plot`
   # representation cannot be served by this model. summary and raw are viable.
   # max_tokens: this model interleaves its reasoning into the completion budget,
-  # and on the raw representation at the global 1024 it spends the whole budget
-  # thinking and returns empty content with finish_reason='length'. 21% of one
-  # representation came back empty that way. Every other alias leaves this unset
-  # and inherits JUDGE_MAX_TOKENS; the longest completion observed across 1085
-  # archived Opus and Qwen responses is ~252 tokens, so the global 1024 has never
-  # bound for any of them and raising it here changes nothing but this model.
+  # and on the raw representation at the global 1024 it spent the whole budget
+  # thinking and returned empty content. That run is not in the data deposit, so
+  # the share of empty completions cannot be checked there. In the deposited runs
+  # at 4096, 185 of 540 gpt-oss completions are longer than 1024 tokens.
+  # Every other alias leaves this unset and inherits JUDGE_MAX_TOKENS. In the data
+  # deposit the longest Opus 4.8 and Qwen completions are 363 tokens, so 1024 did
+  # not bind for them. It did bind for deepseek-r1-llm, a reasoning model: 4 of its
+  # deposited rows used exactly 1024 completion tokens (finish_reason 'stop').
+  # Raising the budget here changes nothing but this model.
   gpt-oss-120b-llm:      { modality: text, json_mode: false, max_tokens: 4096 }  # OpenAI gpt-oss-120b (Bedrock, frontier)
   claude-opus-5-vlm:     { modality: vision, also_text: true, json_mode: false }  # Claude Opus 5 (Bedrock, frontier)
   qwen3-vl-235b-vlm:     { modality: vision, also_text: true, json_mode: false }  # Qwen3-VL 235B-A22B (Bedrock, frontier)

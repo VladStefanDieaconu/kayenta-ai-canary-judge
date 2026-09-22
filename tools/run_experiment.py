@@ -14,6 +14,12 @@ and scores every judge across every model present locally:
                    (hybrid_policy.decide_policy, the same code the service uses),
                    combining the statistical verdict with each model's AI verdict
                    (text models use their summary verdict, vision models plot).
+                   The AI verdict is classify(AI score); the model's own label
+                   is not read. The service does the same by default from
+                   v1.0.1 (`hybridAiVerdict=score`).
+
+A failed call, statistical (from v1.0.1) or AI, is written to errors.csv and is
+never scored; no hybrid is derived from a failed call.
 
 Every judge sees the same pairs per scenario (built once from the seed), so the
 comparison is fair. Absent models are skipped, not failed. Runs are deterministic
@@ -216,10 +222,26 @@ def run_scenario(sc: ed.Scenario, present: List[Dict[str, str]], base_millis: in
 
     # statistical (the real NetflixACAJudge)
     stat = judge_clients.run_default_judge(pairs, stat_cfg, PASS_T, MARGINAL_T)
+    stat_ok = bool(stat.get("ok", True))
     d_score = stat["score"]
     d_verdict = hybrid_policy.classify(d_score, PASS_T, MARGINAL_T)
     d_nonpass = any(p["classification"] not in hybrid_policy.PASS_OK for p in stat["per_metric"])
-    rows.append(_row(sc, "statistical", "", "-", stat["verdict"], d_score, stat["latency"], stat["error"]))
+    if stat_ok:
+        rows.append(_row(sc, "statistical", "", "-", stat["verdict"], d_score, stat["latency"], stat["error"]))
+    else:
+        # A failed statistical call is not a judgement either. v1.0.0 scored the
+        # FAIL/0.0 object from judge_clients._err() as the statistical verdict and
+        # derived all three hybrids from it. It is recorded as an error, and no
+        # hybrid is derived for this scenario.
+        errors.append({
+            "scenario": sc.id, "family": sc.family, "truth": sc.truth,
+            "judge": "statistical", "model": "-",
+            "error_kind": stat.get("error_kind", "") or "transport",
+            "error": (stat.get("error") or "")[:300],
+            "latency": round(float(stat.get("latency", 0.0) or 0.0), 2),
+            "finish_reason": "", "prompt_id": "", "prompt_hash": "",
+            "tokens_in": "", "tokens_out": "",
+        })
 
     # AI judges plus hybrids, per model
     for mdl in present:
@@ -261,7 +283,7 @@ def run_scenario(sc: ed.Scenario, present: List[Dict[str, str]], base_millis: in
         # hybrid uses this model's primary representation as the AI half
         prim = PRIMARY_MODE[modality]
         ai = ai_by_mode.get(prim)
-        if ai is not None and ai["ok"]:
+        if ai is not None and ai["ok"] and stat_ok:
             a_score = ai["score"]
             a_verdict = hybrid_policy.classify(a_score, PASS_T, MARGINAL_T)
             blind_text = ai["rationale"] + " " + " ".join(p["reason"] for p in ai["per_metric"])

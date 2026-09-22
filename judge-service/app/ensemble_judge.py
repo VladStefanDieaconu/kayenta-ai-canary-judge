@@ -204,7 +204,8 @@ class EnsembleConfig:
     cross_metric_alpha: float = 0.05
     # Structural ablation switch (not a tuned magnitude, so kept out of the
     # 6-knob count below). Without it, the variance/tail tests fire on
-    # `healed_transient` 15/15 (see series_guards.py's docstring for why a plain
+    # every `healed_transient` scenario (30/30 on the tuning set, 20/20 on the
+    # reported set; see series_guards.py's docstring for why a plain
     # distributional test can't tell "elevated-then-recovered" apart from
     # "constantly elevated"). Defaults to True because the ensemble isn't
     # competitive without it; report it as an ablation (with it / without it)

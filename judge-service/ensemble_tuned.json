@@ -2,7 +2,7 @@
   "_comment": [
     "The tuned parameters of the statistical ensemble judge, as published.",
     "",
-    "These eight values are configuration, not a result: ensemble_judge.py needs",
+    "These seven values (six tuned knobs and one switch) are configuration, not a result: ensemble_judge.py needs",
     "them to reproduce the tuned ensemble, and its dataclass defaults are the",
     "untuned starting point rather than these. They were extracted from the",
     "tuning run's own artefact so the ensemble stays reproducible after the",

@@ -1,6 +1,6 @@
 {
   "name": "scenario-statistical",
-  "description": "MANN-WHITNEY BLIND-SPOT scenario judged by the built-in NetflixACAJudge-v1.0. Realistic metrics: http_request_duration_seconds (p99 latency) with a stable median but blown-up variance/tail (issue #6278 Case 1), and process_resident_memory_bytes with an emerging late-window leak. Uses ADVANCED metric config (direction=increase + effectSize thresholds) and STILL passes the bad canary, because Mann-Whitney only tests the median/location.",
+  "description": "MANN-WHITNEY BLIND-SPOT scenario judged by the built-in NetflixACAJudge-v1.0. Realistic metrics: http_request_duration_seconds (p99 latency) with a stable median but blown-up variance/tail (issue #6278 Case 1), and process_resident_memory_bytes with an emerging late-window leak. Uses ADVANCED metric config (direction=increase + effectSize thresholds) and STILL passes the bad canary, because the Mann-Whitney test detects a location shift (estimated by Hodges-Lehmann), not a change in spread or a late trend. Demo config: the benchmark does not use this file; it uses STAT_CANARY_TEMPLATE in tools/eval_dataset.py (allowedIncrease 1.05, criticalIncrease 1.25, nanStrategy remove). See README.md in this directory.",
   "configVersion": "1.0",
   "applications": ["ad-hoc"],
   "judge": {

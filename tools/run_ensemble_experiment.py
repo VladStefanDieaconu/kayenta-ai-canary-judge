@@ -62,6 +62,10 @@ BLIND_SPOT_FAMILIES = ["variance_increase", "tail_regression", "gradual_drift", 
 PASS_FAMILIES = ["no_change", "noise_equivalent", "healed_transient"]
 
 
+class StatisticalJudgeUnavailable(RuntimeError):
+    """A statistical-judge call failed while a scenario set was being materialised."""
+
+
 # Materialise a scenario set once: fetch the genuine statistical judge's
 # per-scenario result (the only part that needs a network call) and keep the
 # raw pairs alongside it. Every candidate ensemble config then runs only pure
@@ -76,6 +80,14 @@ def materialise(seed: int, n_per_family: int,
         pairs = ed.build_pairs(sc, series, base_millis)
         cfg = ed.build_canary_config(sc, {"name": "NetflixACAJudge-v1.0", "judgeConfigurations": {}})
         stat = judge_clients.run_default_judge(pairs, cfg, PASS_T, MARGINAL_T)
+        if not stat.get("ok", True):
+            # v1.0.0 carried the FAIL/0.0 object of a failed call into every
+            # statistical and ensemble verdict computed from this list, silently.
+            raise StatisticalJudgeUnavailable(
+                f"statistical judge call failed for {sc.id} "
+                f"({stat.get('error_kind') or 'transport'}): {str(stat.get('error', ''))[:200]}. "
+                f"The genuine NetflixACAJudge is required: start the stack (`make up`) and "
+                f"check {judge_clients.KAYENTA_URL}/health. A failed call is never scored.")
         out.append({"scenario": sc.id, "family": sc.family, "truth": sc.truth,
                     "seed": sc.seed, "series": series,
                     "pairs": pairs, "stat_verdict": stat["verdict"], "stat_score": stat["score"],

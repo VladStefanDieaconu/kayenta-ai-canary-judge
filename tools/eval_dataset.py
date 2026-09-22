@@ -15,14 +15,20 @@ Design:
   * Each instance is a control + experiment series for 1-3 metrics over a fixed
     recent window at a fixed step, carrying only the `Canary` label (plus the
     metric name), as the framework requires.
-  * Isolation: every instance namespaces its metric names with an opaque global
-    id suffix (`..._g0007`), never the family name, so the ground truth never
-    leaks into the prompt the model sees.
+  * Isolation: every instance namespaces its metric names with a suffix, never
+    with the family name, so neither the family name nor the label appears in
+    the prompt. For the two published datasets the suffix is the global id
+    (`..._g0007`). The global id is sequential in family order, so it is not
+    opaque: with the metric kinds a family uses, it identifies the family. It is
+    kept for those datasets because renaming would re-key every archived result.
+    A dataset added from v1.0.1 on gets a random opaque token instead (see
+    `metric_suffix` in DATASETS).
   * A manifest records, per scenario: id, family, seed, parameters, the
     ground-truth verdict (PASS/FAIL) and per-metric truth.
-  * Per-scenario canary configs are built programmatically from one tuned,
-    best-practice statistical template (see STAT_CANARY_TEMPLATE); no hand-written
-    files, and the same statistical config across every scenario.
+  * Per-scenario canary configs are built programmatically from one fixed
+    statistical template (see STAT_CANARY_TEMPLATE); no hand-written files, and
+    the same statistical config across every scenario. The checked-in files in
+    kayenta/canary-configs/ are demo configs and differ from it.
 
 Stdlib only (no numpy) so it runs in the gated host venv. Determinism comes from
 `random.Random(seed)`.
@@ -30,13 +36,15 @@ Stdlib only (no numpy) so it runs in the gated host venv. Determinism comes from
 
 from __future__ import annotations
 
+import hashlib
 import math
+import os
 import random
 import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 MIB = 1024 * 1024
 
@@ -46,7 +54,7 @@ WINDOW_MINS = 30
 STEP_SECONDS = 60
 N_SAMPLES = WINDOW_MINS * 60 // STEP_SECONDS + 1  # 31
 
-# Best-practice statistical config (needed for a fair comparison).
+# The statistical config applied to every scenario.
 # Confirmed against Kayenta source (NetflixACAJudge.scala, MannWhitneyClassifier
 # .scala, EffectSizes.scala, WeightedSumScorer.scala):
 #   - direction=increase: every metric here is "higher is worse" (latency, memory,
@@ -59,10 +67,13 @@ N_SAMPLES = WINDOW_MINS * 60 // STEP_SECONDS + 1  # 31
 #   - criticalIncrease=1.25: a >25% regression is a critical (hard) failure.
 #   - nanStrategy=remove: drop missing samples cleanly (best practice).
 #   - outliers.strategy=keep (not remove): deliberately no IQR-trim. Trimming
-#     outliers would discard exactly the tail spikes in the tail/variance families
-#     and manufacture the blind spot. Keeping them means the statistical judge
-#     still sees the spikes yet structurally misses them, because the rank test is
-#     median-based. That is what makes the shortfall real, not a config artifact.
+#     outliers would discard exactly the tail spikes in the tail/variance families.
+#     Keeping them means the statistical judge still sees the spikes. The rank test
+#     detects a location shift (estimated by Hodges-Lehmann), not a change in
+#     spread or tail, so for the variance, tail and drift families the miss is a
+#     property of the test. That does not hold for cross_metric_marginal: each of
+#     its metrics is kept below the 1.05 effect-size gate, so that miss follows
+#     from the chosen gate value.
 #   - critical=true + mustHaveData=true: best-practice promotion gating (any
 #     flagged SLO metric blocks promotion; an SLO metric with no data fails).
 # Applied uniformly to every metric in every scenario (no per-scenario tuning).
@@ -136,11 +147,22 @@ GENERALISATION_FAMILIES: List[str] = list(GENERALISATION_FAMILY_SPEC.keys())
 # gid_base keeps the two datasets' metric-name namespaces disjoint, so a scenario
 # from one can never be confused with a scenario from the other -- in a metric
 # store, in an ai-log filename, or in a cache key.
+#
+# `metric_suffix` says how metric names are namespaced. "gid" (`..._g0007`) is
+# what both published datasets used, and they must keep it: renaming their
+# metrics would re-key every archived result. It is sequential in family order,
+# so it is not opaque. "opaque", the default for an entry without the key, gives
+# each scenario a random token from an RNG seeded by the dataset's token seed,
+# independent of family and order (see _opaque_tokens).
 DATASETS: Dict[str, Dict[str, Any]] = {
-    "original-180":      {"spec": FAMILY_SPEC, "families": FAMILIES, "gid_base": 0},
+    "original-180":      {"spec": FAMILY_SPEC, "families": FAMILIES, "gid_base": 0,
+                          "metric_suffix": "gid"},
     "generalisation-60": {"spec": GENERALISATION_FAMILY_SPEC,
-                          "families": GENERALISATION_FAMILIES, "gid_base": 1000},
+                          "families": GENERALISATION_FAMILIES, "gid_base": 1000,
+                          "metric_suffix": "gid"},
 }
+DEFAULT_METRIC_SUFFIX = "opaque"
+TOKEN_SEED_ENV = "CANARY_TOKEN_SEED"
 DEFAULT_DATASET_ID = "original-180"
 
 
@@ -184,6 +206,7 @@ class Scenario:
     truth: str           # PASS | FAIL
     metrics: List[MetricSpec]
     params: Dict[str, Any] = field(default_factory=dict)
+    token: str = ""      # opaque metric-name token; empty for gid-suffixed datasets
 
 
 # Series generation: one function per family, parameterised by a seeded RNG.
@@ -260,7 +283,9 @@ def _gen_kind(family: str, kind: str, rng: random.Random, n: int) -> Tuple[List[
         # the last fifth. The median (and >half the samples) sit in the flat
         # region so the order-blind rank test sees no location shift and the mean
         # ratio stays under the effect-size gate -> statistical PASSes; the steep
-        # end-of-window trend/slope and tail are clearly bad -> AI catches it.
+        # end-of-window trend/slope and tail are clearly bad. It is also the only
+        # single-metric family on the memory metric, so metric kind alone separates
+        # it from the other single-metric families.
         start = rng.uniform(0.80, 0.85)
         end_mag = rng.uniform(1.30, 1.50)
         s = max(1, int(n * start))
@@ -280,8 +305,9 @@ def _gen_kind(family: str, kind: str, rng: random.Random, n: int) -> Tuple[List[
     if family == "cross_metric_marginal":
         # each metric individually within per-metric tolerance (mean ratio < 1.05,
         # with margin for sample-mean noise) so the statistical judge passes each,
-        # but all of them jointly degraded -> a real systemic regression the AI can
-        # reason across.
+        # but all of them jointly degraded -> a systemic regression that only a judge
+        # reading the metrics together could flag. It is also the only family with
+        # three metric kinds, so a judge can separate it by metric kind alone.
         r = rng.uniform(1.018, 1.032)
         p["per_metric_ratio"] = round(r, 4)
         return _noisy(rng, base, noise, n), _noisy(rng, base * r, noise, n), "high", p
@@ -328,8 +354,9 @@ def _gen_kind(family: str, kind: str, rng: random.Random, n: int) -> Tuple[List[
         return control, exp, "high", p
 
     if family == "late_transient":
-        # Healthy for the first three quarters, then a step change that is still
-        # present at the last sample. A step rather than gradual_drift's ramp, so
+        # Healthy until an onset drawn from U(0.72, 0.78) of the window (the first
+        # stepped sample is index 22, 23 or 24 of 31), then a step change that is
+        # still present at the last sample. A step rather than gradual_drift's ramp, so
         # the two are not the same waveform under different names.
         #
         # Truth is FAIL, and it is adversarial in the opposite direction to
@@ -360,10 +387,11 @@ def _gen_kind(family: str, kind: str, rng: random.Random, n: int) -> Tuple[List[
         #
         # It is held out because no version of the rubric names this pattern:
         # spread, tail and trend are all named, and none of them separates these
-        # two series. The summary representation provably cannot -- its statistics
-        # are equal on both sides apart from slope, which the excursion placement
-        # below keeps near zero on purpose, so the family tests judgment rather
-        # than instruction-following.
+        # two series. The summary representation's statistics are equal on both
+        # sides apart from slope. The excursion placement below spreads the runs
+        # across the window so they are not a single late ramp, but it does not
+        # hold the fitted slope at zero, and the slope can differ noticeably between
+        # the two sides.
         n_runs = rng.randint(2, 3)
         run_len = rng.randint(3, 4)
         n_elev = n_runs * run_len
@@ -396,8 +424,8 @@ def _gen_kind(family: str, kind: str, rng: random.Random, n: int) -> Tuple[List[
                 ci += 1
 
         # Experiment: the same values, with the elevated ones gathered into
-        # contiguous runs. Run starts are spread across the window so the fitted
-        # slope stays near zero and the excursions are not merely a late ramp.
+        # contiguous runs. Run starts are spread across the window so the
+        # excursions are not merely a late ramp; the fitted slope is not constrained.
         slot = n // n_runs
         starts = []
         for r_i in range(n_runs):
@@ -435,19 +463,61 @@ def _gen_kind(family: str, kind: str, rng: random.Random, n: int) -> Tuple[List[
 
 
 # Scenario construction (deterministic from the master seed).
+def _opaque_tokens(dataset_id: str, token_seed: int, count: int) -> List[str]:
+    """`count` distinct random tokens, in an order unrelated to family or index.
+
+    The RNG is seeded from SHA-256 of (dataset_id, token_seed), so the assignment
+    is reproducible from the recorded token seed and independent of the master
+    seed, of family order and of the gid counter. The leading 't' keeps a token
+    from reading as a number.
+    """
+    digest = hashlib.sha256(f"{dataset_id}\x00{int(token_seed)}".encode("utf-8")).digest()
+    rng = random.Random(int.from_bytes(digest[:8], "big"))
+    tokens: List[str] = []
+    seen = set()
+    while len(tokens) < count:
+        tok = f"t{rng.getrandbits(40):010x}"
+        if tok not in seen:
+            seen.add(tok)
+            tokens.append(tok)
+    rng.shuffle(tokens)
+    return tokens
+
+
+def _resolve_token_seed(ds: Dict[str, Any], dataset_id: str, token_seed: Optional[int]) -> int:
+    if token_seed is None:
+        token_seed = ds.get("token_seed")
+    if token_seed is None and os.environ.get(TOKEN_SEED_ENV, "").strip():
+        token_seed = int(os.environ[TOKEN_SEED_ENV])
+    if token_seed is None:
+        raise ValueError(
+            f"dataset {dataset_id!r} uses opaque metric-name tokens and needs a token seed: "
+            f"pass token_seed=, set token_seed in DATASETS, or export {TOKEN_SEED_ENV}. "
+            "Record the seed with the run.")
+    return int(token_seed)
+
+
 def build_scenarios(master_seed: int = DEFAULT_MASTER_SEED,
                     n_per_family: int = DEFAULT_N_PER_FAMILY,
-                    dataset_id: str = DEFAULT_DATASET_ID) -> List[Scenario]:
+                    dataset_id: str = DEFAULT_DATASET_ID,
+                    token_seed: Optional[int] = None) -> List[Scenario]:
     """The scenarios of one dataset, deterministic from the master seed.
 
     The default is the original nine families with gid starting at 0, which is
-    what every published run used; the signature gained a parameter but not a
-    behaviour.
+    what every published run used; the signature gained parameters but not a
+    behaviour. `token_seed` is read only by datasets with opaque metric names.
     """
     if dataset_id not in DATASETS:
         raise ValueError(f"unknown dataset_id {dataset_id!r}; known: {sorted(DATASETS)}")
     ds = DATASETS[dataset_id]
     spec_map, family_list = ds["spec"], ds["families"]
+    suffix_kind = ds.get("metric_suffix", DEFAULT_METRIC_SUFFIX)
+    if suffix_kind not in ("gid", "opaque"):
+        raise ValueError(f"dataset {dataset_id!r}: metric_suffix must be 'gid' or 'opaque'")
+    tokens: List[str] = []
+    if suffix_kind == "opaque":
+        tokens = _opaque_tokens(dataset_id, _resolve_token_seed(ds, dataset_id, token_seed),
+                                len(family_list) * n_per_family)
 
     scenarios: List[Scenario] = []
     gid = ds["gid_base"]
@@ -455,17 +525,19 @@ def build_scenarios(master_seed: int = DEFAULT_MASTER_SEED,
         spec = spec_map[family]
         for idx in range(n_per_family):
             seed = (master_seed * 1_000_003 + gid * 97 + idx) & 0x7FFFFFFF
+            token = tokens[gid - ds["gid_base"]] if tokens else ""
+            suffix = token or f"g{gid:04d}"
             metrics: List[MetricSpec] = []
             for kind in spec["kinds"]:
                 mk = METRIC_KINDS[kind]
                 metrics.append(MetricSpec(
-                    name=f"{mk['metric']}_g{gid:04d}",
+                    name=f"{mk['metric']}_{suffix}",
                     base=mk["metric"], kind=kind, group=mk["group"], unit=mk["unit"],
                     direction="increase", truth="pass" if spec["truth"] == "PASS" else "high",
                 ))
             scenarios.append(Scenario(
                 id=f"{family}_{idx:03d}", family=family, gid=gid, seed=seed,
-                truth=spec["truth"], metrics=metrics,
+                truth=spec["truth"], metrics=metrics, token=token,
             ))
             gid += 1
     return scenarios
@@ -501,7 +573,8 @@ def _group_weights(groups: List[str]) -> Dict[str, float]:
     return weights
 
 
-def build_canary_config(scenario: Scenario, judge: Dict[str, Any]) -> Dict[str, Any]:
+def build_canary_config(scenario: Scenario, judge: Dict[str, Any],
+                        legacy_description: bool = False) -> Dict[str, Any]:
     """Build a canary config for one scenario from the tuned template. `judge` is
     the judge block, e.g. {"name":"NetflixACAJudge-v1.0","judgeConfigurations":{}}
     or {"name":"RemoteJudge-v1.0","judgeConfigurations":{"mode":"summary",...}}."""
@@ -521,9 +594,21 @@ def build_canary_config(scenario: Scenario, judge: Dict[str, Any]) -> Dict[str, 
             "analysisConfigurations": {"canary": dict(STAT_CANARY_TEMPLATE)},
             "scopeName": "default",
         })
+    # Kayenta stores the name and description, and the judge service logs them
+    # verbatim (main.py). v1.0.0 wrote the scenario id, family and truth label into
+    # them. No judge reads either field, so no verdict depends on them, but a label
+    # has no place in a request: from v1.0.1 both carry only the metric-name
+    # suffix. legacy_description=True reproduces the v1.0.0 strings exactly.
+    handle = scenario.token or f"g{scenario.gid:04d}"
+    if legacy_description:
+        name = f"eval-{scenario.id}"
+        description = f"eval dataset scenario {scenario.id} (family={scenario.family}, truth={scenario.truth})"
+    else:
+        name = f"eval-{handle}"
+        description = f"eval dataset scenario {handle}"
     return {
-        "name": f"eval-{scenario.id}",
-        "description": f"eval dataset scenario {scenario.id} (family={scenario.family}, truth={scenario.truth})",
+        "name": name,
+        "description": description,
         "configVersion": "1.0",
         "applications": ["ad-hoc"],
         "judge": judge,
@@ -576,6 +661,7 @@ def scenario_to_manifest(scenario: Scenario) -> Dict[str, Any]:
              "unit": m.unit, "direction": m.direction, "truth": m.truth}
             for m in scenario.metrics
         ],
+        **({"token": scenario.token} if scenario.token else {}),
     }
 
 

@@ -2,15 +2,18 @@
 
 Kept apart from hybrid.py (which pulls in FastAPI/pydantic/Kayenta) so that both
 the in-service hybrid judge and the host-side experiment runner
-(tools/run_experiment.py) import the same policy code, which guarantees the
-scored hybrid matches what the service would return. Pure stdlib.
+(tools/run_experiment.py) import the same policy code. The scored hybrid matches
+what the service returns only when both pass the policy the same AI verdict: the
+harness passes classify(AI score), and so does the service by default from v1.0.1
+(`hybridAiVerdict=score`). With `hybridAiVerdict=label` the service passes the
+model's own label and the two can disagree. Pure stdlib.
 
 Three policies, selectable by
 `judgeConfigurations.hybridPolicy = gated | or | and` (default gated):
   - gated: trust statistical FAILs (high precision); on a clean statistical PASS
     escalate to the AI only when it fails with high confidence or cites a blind-
     spot dimension (variance/tail/trend); in the statistical marginal/near-
-    threshold regime defer to the AI. This is the recommended hybrid.
+    threshold regime defer to the AI. This is the default policy.
   - or:  fail if either judge fails (safety net, high recall, inherits AI FPs).
   - and: fail only if both fail (strict, high precision, low recall).
 """
@@ -130,7 +133,7 @@ def decide_policy(
                               f"AND: not both failed (statistical={d_verdict}, ai={a_verdict})",
                               "statistical" if not d_fail else "ai")
 
-    # GATED (default, the recommended hybrid)
+    # GATED (the default policy)
     # 1) Statistical FAIL is high-precision: trust it.
     if d_fail:
         return PolicyDecision("Fail", d_score,

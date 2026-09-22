@@ -1,5 +1,5 @@
 @id v3-temporal-2026-07
-@description v1 plus two sentences making the temporal rule explicit. Pre-registered ablation variant.
+@description v1 plus two sentences making the temporal rule explicit. Ablation variant.
 
 # v1 with two sentences appended to the rubric, and nothing else changed. Where v2 states the
 # decision, v3 states the rule directly: position within the window carries meaning, and a

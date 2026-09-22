@@ -11,8 +11,23 @@ A single code path for every model and provider. It:
      the model alias.
 
 Never crashes the analysis: on any model or parse failure it returns a valid
-CanaryJudgeResult with an "Error" classification, the same way the dummy always
-returns something valid.
+CanaryJudgeResult whose per-metric classifications are "Error" and whose overall
+score is 0 with classification "Fail" (fail closed for a live analysis), carrying
+`judgeMetadata.ok = false` and an `error_kind`. Callers key on `judgeMetadata.ok`,
+never on the Fail: a failed call is not a judgement.
+
+Two checks are recorded on every call from v1.0.1. Neither is an error by
+default, because making either one an error could change a verdict that was
+scored in the published runs:
+  - `judgeMetadata.score_check`: "ok", or why `overallScore` is not a finite
+    number in [0, 100] ("out_of_range", "boolean", "non_finite",
+    "non_numeric", "missing"). The score is clamped as before.
+    JUDGE_STRICT_SCORE=1 turns anything but "ok" into a parse_failure error.
+  - `judgeMetadata.truncated`: finish_reason is 'length', or completion_tokens
+    reached max_tokens. finish_reason alone is not a reliable truncation
+    signal: a reasoning model has returned 'stop' at exactly the cap.
+    JUDGE_TRUNCATION_IS_ERROR=1 turns a truncated completion into a
+    `truncated` error instead of a verdict.
 """
 
 from __future__ import annotations
@@ -20,6 +35,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import math
 import os
 import re
 import time
@@ -56,6 +72,41 @@ LOG_DIR = Path(os.environ.get("AI_LOG_DIR", "/app/data/ai-logs"))
 
 _CLASS_MAP = {"pass": "Pass", "high": "High", "low": "Low", "nodata": "Nodata"}
 _VERDICT_MAP = {"pass": "Pass", "marginal": "Marginal", "fail": "Fail"}
+
+
+def _env_flag(name: str) -> bool:
+    return str(os.environ.get(name, "")).strip().lower() in ("1", "true", "yes", "on")
+
+
+def score_check(parsed: Optional[Dict[str, Any]]) -> str:
+    """"ok", or why overallScore is not a finite number in [0, 100].
+
+    Recorded, not enforced, unless JUDGE_STRICT_SCORE is set: the published runs
+    clamped the score, and rejecting it by default could change a scored verdict.
+    """
+    if not parsed or "overallScore" not in parsed:
+        return "missing"
+    value = parsed.get("overallScore")
+    if isinstance(value, bool):
+        return "boolean"
+    if not isinstance(value, (int, float)):
+        return "non_numeric"
+    if not math.isfinite(float(value)):
+        return "non_finite"
+    if not 0.0 <= float(value) <= 100.0:
+        return "out_of_range"
+    return "ok"
+
+
+def is_truncated(finish_reason: Optional[str], usage: Dict[str, Any], max_tokens: Optional[int]) -> bool:
+    """finish_reason 'length', or completion tokens at or above the budget."""
+    if str(finish_reason or "").lower() == "length":
+        return True
+    out = (usage or {}).get("completion_tokens")
+    try:
+        return max_tokens is not None and out is not None and int(out) >= int(max_tokens)
+    except (TypeError, ValueError):
+        return False
 
 
 def _client(settings: JudgeSettings) -> OpenAI:
@@ -204,6 +255,8 @@ def _save_log(settings: JudgeSettings, messages, image_b64, raw, parsed,
             "usage": outcome.get("usage") or {},
             "error_kind": outcome.get("error_kind", ""),
             "error": outcome.get("error", ""),
+            "truncated": bool(outcome.get("truncated", False)),
+            "score_check": outcome.get("score_check", ""),
         }
         path = LOG_DIR / f"{stamp}.json"
         path.write_text(json.dumps(record, indent=2))
@@ -256,6 +309,8 @@ def _judge_metadata(
         "finish_reason": outcome.get("finish_reason"),
         "usage": outcome.get("usage") or {},
         "attempts": outcome.get("attempts", 0),
+        "truncated": bool(outcome.get("truncated", False)),
+        "score_check": outcome.get("score_check", ""),
     }
 
 
@@ -444,6 +499,22 @@ def judge_ai(
             outcome["error"] = str(e)
             log.warning("AI call attempt %d failed: %s", attempt, outcome["error"])
     outcome["attempts"] = attempts
+    outcome["truncated"] = is_truncated(outcome.get("finish_reason"), outcome.get("usage") or {},
+                                        settings.max_tokens)
+    outcome["score_check"] = score_check(parsed) if parsed is not None else ""
+    # Both checks are recorded above. They become errors only when asked for,
+    # because either could change a verdict that the published runs scored.
+    if parsed is not None and _env_flag("JUDGE_STRICT_SCORE") and outcome["score_check"] != "ok":
+        outcome["error_kind"] = "parse_failure"
+        outcome["error"] = (f"overallScore failed validation ({outcome['score_check']}); "
+                            "JUDGE_STRICT_SCORE is set")
+        parsed = None
+    elif parsed is not None and _env_flag("JUDGE_TRUNCATION_IS_ERROR") and outcome["truncated"]:
+        outcome["error_kind"] = "truncated"
+        outcome["error"] = (f"completion truncated (finish_reason={outcome.get('finish_reason')!r}, "
+                            f"completion_tokens={(outcome.get('usage') or {}).get('completion_tokens')}, "
+                            f"max_tokens={settings.max_tokens}); JUDGE_TRUNCATION_IS_ERROR is set")
+        parsed = None
 
     log_path = _save_log(settings, messages, image_b64, raw, parsed, prompt, outcome)
     log.info("AI judge raw response (logged at %s): %s", log_path, (raw or "")[:500])

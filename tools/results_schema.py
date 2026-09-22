@@ -50,14 +50,15 @@ COLUMNS: List[str] = [
     "tokens_in",
     "tokens_out",
     "finish_reason",
-    "error_kind",      # '' | empty_completion | parse_failure | api_error | transport | unknown_prompt
+    "error_kind",      # '' | empty_completion | parse_failure | api_error | transport | unknown_prompt | truncated
     "error",
     "rationale",
 ]
 
 # An error row is not a verdict. Analysis excludes these by default; counting
 # them as FAIL is exactly the fault this schema exists to make impossible.
-ERROR_KINDS = ("empty_completion", "parse_failure", "api_error", "transport", "unknown_prompt")
+# "truncated" is written only when JUDGE_TRUNCATION_IS_ERROR is set (v1.0.1, off by default).
+ERROR_KINDS = ("empty_completion", "parse_failure", "api_error", "transport", "unknown_prompt", "truncated")
 
 
 def new_row(**kwargs: Any) -> Dict[str, Any]:

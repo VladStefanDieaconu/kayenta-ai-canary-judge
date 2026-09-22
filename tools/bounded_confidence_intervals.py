@@ -27,8 +27,18 @@ Outputs (results/agg/), all bounded to [0, 1] by construction:
                                   family-or-overall/metric) CI table for the
                                   single-seed N=20 run, row-bootstrap cross-check.
 
+Per-family k and n in headline_metrics_with_ci.csv are counted from
+results_raw.csv. v1.0.0 took k = round(rate * 20) and n = 20, which is right only
+when every call produced a verdict; after the correction some cells have 19 or
+fewer rows. A cell with no scored row at all (family_matrix.csv leaves it blank,
+e.g. moondream-vlm / ai:plot / cross_metric_marginal in results/corrected/) is
+written as an explicit no-data row, n = 0 with empty rate and interval, instead
+of stopping the run.
+
 Usage:
   python tools/bounded_confidence_intervals.py
+  python tools/bounded_confidence_intervals.py --part headline \
+      --results <data deposit>/results/corrected --out-dir <data deposit>/results/corrected/agg
 """
 
 from __future__ import annotations
@@ -95,7 +105,7 @@ def write_csv(path: Path, header: List[str], rows: List[List[Any]]) -> None:
 
 # Part A: multi-seed re-aggregation from results/agg/long_results.csv
 # (fixes metrics_with_ci.csv and family_recall_with_ci.csv)
-def part_a_multiseed(long_path: Path) -> Tuple[int, int]:
+def part_a_multiseed(long_path: Path, agg_dir: Path = AGG_DIR) -> Tuple[int, int]:
     rows = read_long(long_path)
     for r in rows:
         r["seed"] = int(r["seed"])
@@ -168,7 +178,7 @@ def part_a_multiseed(long_path: Path) -> Tuple[int, int]:
             row += [ci.r3(lo), ci.r3(hi)]
         row.append(";".join(identical))
         ci_rows.append(row)
-    write_csv(AGG_DIR / "metrics_with_ci.csv", header, ci_rows)
+    write_csv(agg_dir / "metrics_with_ci.csv", header, ci_rows)
 
     # family_recall_with_ci.csv
     fam_header = ["judge", "model", "family", "n_seeds", "n_pooled", "accuracy_mean",
@@ -206,7 +216,7 @@ def part_a_multiseed(long_path: Path) -> Tuple[int, int]:
             fam_rows.append([key[0], key[1], fam, len(by_seed_rates), n_pooled,
                              ci.r3(rate_pooled), ci.r3(wlo), ci.r3(whi),
                              ci.r3(blo), ci.r3(bhi), "yes" if zero_var else ""])
-    write_csv(AGG_DIR / "family_recall_with_ci.csv", fam_header, fam_rows)
+    write_csv(agg_dir / "family_recall_with_ci.csv", fam_header, fam_rows)
 
     return len(ci_rows), len(fam_rows)
 
@@ -214,18 +224,18 @@ def part_a_multiseed(long_path: Path) -> Tuple[int, int]:
 # Part B: headline N=20 (single-seed, 180-scenario) bounded CIs, from
 # results/summary.csv (TP/FP/TN/FN), results/family_matrix.csv, and
 # results/results_raw.csv (row-level bootstrap population).
-def part_b_headline() -> int:
+def part_b_headline(results_dir: Path = RESULTS_DIR, agg_dir: Path = AGG_DIR) -> int:
     """The single-seed table. Returns -1 when that run is not present.
 
     Part A works from the multi-seed frame alone, so a user who has run the
     multi-seed sweep but not `make experiment` should get their intervals and a
     clear note, not a traceback three functions deep.
     """
-    if not (RESULTS_DIR / "summary.csv").is_file():
+    if not (results_dir / "summary.csv").is_file():
         return -1
-    summary = read_csv(RESULTS_DIR / "summary.csv")
-    family_matrix = read_csv(RESULTS_DIR / "family_matrix.csv")
-    raw = read_csv(RESULTS_DIR / "results_raw.csv")
+    summary = read_csv(results_dir / "summary.csv")
+    family_matrix = read_csv(results_dir / "family_matrix.csv")
+    raw = read_csv(results_dir / "results_raw.csv")
 
     # Correctness check: accuracy recomputed from the raw counts should match
     # the recorded value exactly.
@@ -295,16 +305,42 @@ def part_b_headline() -> int:
     for row in summary:
         add_overall(row["judge"], row["model"], row)
 
+    # Per-family k and n are counted from the scored rows, because a corrected run
+    # has cells with fewer than 20 of them. The family matrix supplies the rate as
+    # printed, and the two must agree.
+    fam_counts: Dict[Tuple[str, str, str], List[int]] = defaultdict(list)
+    for r in raw:
+        if r.get("correct") not in (None, ""):
+            fam_counts[(r["judge"], r["model"], r["family"])].append(int(float(r["correct"])))
+
+    no_data = []
     for row in family_matrix:
         judge, model = row["judge"], row["model"]
         for fam in FAMILIES:
-            rate = float(row[fam])
-            k_val = round(rate * 20)
-            wlo, whi = ci.wilson_interval(k_val, 20)
-            out_rows.append([judge, model, fam, "accuracy", k_val, 20, ci.r3(rate),
+            cell = (row.get(fam) or "").strip()
+            vals = fam_counts.get((judge, model, fam), [])
+            if not cell and not vals:
+                # No scored row: every call in this cell failed. Say so, with n = 0.
+                out_rows.append([judge, model, fam, "accuracy", 0, 0, "", "", "", "", ""])
+                no_data.append(f"{judge}/{model}/{fam}")
+                continue
+            if vals:
+                k_val, n_val = sum(vals), len(vals)
+                rate = float(cell) if cell else k_val / n_val
+                assert abs(rate - k_val / n_val) < 5e-4, (
+                    f"{judge}/{model}/{fam}: family_matrix rate {cell} vs {k_val}/{n_val} in results_raw.csv")
+            else:
+                # Matrix only (no per-scenario rows for this configuration): the
+                # v1.0.0 reading of a complete 20-instance cell.
+                rate = float(cell)
+                k_val, n_val = round(rate * 20), 20
+            wlo, whi = ci.wilson_interval(k_val, n_val)
+            out_rows.append([judge, model, fam, "accuracy", k_val, n_val, ci.r3(rate),
                              ci.r3(wlo), ci.r3(whi), "", ""])
+    for cell in no_data:
+        print(f"[bounded_confidence_intervals] no scored rows, written with n = 0: {cell}")
 
-    write_csv(AGG_DIR / "headline_metrics_with_ci.csv", header, out_rows)
+    write_csv(agg_dir / "headline_metrics_with_ci.csv", header, out_rows)
     return len(out_rows)
 
 
@@ -316,19 +352,35 @@ def main() -> int:
     ap.add_argument("--long", default=None,
                     help="multi-seed long_results.csv (default: "
                          "results/n5-corrected/, falling back to results/agg/)")
+    ap.add_argument("--results", default=str(RESULTS_DIR),
+                    help="directory holding the single-seed summary.csv, family_matrix.csv and "
+                         "results_raw.csv (default: results/)")
+    ap.add_argument("--out-dir", default=None,
+                    help="where the tables are written (default: results/agg/)")
+    ap.add_argument("--part", choices=("all", "multiseed", "headline"), default="all",
+                    help="multiseed: metrics_with_ci.csv and family_recall_with_ci.csv; "
+                         "headline: headline_metrics_with_ci.csv; all: both (default)")
     args = ap.parse_args()
-    long_path = Path(args.long) if args.long else (
-        DEFAULT_LONG if DEFAULT_LONG.is_file() else AGG_DIR / "long_results.csv")
-    if not long_path.is_file():
-        print(f"[bounded_confidence_intervals] no multi-seed frame at {long_path}; "
-              "run tools/run_multiseed_corrected.py first.", file=sys.stderr)
-        return 2
-    print(f"[bounded_confidence_intervals] multi-seed frame: {long_path}")
-    n_ci, n_fam = part_a_multiseed(long_path)
-    n_head = part_b_headline()
-    print(f"[bounded_confidence_intervals] metrics_with_ci.csv: {n_ci} rows")
-    print(f"[bounded_confidence_intervals] family_recall_with_ci.csv: {n_fam} rows")
-    if n_head < 0:
+    results_dir = Path(args.results)
+    agg_dir = Path(args.out_dir) if args.out_dir else AGG_DIR
+    agg_dir.mkdir(parents=True, exist_ok=True)
+    n_ci = n_fam = None
+    if args.part in ("all", "multiseed"):
+        long_path = Path(args.long) if args.long else (
+            DEFAULT_LONG if DEFAULT_LONG.is_file() else AGG_DIR / "long_results.csv")
+        if not long_path.is_file():
+            print(f"[bounded_confidence_intervals] no multi-seed frame at {long_path}; "
+                  "run tools/run_multiseed_corrected.py first.", file=sys.stderr)
+            return 2
+        print(f"[bounded_confidence_intervals] multi-seed frame: {long_path}")
+        n_ci, n_fam = part_a_multiseed(long_path, agg_dir)
+    n_head = part_b_headline(results_dir, agg_dir) if args.part in ("all", "headline") else None
+    if n_ci is not None:
+        print(f"[bounded_confidence_intervals] metrics_with_ci.csv: {n_ci} rows")
+        print(f"[bounded_confidence_intervals] family_recall_with_ci.csv: {n_fam} rows")
+    if n_head is None:
+        pass
+    elif n_head < 0:
         print("[bounded_confidence_intervals] headline_metrics_with_ci.csv: SKIPPED "
               "(no results/summary.csv; run `make experiment` for the single-seed run)")
     else:

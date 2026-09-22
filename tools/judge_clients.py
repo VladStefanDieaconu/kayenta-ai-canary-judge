@@ -20,7 +20,7 @@ judge_name, model, ok, error}.
 from __future__ import annotations
 
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import requests
 
@@ -79,15 +79,31 @@ def _normalise(result: Dict[str, Any], pass_t: float, marginal_t: float,
         "finish_reason": str(meta.get("finish_reason") or ""),
         "tokens_in": usage.get("prompt_tokens"),
         "tokens_out": usage.get("completion_tokens"),
+        "truncated": bool(meta.get("truncated", False)),
+        "score_check": str(meta.get("score_check", "") or ""),
     }
 
 
+# The failure object of both clients, statistical and AI. Its FAIL/0.0 fields exist
+# only so a caller always has a well-formed dict; `ok` is False and no caller may
+# score it. From v1.0.1 the runners check `ok` on the statistical call as well.
 def _err(msg: str, latency: float = 0.0, error_kind: str = "transport") -> Dict[str, Any]:
     return {"verdict": "FAIL", "classification": "Fail", "score": 0.0, "per_metric": [],
             "rationale": "", "judge_name": "", "model": "", "latency": latency,
             "ok": False, "error": msg[:300], "error_kind": error_kind,
             "prompt_id": "", "prompt_hash": "", "finish_reason": "",
-            "tokens_in": None, "tokens_out": None}
+            "tokens_in": None, "tokens_out": None, "truncated": False, "score_check": ""}
+
+
+def kayenta_reachable(base_url: Optional[str] = None, timeout: float = 5.0) -> Tuple[bool, str]:
+    """(True, detail) when Kayenta answers /health with status UP."""
+    base = (base_url or KAYENTA_URL).rstrip("/")
+    try:
+        r = requests.get(f"{base}/health", timeout=timeout)
+        status = r.json().get("status")
+        return status == "UP", f"status={status!r}"
+    except (requests.RequestException, ValueError) as e:
+        return False, str(e)[:200]
 
 
 # Real NetflixACAJudge via the Kayenta callback (from the host).

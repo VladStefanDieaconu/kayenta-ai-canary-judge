@@ -82,6 +82,7 @@ class CanaryJudgeResult(BaseModel):
     # travels harmlessly through a real analysis. It exists because a failed AI
     # call still has to return a structurally valid CanaryJudgeResult, and a
     # valid result whose score is 0.0/Fail is indistinguishable from a judgement
-    # of Fail. That ambiguity fabricated 21% of one representation while every
-    # clean-run indicator read green. Callers key on judgeMetadata['ok'].
+    # of Fail. That ambiguity turned failed calls into scored verdicts in the
+    # published run while every clean-run indicator read green. Callers key on
+    # judgeMetadata['ok'].
     judgeMetadata: Dict[str, Any] = Field(default_factory=dict)

@@ -399,9 +399,12 @@ Two constraints that are easy to miss:
   re-seeds every scenario after it and renames every metric. Append, or add a new dataset
   entry in `DATASETS` with its own `gid_base`, which is what `generalisation-60` does, so
   that the original 180 stay byte-identical.
-- **The family name must never reach the prompt.** Metric names are namespaced with an
-  opaque global id (`http_request_duration_seconds_g1042`), never the family, or the
-  ground truth leaks into the input.
+- **The family name must never reach the prompt.** Metric names are namespaced with a
+  suffix, never the family, or the ground truth leaks into the input. A new dataset
+  entry gets a random opaque token by default; give it a token seed and record the
+  seed with the run. The two published datasets keep their global id
+  (`http_request_duration_seconds_g1042`), which is sequential in family order and
+  therefore not opaque.
 
 The three families in `generalisation-60` (`partial_recovery`, `late_transient`,
 `sustained_excursion`) are the reference implementations of all of this.
@@ -468,7 +471,7 @@ paper rather than code for the testbed, and they are large: 8,550 verdicts in th
 multi-seed run alone. Cloning this to judge your own canaries should not cost you
 a copy of somebody else's DeepSeek-R1 verdicts, so they are archived separately,
 on Zenodo: [10.5281/zenodo.22551774](https://doi.org/10.5281/zenodo.22551774)
-(CC-BY-4.0).
+(CC-BY-4.0; later versions are listed on that record).
 
 The dataset itself is generated deterministically from a fixed master seed
 (`20260621`), so the published runs can be regenerated on any machine with the
@@ -705,16 +708,22 @@ The hybrid is not a reimplementation of either judge. When Kayenta calls
    execution id, so it renders in Referee like any other.
 
 The merge policy lives in `judge-service/app/hybrid_policy.py` as a pure
-`decide_policy()` function, and the experiment runner imports the same function, so the
-scored hybrid is identical to what the service returns. Select a policy with
+`decide_policy()` function, and the experiment runner imports the same function. The
+runner passes the AI verdict derived from the AI score (`classify(score)`). From v1.0.1
+the service does the same by default, so the scored hybrid is what the service returns;
+`judgeConfigurations.hybridAiVerdict=label` makes the service use the model's own
+`overallVerdict` instead (the v1.0.0 behaviour), and no published number was scored that
+way. A failed AI half is not a verdict: by default the hybrid returns the statistical
+verdict alone with `judgeMetadata.ok=false` (`onAiError=fail` fails closed instead).
+`prompt_id` and `seed` are forwarded to the AI half. Select a policy with
 `judgeConfigurations.hybridPolicy`:
 
-- `gated` (the default, and the recommended one): trust statistical failures, since
+- `gated` (the default): trust statistical failures, since
   they are high precision. On a clean statistical pass, escalate to the AI only when it
   fails with high confidence or cites a blind-spot dimension (variance, tail, or trend)
   in its reasoning. In the statistical judge's marginal, near-threshold regime, where
-  it is least reliable, defer to the AI. This is the policy that delivers
-  statistical-like precision with AI-like recall on the blind spots.
+  it is least reliable, defer to the AI. In the 180-scenario local-model runs in the
+  data deposit, `gated` and `or` returned the same verdict on every scenario.
 - `or`: fail if either judge fails. A safety net with high recall, but it inherits the
   AI's benign-family false positives.
 - `and`: fail only if both judges fail. Strict, high precision, low recall.
@@ -730,9 +739,13 @@ because Kayenta re-derives promote-versus-roll-back from the score.
 per family. Each instance is a control-and-experiment pair of series for one to three
 metrics over a 30-minute window at 60-second resolution, written to VictoriaMetrics
 with the framework's `Canary="Control"` / `Canary="Experiment"` scheme. Instances are
-isolated by namespacing the metric names with an opaque global id (for example
-`http_request_duration_seconds_g0007`), never the family name, so the ground truth
-never leaks into what the model sees. `data/eval_manifest.json` records, per scenario:
+isolated by namespacing the metric names with the global id (for example
+`http_request_duration_seconds_g0007`), never the family name, so neither the family
+name nor the label appears in what the model sees. The global id is sequential in
+family order and each family uses fixed metric kinds, so the id and the metric kinds
+together still identify the family. Datasets added from v1.0.1 on use a random opaque
+token instead, and the per-scenario canary config no longer names the family or the
+label (`build_canary_config(..., legacy_description=True)` restores the v1.0.0 text). `data/eval_manifest.json` records, per scenario:
 id, family, seed, parameters, ground-truth verdict, and per-metric truth.
 `data/eval-configs/` holds the generated per-scenario configs.
 
@@ -1099,12 +1112,13 @@ Some limits are there by design:
 An earlier version of the judge turned any unusable model response into a
 structurally valid result carrying `verdict = FAIL` at score 0.0 with an empty
 error field, which downstream is indistinguishable from a genuine failing
-judgement. In the published run 22 rows were failed calls recorded as verdicts,
-and because the affected families are FAIL-truth, 21 of them scored as *correct*
-and flattered the configurations they damaged.
+judgement. In the published run 22 rows were failed calls recorded as verdicts.
+Twenty-one of them fell in FAIL-truth families and scored as *correct*, which
+flattered the configurations they damaged.
 
-The harness no longer does this. A call that produces no usable answer emits an
-error row carrying an `error_kind` and no verdict, and `results_schema.load()`
+The harness no longer does this. A call that produces no usable answer, from a model
+or (from v1.0.1) from the statistical judge, emits an error row carrying an
+`error_kind` and no verdict, and `results_schema.load()`
 excludes such rows from every denominator.
 `tools/test_failed_call_is_not_scored.py` checks it on this code rather than
 asserting it, by stubbing the AI judge to fail in each of the five ways the

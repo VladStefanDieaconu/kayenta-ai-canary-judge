@@ -122,10 +122,14 @@ def run_scenario(sc: ed.Scenario, model: str, modes: List[str], base_millis: int
     long_rows: List[Dict[str, Any]] = []
 
     stat = judge_clients.run_default_judge(pairs, stat_cfg, PASS_T, MARGINAL_T)
+    stat_ok = bool(stat.get("ok", True))
     d_score = stat["score"]
     d_verdict = hybrid_policy.classify(d_score, PASS_T, MARGINAL_T)
     d_nonpass = any(p["classification"] not in hybrid_policy.PASS_OK for p in stat["per_metric"])
-    rows.append(exp._row(sc, "statistical", "", "-", stat["verdict"], d_score, stat["latency"], stat["error"]))
+    # A failed statistical call is an error row (no verdict) in the long frame, is
+    # left out of the legacy rows, and no hybrid is derived from it (v1.0.1).
+    if stat_ok:
+        rows.append(exp._row(sc, "statistical", "", "-", stat["verdict"], d_score, stat["latency"], stat["error"]))
     long_rows.append(_long(sc, "statistical", "", "-", "", "", stat))
 
     ai_by_mode: Dict[str, Dict[str, Any]] = {}
@@ -141,7 +145,7 @@ def run_scenario(sc: ed.Scenario, model: str, modes: List[str], base_millis: int
 
     prim = "plot" if "plot" in ai_by_mode else (modes[0] if modes else None)
     ai = ai_by_mode.get(prim) if prim else None
-    if ai is not None and ai["ok"]:
+    if ai is not None and ai["ok"] and stat_ok:
         a_score = ai["score"]
         a_verdict = hybrid_policy.classify(a_score, PASS_T, MARGINAL_T)
         blind_text = ai["rationale"] + " " + " ".join(p["reason"] for p in ai["per_metric"])

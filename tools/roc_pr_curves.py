@@ -54,7 +54,7 @@ from typing import Any, Dict, List, Tuple
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
-def sources_for(results_dir: Path) -> List[Dict[str, Any]]:
+def sources_for(results_dir: Path, raw_path=None) -> List[Dict[str, Any]]:
     """The five configurations, resolved against one results directory.
 
     Taking the directory as an argument rather than a module constant is what
@@ -64,7 +64,9 @@ def sources_for(results_dir: Path) -> List[Dict[str, Any]]:
     and the reproduction checks too, and those are not this configuration.
     """
     agg = results_dir / "agg"
-    raw = results_dir / "results_raw.csv"
+    # raw_path overrides the per-scenario file (v1.0.1), so the local rows can be
+    # read from a corrected results_raw.csv while agg/ stays where it is.
+    raw = Path(raw_path) if raw_path else results_dir / "results_raw.csv"
     frontier = agg / "frontier_long_claude-opus-4-8-vlm.csv"
     return [
         {"name": "statistical", "path": raw, "judge": "statistical", "model": "-"},
@@ -156,6 +158,9 @@ def main() -> int:
     ap_ = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap_.add_argument("--results", default=str(REPO_ROOT / "results"),
                      help="directory holding results_raw.csv and agg/")
+    ap_.add_argument("--raw", default=None,
+                     help="results_raw.csv for the local configurations "
+                          "(default: <results>/results_raw.csv)")
     ap_.add_argument("--out", default=None,
                      help="output directory (default: <results>/agg)")
     args = ap_.parse_args()
@@ -168,7 +173,7 @@ def main() -> int:
     auc_rows = []
     curve_rows = []
 
-    for src in sources_for(results_dir):
+    for src in sources_for(results_dir, args.raw):
         if not src["path"].exists():
             auc_rows.append([src["judge"], src["model"], 0, "", "", "",
                              f"source file not found: {src['path'].name}"])
