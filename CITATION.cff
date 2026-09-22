@@ -9,16 +9,30 @@ abstract: >-
   large language model or a vision-language model, three explicit hybrid policies
   that combine it with the genuine NetflixACAJudge verdict, a tuned statistical
   ensemble baseline, and a seeded nine-family fault-injection benchmark of 180
-  labelled scenarios with the harness that scores every judge over it.
+  labelled scenarios with the harness that scores every judge over it. Version
+  1.1.0 adds a documented format for labelled canary windows exported from any
+  metric store, a loader, the own-data Make targets and an example file, so a
+  practitioner's own windows are scored by the same code that produced the
+  published results; it corrects six tools that assumed the results directory
+  would always be this study's, gives each run its own figure spec, figure
+  scratch directory and judge-call log directory, lets a window declare the
+  order of its metrics rather than have the loader sort them by name, and
+  derives each anonymised window's opaque metric suffix from a salted hash of
+  the window identifier instead of its position in the sorted file. The
+  benchmark scenarios, seeds, metric names, series and rubric hashes are
+  generated exactly as in 1.0.0.
 type: software
 license: Apache-2.0
 repository-code: "https://github.com/VladStefanDieaconu/kayenta-ai-canary-judge"
-version: 1.0.0
-date-released: '2026-09-06'
+version: 1.1.0
+date-released: '2026-09-21'
 identifiers:
   - type: doi
     value: 10.5281/zenodo.22553878
-    description: Archived snapshot of this software, version 1.0.0
+    description: >-
+      Concept DOI of the Zenodo record for this software; it resolves to the
+      latest archived version and lists every version. The version DOI for
+      1.1.0 is minted when this version is archived and is not written here.
 keywords:
   - automated canary analysis
   - continuous delivery
