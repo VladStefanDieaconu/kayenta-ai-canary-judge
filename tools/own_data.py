@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import math
 import re
@@ -53,7 +54,22 @@ import eval_dataset as ed
 # Own-data metric names live at gid 2000 and up, disjoint from the seeded
 # datasets' 0... and 1000... ranges, so an own-data metric can never be confused
 # with a study metric in a metric store, an ai-log filename or a cache key.
+#
+# Which gid a window gets inside that range is a salted hash of the window's own
+# identifier (`_assign_gids`), not its position in the sorted file. It used to be
+# the position -- `OWN_DATA_GID_BASE + index` over `sorted(windows)` -- and that
+# made the opaque suffix monotone in the alphabetical order of the practitioner's
+# own window names. A practitioner whose window ids sort by outcome (`2026-03-14
+# -ok-...` before `2026-03-14-rollback-...`, or anything else that puts the good
+# deploys first) then got an opaque name that ranks the windows by their answer,
+# which is the label leak this harness exists to measure, shipped as the feature
+# that prevents it. Reviewer 2, finding R2-3.
 OWN_DATA_GID_BASE = 2000
+# Exclusive. Four digits keeps `_g{gid:04d}` the width every other name in the
+# harness has; the span is what a file's windows are hashed into, so it is also
+# the largest number of windows one file can carry.
+OWN_DATA_GID_LIMIT = 10000
+OWN_DATA_GID_SPAN = OWN_DATA_GID_LIMIT - OWN_DATA_GID_BASE
 
 # Ten samples a side is a harness choice, not a Kayenta requirement, and the
 # reasoning is in docs/own-data.md: at n=1 the genuine NetflixACAJudge fails
@@ -70,7 +86,7 @@ STEP_TOLERANCE = 0.05          # a gap is on-grid within 5% of a multiple of ste
 EXPORT_BASE_MILLIS = int(datetime(2026, 6, 21, 9, 0, tzinfo=timezone.utc).timestamp() * 1000)
 
 REQUIRED_COLUMNS = ("scenario", "metric", "side", "timestamp", "value", "kind", "direction")
-OPTIONAL_COLUMNS = ("label", "group", "unit", "family", "metric_label")
+OPTIONAL_COLUMNS = ("label", "group", "unit", "family", "metric_label", "metric_order")
 KNOWN_COLUMNS = REQUIRED_COLUMNS + OPTIONAL_COLUMNS
 
 # A closed vocabulary, because the renamed metric name is the only thing about
@@ -237,7 +253,7 @@ def read_json(path: str, ignored: Optional[List[str]] = None) -> List[Dict[str, 
             mloc = f"{loc} metric {mname!r}" if mname else mloc
             seen_keys.update(k for k in metric
                              if k not in ("metric", "kind", "direction", "unit", "group",
-                                          "metric_label", "control", "canary",
+                                          "metric_label", "metric_order", "control", "canary",
                                           "baseline", "experiment"))
             for key in ("control", "baseline", "canary", "experiment"):
                 side = metric.get(key)
@@ -270,6 +286,12 @@ def read_json(path: str, ignored: Optional[List[str]] = None) -> List[Dict[str, 
                         "unit": str(metric.get("unit", "") or "").strip(),
                         "family": str(window.get("family", "") or "").strip(),
                         "metric_label": str(metric.get("metric_label", "") or "").strip(),
+                        # Stated, like the CSV column, rather than taken from this
+                        # metric's place in the `metrics` array: the two forms have
+                        # to accept and reject exactly the same data, and neither
+                        # may depend on the sequence things happen to appear in.
+                        "metric_order": ("" if metric.get("metric_order") is None
+                                         else str(metric["metric_order"]).strip()),
                         "_line": f"{mloc} {key}[{i}]",
                     })
     if not rows:
@@ -419,6 +441,8 @@ def _group(rows: List[Dict[str, str]]) -> Tuple["OrderedDict[str, Dict[str, Any]
         _constant(problems, entry, "unit", row.get("unit", ""), line, None, scope=scope)
         _constant(problems, entry, "metric_label", row.get("metric_label", ""), line,
                   METRIC_LABELS, scope=scope)
+        _constant(problems, entry, "metric_order", row.get("metric_order", ""), line,
+                  None, scope=scope)
 
         samples = entry["sides"][side]
         if millis in samples:
@@ -432,9 +456,69 @@ def _group(rows: List[Dict[str, str]]) -> Tuple["OrderedDict[str, Dict[str, Any]
         entry["sample_lines"][(side, millis)] = line
         entry["side_lines"].setdefault(side, line)
 
+    problems += _order_problems(windows)
+
     if not windows and not problems:
         problems.append("no windows found; at least one is required")
     return windows, problems, naive
+
+
+def _order_problems(windows: "OrderedDict[str, Dict[str, Any]]") -> List[str]:
+    """Check every window's `metric_order` declaration, and parse the ones that hold.
+
+    A window either declares the order of all its metrics or declares none of
+    them. A partial declaration is refused rather than half-honoured: the
+    alternative is to interpolate the undeclared metrics somewhere, and every
+    place to put them is a guess about which metric the classifier hands its
+    leftover group weight to.
+
+    Declared numbers only have to be distinct integers, not 1..n: an export that
+    numbers by tens, or one that carries a subset of a longer list, still states
+    an unambiguous order. They are read as integers rather than compared as text
+    so that 2 sorts before 10.
+    """
+    problems: List[str] = []
+    for window in windows.values():
+        entries = list(window["metrics"].values())
+        declared = [e for e in entries if e.get("metric_order")]
+        if not declared:
+            continue
+        scope = f"window {window['name']!r}"
+        if len(declared) != len(entries):
+            missing = sorted(e["name"] for e in entries if not e.get("metric_order"))
+            problems.append(
+                f"{window['line']}: {scope} declares metric_order for "
+                f"{len(declared)} of its {len(entries)} metric(s) but not for "
+                f"{', '.join(repr(m) for m in missing)}; a window declares the order of "
+                f"all of its metrics or of none of them (see {DOC})")
+            continue
+        ranks: Dict[int, str] = {}
+        bad = False
+        for entry in entries:
+            text = entry["metric_order"]
+            try:
+                rank = int(text)
+            except ValueError:
+                problems.append(
+                    f"{entry.get('metric_order_line', entry['line'])}: {scope} metric "
+                    f"{entry['name']!r} gives metric_order={text!r}, which is not an "
+                    f"integer")
+                bad = True
+                continue
+            if rank in ranks:
+                problems.append(
+                    f"{entry.get('metric_order_line', entry['line'])}: {scope} gives "
+                    f"metric_order={rank} to both {ranks[rank]!r} and {entry['name']!r}; "
+                    f"the declared order must be a strict order, so the numbers must "
+                    f"be distinct")
+                bad = True
+                continue
+            ranks[rank] = entry["name"]
+            entry["order_rank"] = rank
+        if bad:
+            for entry in entries:
+                entry.pop("order_rank", None)
+    return problems
 
 
 def _constant(problems: List[str], holder: Dict[str, Any], field: str, raw: str,
@@ -645,13 +729,31 @@ def to_scenarios(rows: List[Dict[str, str]], *, anonymise: bool = True,
     """Validated rows -> the Scenario objects the rest of the harness already takes.
 
     Windows are ordered by the user's own identifier, and the metrics within a
-    window by the user's own metric name, so nothing the judges see depends on
-    the order rows happen to appear in the file. Two exports of the same windows
-    with the rows shuffled -- a second `ORDER BY`, a different scrape order, a
-    concatenation of per-metric queries -- are the same run: the same opaque
-    `own_0000`, the same `latency_2_g2000` suffix on the same metric, the same
-    metricSetPairList order in the prompt, and the same group weights, including
-    which group takes the 0.01 that `eval_dataset._group_weights` leaves over.
+    window by what the file DECLARES in `metric_order` -- falling back to the
+    user's own metric name when it declares nothing. Either way the key is read
+    out of the file's content, never out of the sequence its rows arrive in, so
+    two exports of the same windows with the rows shuffled -- a second `ORDER
+    BY`, a different scrape order, a concatenation of per-metric queries -- are
+    the same run: the same opaque `own_0000`, the same `latency_2_g4831` suffix
+    on the same metric, the same metricSetPairList order in the prompt, and the
+    same group weights, including which group takes the 0.01 that
+    `eval_dataset._group_weights` leaves over.
+
+    Sorting on the name was the right answer to row-order dependence and the
+    wrong answer to fidelity: it is an order the loader invents, and for a window
+    carrying several metrics it is usually not the one its owner had. The order
+    reaches the prompt and moves that leftover 0.01, so a practitioner whose
+    export happens to be alphabetical would otherwise be judged under a different
+    classifier configuration from one whose export is by kind, with nothing in
+    either file recording the difference. `metric_order` lets the file say it,
+    and `export()` writes it, so the round trip preserves the order as well as
+    the values.
+
+    The `_gNNNN` in that suffix is a salted hash of the window's own identifier
+    (`_assign_gids`), not its place in the sorted file, and the salt is a digest
+    of the file's content. What that buys is in `_assign_gids`; what it costs is
+    that the number means nothing outside the one file it was drawn in, which is
+    the point.
     `export()` writes each metric under the name this function gave it and sorts
     the rows by that same name, which is the key read back here, so a file this
     module produced reloads under the same `anonymise` setting to exactly what it
@@ -666,7 +768,9 @@ def to_scenarios(rows: List[Dict[str, str]], *, anonymise: bool = True,
     The only field of a pair that reaches the prompt is `name`
     (judge-service/app/representations.py), so a window called
     `2026-03-14-rollback-FAIL` whose metric is `checkout_latency_during_the_bad_deploy`
-    hands the model its own answer. Renamed, the model sees `latency_g2000`.
+    hands the model its own answer. Renamed, the model sees `latency_g4831`,
+    whose number is drawn from the window's name and the file's content and
+    orders the windows by nothing at all.
     """
     windows, problems, _ = _group(rows)
     if problems:
@@ -677,10 +781,11 @@ def to_scenarios(rows: List[Dict[str, str]], *, anonymise: bool = True,
 def _opaque_name(kind: str, index: int, count: int, gid: int) -> str:
     """The name the model sees for the `index`-th metric of `kind` in a window.
 
-    The only metric of its kind is `latency_g2000`. Several of one kind are
-    numbered from one and padded to the width of the count -- `latency_1_g2000`,
-    `latency_2_g2000`, and `latency_01_g2000` ... `latency_12_g2000` for a window
-    carrying twelve of them.
+    The only metric of its kind is `latency_g4831`. Several of one kind are
+    numbered from one and padded to the width of the count -- `latency_1_g4831`,
+    `latency_2_g4831`, and `latency_01_g4831` ... `latency_12_g4831` for a window
+    carrying twelve of them. The gid is the window's, from `_assign_gids`; 4831
+    is an example and means nothing outside the file it was drawn in.
 
     The padding, and numbering the first one rather than leaving it bare, are the
     property this format rests on rather than a cosmetic choice. `_build` assigns
@@ -688,8 +793,8 @@ def _opaque_name(kind: str, index: int, count: int, gid: int) -> str:
     them by sorting whatever names the file it is given carries. For a file this
     module exported -- whose names are already these -- the two agree only if
     sorting the names gives back the order they were assigned in. The earlier
-    scheme numbered from the second (`latency_g2000`, `latency_2_g2000`,
-    `latency_3_g2000`), and those sort `_2`, `_3`, then the unnumbered one, because
+    scheme numbered from the second (`latency_g4831`, `latency_2_g4831`,
+    `latency_3_g4831`), and those sort `_2`, `_3`, then the unnumbered one, because
     a digit sorts before a letter. A three-latency window exported and re-imported
     came back with every series under its neighbour's name, rotating once per round
     trip and never returning. `tools/test_own_data_roundtrip.py::anonymised` is that
@@ -703,19 +808,191 @@ def _opaque_name(kind: str, index: int, count: int, gid: int) -> str:
     return f"{kind}_{index:0{len(str(count))}d}_g{gid:04d}"
 
 
+# The opaque gid: a salted hash of the window's own name, never its position.
+#
+# `_opaque_name` above decides what a metric of a given kind is called inside a
+# window; these three decide the number that distinguishes one window's metrics
+# from another's. Three properties are wanted at once and only the first is
+# obvious:
+#
+#   * it must not encode the sort order of the window ids, or the suffix ranks
+#     the windows by whatever their names happen to sort by -- which, for names
+#     that carry the outcome, is the label (R2-3);
+#   * it must be a deterministic function of the file, because the round trip
+#     rests on two loads of one file being one run;
+#   * and a file this module exported has to reload to itself, names included,
+#     which is why `_carried_gid` exists.
+_OPAQUE_WINDOW_RE = re.compile(r"^own_\d{4}$")
+_OPAQUE_METRIC_RE = re.compile(r"^(?P<kind>[a-z]+)(?:_(?P<index>\d+))?_g(?P<gid>\d{4,})$")
+
+
+def _content_salt(windows: "OrderedDict[str, Dict[str, Any]]") -> str:
+    """The per-file salt the gids are drawn with. -> 64 hex characters.
+
+    Derived from the file's *content*, for two reasons. It keeps two different
+    datasets out of each other's namespace: the same window name in two files
+    does not get the same opaque suffix, so a suffix seen in one run says nothing
+    about a window in another. And, because a run is only reproducible if its
+    names are, it is recorded in the manifest (`gid_salt`), so the names a run
+    was judged under can be re-derived from the file it was judged from.
+
+    `metric_order` is deliberately NOT one of the fields the digest covers, for
+    the same reason the salt exists: declaring the order a window already had
+    must not rename its series. Adding the column to a file changes which metric
+    is last, and therefore the prompt and the group weights, and it changes
+    neither the gids nor the opaque names -- which is what lets arm 1c carry
+    arm 1's names string for string while stating the generator's order.
+
+    Canonical rather than byte-wise: the digest is taken over the windows as
+    grouped, with the windows sorted by name, a window's metrics sorted by name
+    and a metric's samples sorted by timestamp. Row order, line endings, comment
+    lines and the CSV/JSON choice therefore do not reach it. That is not a
+    nicety -- `to_scenarios` promises that two exports of the same windows with
+    the rows shuffled are the same run, and a salt taken over the raw bytes would
+    have given the shuffled file a different salt and every window a different
+    name.
+    """
+    h = hashlib.sha256()
+    h.update(b"own-data/gid-salt/v1\n")
+    for name in sorted(windows):
+        window = windows[name]
+        h.update(f"W\x00{name}\x00{window.get('label', '')}\x00"
+                 f"{window.get('family', '')}\n".encode("utf-8"))
+        metrics = window["metrics"]
+        for metric in sorted(metrics):
+            entry = metrics[metric]
+            h.update(f"M\x00{metric}\x00{entry.get('kind', '')}\x00"
+                     f"{entry.get('direction', '')}\x00{entry.get('group', '')}\x00"
+                     f"{entry.get('unit', '')}\x00"
+                     f"{entry.get('metric_label', '')}\n".encode("utf-8"))
+            for side in ("control", "experiment"):
+                samples = entry["sides"][side]
+                for stamp in sorted(samples):
+                    value = samples[stamp]
+                    h.update(f"S\x00{side}\x00{stamp}\x00"
+                             f"{'' if value is None else repr(float(value))}\n".encode("utf-8"))
+    return h.hexdigest()
+
+
+def _gid_digest(salt: str, name: str) -> str:
+    """The window's own draw from the salted space. Nothing else feeds it."""
+    return hashlib.sha256(f"{salt}\x00{name}".encode("utf-8")).hexdigest()
+
+
+def _carried_gid(name: str, window: Dict[str, Any]) -> Optional[int]:
+    """The gid a window already carries, if this module is what named it.
+
+    A file this module exported writes the opaque names back out, so re-importing
+    it must give those same names or the format is not a fixed point: the window
+    id in such a file is the `own_NNNN` this module invented rather than the
+    practitioner's own identifier, and hashing *that* would name the same series
+    something else on every cycle. `tools/test_own_data_roundtrip.py::anonymised`
+    is the check, and it exports and re-imports twice for the reason given there.
+
+    Recognition is strict, not a prefix guess: the window id has to be exactly
+    the shape this module assigns, every metric name has to parse as an opaque
+    name in the own-data gid range, they all have to carry one gid, and rebuilding
+    the whole window's names under that gid has to give back exactly the names the
+    file carries -- which is `_opaque_name`'s numbering and padding as well as the
+    kind. Anything else is somebody's own naming scheme that happens to rhyme, and
+    is hashed like any other.
+
+    Anonymising an already-anonymous window a second time buys nothing, so this
+    costs no protection: these names were this module's own output, and they
+    carry nothing about the window they came from beyond what it had already
+    decided to carry.
+    """
+    if not _OPAQUE_WINDOW_RE.match(name):
+        return None
+    metrics = window["metrics"]
+    if not metrics:
+        return None
+    gids = set()
+    for metric, entry in metrics.items():
+        match = _OPAQUE_METRIC_RE.match(metric)
+        if not match or match.group("kind") != entry.get("kind"):
+            return None
+        gid = int(match.group("gid"))
+        if not OWN_DATA_GID_BASE <= gid < OWN_DATA_GID_LIMIT:
+            return None
+        gids.add(gid)
+    if len(gids) != 1:
+        return None
+    gid = gids.pop()
+    per_kind: Counter = Counter(entry["kind"] for entry in metrics.values())
+    used: Counter = Counter()
+    for metric in sorted(metrics):
+        kind = metrics[metric]["kind"]
+        used[kind] += 1
+        if _opaque_name(kind, used[kind], per_kind[kind], gid) != metric:
+            return None
+    return gid
+
+
+def _assign_gids(windows: "OrderedDict[str, Dict[str, Any]]",
+                 salt: str) -> "OrderedDict[str, int]":
+    """One gid per window, drawn from the salted space. -> {window name: gid}.
+
+    Collisions are found and resolved, never ignored: 180 windows in an 8000-slot
+    space collide about twice, and two windows sharing a gid would put two
+    different series under one name in the same run. The window that keeps a
+    contested slot is decided by the digest, and the windows are walked in digest
+    order rather than in name order, so the tie-break cannot put the alphabet back
+    into the suffix the way an `index`-ordered probe would. The loser takes the
+    next free slot above its own draw, wrapping; linear probing rather than a
+    second hash because it is guaranteed to find a free slot whenever one exists,
+    and the bias it introduces is in the space, not in the labels.
+
+    Windows that already carry one of this module's gids (`_carried_gid`) are
+    seated first and keep it, so re-importing an export is the identity.
+    """
+    names = sorted(windows)
+    if len(names) > OWN_DATA_GID_SPAN:
+        raise OwnDataError([
+            f"{len(names)} windows: this format reserves {OWN_DATA_GID_SPAN} opaque metric "
+            f"namespaces (gid {OWN_DATA_GID_BASE}..{OWN_DATA_GID_LIMIT - 1}), and two windows "
+            f"under one gid would put two series under one name. Split the file, or widen "
+            f"OWN_DATA_GID_LIMIT and re-export -- see {DOC} on renaming."])
+
+    assigned: Dict[str, int] = {}
+    taken: Dict[int, str] = {}
+    for name in names:
+        carried = _carried_gid(name, windows[name])
+        if carried is not None and carried not in taken:
+            assigned[name] = carried
+            taken[carried] = name
+
+    for _digest, name in sorted((_gid_digest(salt, n), n)
+                                for n in names if n not in assigned):
+        start = int(_digest[:16], 16) % OWN_DATA_GID_SPAN
+        gid = OWN_DATA_GID_BASE + start
+        for probe in range(OWN_DATA_GID_SPAN):
+            gid = OWN_DATA_GID_BASE + (start + probe) % OWN_DATA_GID_SPAN
+            if gid not in taken:
+                break
+        assigned[name] = gid
+        taken[gid] = name
+    return OrderedDict((name, assigned[name]) for name in names)
+
+
 def _build(windows: "OrderedDict[str, Dict[str, Any]]", *, anonymise: bool,
-           stat_config: Optional[Dict[str, Any]]) -> List[ed.Scenario]:
+           stat_config: Optional[Dict[str, Any]],
+           salt: Optional[str] = None) -> List[ed.Scenario]:
+    # The caller passes the salt when it also wants to record it (load() puts it
+    # in the manifest); computing it here otherwise keeps to_scenarios() a
+    # one-argument entry point.
+    gids = _assign_gids(windows, salt if salt is not None else _content_salt(windows))
     scenarios: List[ed.Scenario] = []
     for index, name in enumerate(sorted(windows)):
         window = windows[name]
-        gid = OWN_DATA_GID_BASE + index
+        gid = gids[name]
         sid = f"own_{index:04d}" if anonymise else name
 
         step, first, last = _window_grid(window)
         length = int(round((last - first) / step)) + 1
 
         built: List[Tuple[str, ed.MetricSpec, Dict[str, List[Optional[float]]],
-                          Dict[str, Any]]] = []
+                          Dict[str, Any], Optional[int]]] = []
         # How many metrics of each kind this window carries, counted before any
         # of them is renamed: _opaque_name() numbers a kind only when there is
         # more than one of it, and pads the number to the width of the count.
@@ -746,24 +1023,48 @@ def _build(windows: "OrderedDict[str, Dict[str, Any]]", *, anonymise: bool,
                     "sides": {side: _shape(entry, side, step)
                               for side in ("control", "experiment")},
                 },
+                entry.get("order_rank"),
             ))
 
-        # ...but the ORDER the window is then carried in is the order of the
-        # names it carries, which is the order the file stores and the order the
-        # model is shown. Ordering by your names instead would mean a window and
-        # its own export were two different windows: `p99`, `rate_5xx`,
-        # `rss_bytes` becomes `latency_g2000`, `errors_g2000`, `memory_g2000`,
-        # the file stores those three sorted, and a re-import reads them back
-        # `errors`, `latency`, `memory`. The metricSetPairList order reaches the
-        # prompt, and `eval_dataset._group_weights` hands the leftover 0.01 to
-        # whichever group comes first, so that is not a presentational
-        # difference. Sorting on the name both ends share makes the window a
-        # fixed point of its own export.
-        built.sort(key=lambda item: item[0])
-        metrics: List[ed.MetricSpec] = [spec for _, spec, _, _ in built]
+        # ...but the ORDER the window is then carried in is the file's to state.
+        #
+        # It is not a presentational choice. The metricSetPairList order reaches
+        # the prompt verbatim (judge-service/app/representations.py), and
+        # `eval_dataset._group_weights` hands the leftover 0.01 to the group of
+        # the LAST metric, so which metric is last is part of the configuration
+        # the run was judged under.
+        #
+        # So the file declares it, in `metric_order`, and a window that declares
+        # one is carried in it whatever sequence its rows arrive in -- the
+        # declaration is a column, not a row order, which is the one thing a user
+        # is free to re-sort. `export()` writes the order the scenario was built
+        # with, so an export/re-import round trip preserves it along with the
+        # values.
+        #
+        # A file that declares nothing falls back to the old rule, sorting on
+        # the name both ends share: it is the only order both ends can agree on
+        # without being told, and it is what keeps a window a fixed point of its
+        # own export. What it is not is the order the window's owner had, which
+        # is why `metric_order` exists. Ordering by YOUR names would be worse
+        # still under renaming: `p99`, `rate_5xx`, `rss_bytes` becomes
+        # `latency_g4831`, `errors_g4831`, `memory_g4831`, and a re-import of
+        # that export reads them back `errors`, `latency`, `memory`.
+        #
+        # Either way the key is a function of the window's content and never of
+        # the row sequence, so two loads of one file, and of that file shuffled,
+        # are one run.
+        declared = bool(built) and all(item[4] is not None for item in built)
+        # `_order_problems` has already refused a window that declares an order
+        # for some of its metrics and not the others, and one whose declared
+        # numbers are not distinct, so `declared` is all-or-nothing here and the
+        # rank alone is a total order. The name is kept as a second key anyway,
+        # so that a caller reaching _build() without validating first gets a
+        # deterministic answer rather than Python's list order.
+        built.sort(key=lambda item: (item[4], item[0]) if declared else (0, item[0]))
+        metrics: List[ed.MetricSpec] = [spec for _, spec, _, _, _ in built]
         series: Dict[str, Dict[str, List[Optional[float]]]] = {
-            name: values for name, _, values, _ in built}
-        provenance: Dict[str, Any] = {name: prov for name, _, _, prov in built}
+            name: values for name, _, values, _, _ in built}
+        provenance: Dict[str, Any] = {name: prov for name, _, _, prov, _ in built}
 
         scenarios.append(ed.Scenario(
             id=sid, family=window["family"] or DEFAULT_FAMILY, gid=gid, seed=0,
@@ -912,7 +1213,15 @@ def load(path: str, *, anonymise: bool = True, min_samples: int = MIN_SAMPLES_PE
         raise OwnDataError(problems)
 
     overrides = read_stat_config(stat_config) if stat_config else None
-    scenarios = _build(windows, anonymise=anonymise, stat_config=overrides)
+    # The salt the opaque names were drawn with, taken before the truncation and
+    # kept so the manifest can record it: the names a run was judged under have
+    # to be re-derivable from the file it was judged from.
+    salt = _content_salt(windows)
+    declared_order = sum(
+        1 for window in windows.values()
+        if window["metrics"] and all(entry.get("order_rank") is not None
+                                     for entry in window["metrics"].values()))
+    scenarios = _build(windows, anonymise=anonymise, stat_config=overrides, salt=salt)
     windows_in_file = len(scenarios)
     if limit is not None:
         scenarios = scenarios[:limit]
@@ -932,6 +1241,8 @@ def load(path: str, *, anonymise: bool = True, min_samples: int = MIN_SAMPLES_PE
         "warnings": warnings,
         "limit": limit,
         "windows_in_file": windows_in_file,
+        "gid_salt": salt,
+        "windows_with_declared_metric_order": declared_order,
     }
     return scenarios, build_manifest(scenarios, path, decisions)
 
@@ -1001,6 +1312,20 @@ def build_manifest(scenarios: List[ed.Scenario], source: str,
         "allow_gaps": bool(decisions.get("allow_gaps", False)),
         "ignored_columns": decisions.get("ignored_columns", []),
         "naive_timestamps": decisions.get("naive_timestamps", 0),
+        # The salt the opaque metric names were drawn with. A run's names are a
+        # salted hash of the window ids (own_data._assign_gids), so without this
+        # the mapping from `latency_g4831` back to your own metric is only in the
+        # `scenarios` block below; with it the whole naming is reproducible from
+        # the input file alone.
+        "gid_salt": decisions.get("gid_salt", ""),
+        # How many of the windows stated the order of their own metrics in the
+        # `metric_order` column, and how many fell back to sorting on the name.
+        # Which metric is last decides which group takes the leftover 0.01 of
+        # `classifier.groupWeights`, so a run whose file declared nothing and a
+        # run whose file declared its order are not necessarily the same run,
+        # and the manifest says which this was.
+        "n_windows_with_declared_metric_order":
+            decisions.get("windows_with_declared_metric_order", 0),
         # Set when only the first N windows of the file were run, so a smoke
         # run's numbers cannot be mistaken for the whole file's.
         "limited_to": decisions.get("limit"),
@@ -1032,14 +1357,21 @@ def export(scenarios: List[ed.Scenario], path: str, *,
 
     A window's metrics are written sorted by the `metric` column written below,
     which is `MetricSpec.name` -- the same key `to_scenarios()` sorts on when it
-    reads the file back. Writing them in the caller's order instead would make
-    the file the only record of that order, and a file is the one thing a user is
-    free to re-sort; a window exported here and re-imported would then be a
-    different window from the same window exported here, shuffled and re-imported.
-    Metric order within a window is not information about the data, so it is
-    canonicalised on both sides rather than carried.
+    reads the file back. The ROW order is canonical because a file is the one
+    thing a user is free to re-sort, and a window exported here and re-imported
+    must not depend on the sequence its rows arrive in.
 
-    The two ends agreeing on the key is necessary but was not sufficient: the
+    The metric order is a different question, and it is carried rather than
+    canonicalised. `metric_order` states each metric's place in
+    `scenario.metrics`, one-based, so a window whose owner ordered it latency,
+    memory, errors comes back in that order however the rows are sorted. That
+    order is not decoration: it is the order the pairs reach the prompt in, and
+    `eval_dataset._group_weights` hands its leftover 0.01 to the group of the
+    last metric. Writing the order into a column rather than into the row
+    sequence is what lets the file be both order-faithful and shuffle-proof at
+    once.
+
+    The two ends agreeing on the row key is necessary but was not sufficient: the
     loader re-derives an opaque name from the name it reads, so the names this
     writes have to sort into the order the loader assigns them in as well. That
     is `_opaque_name()`'s job, and the round trip under `anonymise=True` is what
@@ -1061,6 +1393,9 @@ def export(scenarios: List[ed.Scenario], path: str, *,
             # because that is the key to_scenarios() sorts on when it reads the
             # file back. Two exports of one run must be the same file, and a
             # file must reload to the run it was written from.
+            # The declared order is the scenario's own, taken before the rows
+            # are sorted, so sorting the rows cannot change it.
+            order = {m.name: i + 1 for i, m in enumerate(scenario.metrics)}
             for metric in sorted(scenario.metrics, key=lambda m: m.name):
                 values = series[metric.name]
                 for side, key in (("control", "control"), ("canary", "experiment")):
@@ -1070,7 +1405,7 @@ def export(scenarios: List[ed.Scenario], path: str, *,
                             "" if value is None else repr(float(value)),
                             metric.kind if metric.kind in KINDS else "other",
                             metric.direction, scenario.truth, metric.group, metric.unit,
-                            scenario.family, metric.truth,
+                            scenario.family, metric.truth, order[metric.name],
                         ])
                         written += 1
     return written
@@ -1097,7 +1432,10 @@ def export_seeded(path: str, n_per_family: int = 1,
                       "known to deserve.",
                       "",
                       "Replace the rows with your own and keep the columns. The first seven are",
-                      "required; label, group, unit, family and metric_label are optional.",
+                      "required; label, group, unit, family, metric_label and metric_order are",
+                      "optional. metric_order states each metric's place within its window, and",
+                      "is written here because the order reaches the prompt and decides which",
+                      "group takes the leftover 0.01 of the classifier's group weights.",
                       f"The format is specified in {DOC}.",
                       "",
                       "Lines beginning with '#' before the header are ignored; after the header",

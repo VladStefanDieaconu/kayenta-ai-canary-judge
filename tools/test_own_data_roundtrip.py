@@ -20,14 +20,14 @@ Nothing is approximated: floats are compared as floats and the structures are
 compared whole. If the two ever differ, the claim is false and this test says
 which scenario, which metric and which field.
 
-One thing the format deliberately does not carry is the order of the metrics
-within a window: the exporter writes them sorted by name and the loader reads
-them back sorted by name, so that a re-sorted file is the same run. The
-comparison is therefore against the source scenario in that canonical order, and
-that the two orders are a permutation of each other is checked rather than
-assumed. For eight of the nine families the two are the same list; the ninth,
-`cross_metric_marginal`, declares latency, memory, errors and stores them
-latency, errors, memory.
+The order of the metrics within a window is carried, not canonicalised. The
+exporter writes each metric's place in `metric_order` and the loader honours it,
+so the comparison below is made in sequence against the source scenario with
+nothing re-sorted. For eight of the nine families the order is the same list
+either way; the ninth, `cross_metric_marginal`, declares latency, memory, errors
+where sorting the names would give latency, errors, memory -- and that order
+reaches the prompt and decides which group takes the leftover 0.01 of the
+classifier's group weights, so it is not a presentational difference.
 
 It also checks the parts a round trip cannot: that an unlabelled window survives
 with `truth == ""` rather than acquiring a verdict it was never given, that
@@ -43,6 +43,7 @@ Usage:
 from __future__ import annotations
 
 import json
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -73,22 +74,24 @@ def _pairs_and_config(scenario: ed.Scenario, series, base_millis: int, step_seco
     return pairs, ed.build_canary_config(scenario, JUDGE)
 
 
-def _canonical(scenario: ed.Scenario) -> ed.Scenario:
-    """The scenario with its metrics in the order the format stores them.
+def _order_kept(source: ed.Scenario, target: ed.Scenario) -> List[str]:
+    """A window must come back in the order it went out in.
 
-    Metric order within a window is not information about the data, so both ends
-    of the file canonicalise it: `own_data.export` writes a window's metrics
-    sorted by name and `own_data.to_scenarios` reads them back sorted by name.
-    That is what makes two exports of the same windows with the rows shuffled the
-    same run -- same prompt order, same `_2_` suffixes, same group weights.
-
-    The generator declares its metrics in a different order (latency, memory,
-    errors for `cross_metric_marginal`, the one multi-metric family), so the
-    comparison below is against the source scenario in canonical order. The
-    permutation is checked to be exactly that -- a reordering of the same metrics
-    -- rather than assumed.
+    `own_data.export` writes `metric_order`, so the order is carried by the file
+    and not re-derived from the names. Nothing below is canonicalised: a
+    reordering is a failure, which is what it always should have been.
+    `cross_metric_marginal` is the family that proves it -- the generator
+    declares latency, memory, errors, and sorting the base names gives latency,
+    errors, memory.
     """
-    return dataclasses.replace(scenario, metrics=sorted(scenario.metrics, key=lambda m: m.name))
+    want = [m.name for m in source.metrics]
+    got = [m.name for m in target.metrics]
+    if want == got:
+        return []
+    if sorted(want) != sorted(got):
+        return [f"{source.id}: metrics out {want} came back {got}, which is not a "
+                f"reordering of the same metrics"]
+    return [f"{source.id}: metric order {want} came back {got}"]
 
 
 def roundtrip(tmp: Path) -> List[str]:
@@ -121,11 +124,8 @@ def roundtrip(tmp: Path) -> List[str]:
         # Generated from the seed in the declaration order, then read in the
         # canonical order: same numbers under the same metric names, reordered.
         source_series = ed.series_for_scenario(source)
-        canonical = _canonical(source)
-        if sorted(m.name for m in source.metrics) != [m.name for m in canonical.metrics]:
-            failures.append(f"{source.id}: canonical order is not a permutation of the "
-                            f"declared metrics")
-        want_pairs, want_config = _pairs_and_config(canonical, source_series,
+        failures.extend(_order_kept(source, target))
+        want_pairs, want_config = _pairs_and_config(source, source_series,
                                                     own_data.EXPORT_BASE_MILLIS,
                                                     ed.STEP_SECONDS)
         got_pairs, got_config = _pairs_and_config(target, ed.series_for_scenario(target),
@@ -184,7 +184,7 @@ def anonymised(tmp: Path) -> List[str]:
     renaming has to be a fixed point -- sorting its own output must give back the
     order it assigned.
 
-    It was not. `latency_g2000`, `latency_2_g2000`, `latency_3_g2000` sort as
+    It was not. `latency_gNNNN`, `latency_2_gNNNN`, `latency_3_gNNNN` sort as
     `_2`, `_3`, then the unnumbered one, because a digit sorts before a letter,
     so a three-latency window came back with each series under its neighbour's
     name, rotating with period three and never returning to itself. Nothing in
@@ -220,9 +220,18 @@ def anonymised(tmp: Path) -> List[str]:
 
     first, _ = own_data.load(str(path))          # anonymise=True, the default
     names = sorted(m.name for s in first for m in s.metrics)
-    if "latency_g2000" not in names:
+    # The gid is a salted hash of the window's own name (own_data._assign_gids),
+    # so the number cannot be written down here; what is asserted is the shape --
+    # a window with one metric of a kind is `latency_gNNNN`, unnumbered.
+    only = next((s for s in first if s.params["own_data"]["scenario"] == "win-single"), None)
+    if only is None:
+        failures.append("win-single did not come back at all")
+    elif [m.name for m in only.metrics] != [f"latency_g{only.gid:04d}"]:
         failures.append(f"a window with one metric of a kind must still be named "
-                        f"'latency_g2000'; got {[n for n in names if n.startswith('latency')]}")
+                        f"'latency_g{only.gid:04d}', unnumbered; got "
+                        f"{[m.name for m in only.metrics]}")
+    if not all(re.fullmatch(r"[a-z]+(_\d+)?_g\d{4}", n) for n in names):
+        failures.append(f"every opaque name must be '<kind>[_n]_gNNNN'; got {names}")
 
     # Export it, read it back the same way, and compare what the judges consume.
     # Two cycles rather than one: a permutation of period two would survive a
@@ -327,9 +336,19 @@ def anonymisation(tmp: Path) -> List[str]:
                                 f"carries {leak!r}")
     if scenario.id != "own_0000":
         failures.append(f"window id is {scenario.id!r}, expected 'own_0000'")
-    if scenario.gid != own_data.OWN_DATA_GID_BASE:
-        failures.append(f"gid is {scenario.gid}, expected {own_data.OWN_DATA_GID_BASE} "
+    # The gid is drawn from the own-data range by a salted hash of the window
+    # name, so what is asserted is the range -- disjoint from the seeded 0... and
+    # 1000... ranges -- and not a particular number. Asserting the number is what
+    # the old `OWN_DATA_GID_BASE + index` scheme allowed, and that scheme is the
+    # defect R2-3 reported; `test_own_data_contract.py::gid_carries_no_order` is
+    # the check that it has not come back.
+    if not own_data.OWN_DATA_GID_BASE <= scenario.gid < own_data.OWN_DATA_GID_LIMIT:
+        failures.append(f"gid is {scenario.gid}, expected it in "
+                        f"[{own_data.OWN_DATA_GID_BASE}, {own_data.OWN_DATA_GID_LIMIT}) "
                         f"(disjoint from the seeded 0... and 1000... ranges)")
+    if not scenario.metrics[0].name.endswith(f"_g{scenario.gid:04d}"):
+        failures.append(f"the metric name {scenario.metrics[0].name!r} does not carry "
+                        f"the window's gid {scenario.gid}")
     # The real names must survive somewhere, or the run is unreadable afterwards.
     recorded = json.dumps(manifest)
     for original in ("2026-03-14-rollback-FAIL", "checkout_latency_during_the_bad_deploy"):
@@ -438,7 +457,7 @@ def main() -> int:
     print(f"\nThe seeded dataset survives an export and a re-import with an identical\n"
           f"metricSetPairList and an identical canary config, over "
           f"{len(ed.FAMILIES) * N_PER_FAMILY} scenarios,\n"
-          f"with the metrics of a window in the order the format stores them.\n"
+          f"with the metrics of a window in the order the file declares for them.\n"
           f"Your own windows reach the judges the way the study's do.")
     return 0
 

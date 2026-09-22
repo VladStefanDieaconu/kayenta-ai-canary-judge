@@ -390,7 +390,7 @@ as a second form. Every field and every rule the loader enforces is specified in
 success-rate metric inverts its verdict silently, and a collapse to 79% then passes
 cleanly.
 
-### Four things worth knowing before you run it
+### Five things worth knowing before you run it
 
 - **Labels are optional.** Without them every judge still runs and every verdict, score
   and rationale is written; the unlabelled rows are excluded from the accuracy, the
@@ -398,10 +398,20 @@ cleanly.
   Partial labelling is the expected case: label the incidents you remember, leave the
   rest.
 - **Your window and metric names never reach the model.** They are renamed to
-  `latency_g2000` and such before any prompt is built, because a window called
-  `2026-03-14-rollback-FAIL` would otherwise hand the model its own answer. The real
+  `latency_g4831` and such before any prompt is built, because a window called
+  `2026-03-14-rollback-FAIL` would otherwise hand the model its own answer. The number is
+  a salted hash of your window id, not its place in the sorted file, so the renamed names
+  do not rank your windows by anything your own names happened to sort by. The real
   names are written only to the manifest, which stays on your disk. `--keep-ids` turns
   the renaming off.
+- **The order of a window's metrics is yours to state.** It is not decoration: the
+  metrics reach the prompt in that order, and the classifier hands the leftover
+  hundredth of its 100 points to the group of the last one. Put each metric's place in
+  the optional `metric_order` column and your window is judged in your order however
+  your rows are sorted; leave it out and the metrics are ordered by name, which is
+  shuffle-proof but is an order the loader picked rather than yours.
+  `tools/own_data.py --export` writes the column, so an export and a re-import give back
+  the order as well as the values.
 - **Your telemetry values do reach the model.** The renaming protects names, not
   numbers, and the numbers are the payload. With a local Ollama model nothing leaves the
   machine; with a hosted model your production values leave your network under that

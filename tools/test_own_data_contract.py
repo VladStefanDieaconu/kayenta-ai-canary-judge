@@ -45,6 +45,8 @@ import dataclasses
 import hashlib
 import importlib.util
 import json
+import math
+import random
 import shutil
 import subprocess
 import sys
@@ -103,19 +105,32 @@ def _export_and_reload(tmp: Path) -> Tuple[List[ed.Scenario], List[ed.Scenario],
     return original, loaded, manifest
 
 
-def _canonical(scenario: ed.Scenario) -> ed.Scenario:
-    """The scenario with its metrics in the order the format stores them.
+def _order_kept(declared: ed.Scenario, target: ed.Scenario) -> List[str]:
+    """The round trip has to give back the metric order it was handed.
 
-    Metric order within a window is not information about the data, so the
-    exporter writes a window's metrics sorted by name and the loader reads them
-    back sorted by name; that is what makes a re-sorted file the same run rather
-    than a different one (own_data.to_scenarios). The generator declares its
-    metrics in another order for `cross_metric_marginal` -- latency, memory,
-    errors, stored latency, errors, memory -- so everything below compares
-    against the source scenario in canonical order, and checks that the two are
-    a permutation of one another rather than assuming it.
+    It used not to. The exporter wrote a window's metrics sorted by name and the
+    loader read them back sorted by name, and this file compared against the
+    source scenario re-sorted the same way -- so a reordering was not a failure
+    here, it was the fixture. `cross_metric_marginal` is the one family it bites:
+    the generator declares latency, memory, errors and sorting the base names
+    gives latency, errors, memory.
+
+    Metric order is not decoration. It is the order the pairs reach the prompt
+    in, and `eval_dataset._group_weights` hands the leftover 0.01 to the group of
+    the last metric, so a round trip that reorders a window judges it under a
+    different classifier configuration. `metric_order` carries it now, so the
+    comparison is made in sequence with nothing canonicalised, and this is the
+    assertion that would have caught the original defect.
     """
-    return dataclasses.replace(scenario, metrics=sorted(scenario.metrics, key=lambda m: m.name))
+    want = [m.name for m in declared.metrics]
+    got = [m.name for m in target.metrics]
+    if want == got:
+        return []
+    if sorted(want) != sorted(got):
+        return [f"{declared.id}: metrics out {want} came back {got}, which is not a "
+                f"reordering of the same metrics"]
+    return [f"{declared.id}: metric order {want} came back {got}; the file declares the "
+            f"order in `metric_order` and the loader must honour it"]
 
 
 def roundtrip_judge_surface(tmp: Path) -> List[str]:
@@ -149,10 +164,8 @@ def roundtrip_judge_surface(tmp: Path) -> List[str]:
         # (eval_dataset.series_for_scenario), so regenerating them for a
         # reordered copy would hand each metric another metric's numbers.
         out_series = ed.series_for_scenario(declared)
-        source = _canonical(declared)
-        if sorted(m.name for m in declared.metrics) != [m.name for m in source.metrics]:
-            failures.append(f"{declared.id}: the canonical metric order is not a "
-                            f"permutation of the declared one")
+        source = declared
+        failures.extend(_order_kept(declared, target))
         for field in SCENARIO_KEPT:
             if getattr(source, field) != getattr(target, field):
                 failures.append(f"{source.id}: Scenario.{field} "
@@ -246,7 +259,7 @@ def roundtrip_scenario_fields(tmp: Path) -> List[str]:
         target = by_id.get(declared.id)
         if target is None:
             continue
-        source = _canonical(declared)   # metric order is canonicalised, not lost
+        source = declared               # compared in sequence: `metric_order` carries it
         for field in ("id", "family", "gid", "seed", "truth", "params"):
             a, b = getattr(source, field), getattr(target, field)
             if a != b:
@@ -629,6 +642,210 @@ def leakage_protection(tmp: Path) -> List[str]:
     return failures
 
 
+# 5b. R2-3: the opaque suffix must not encode the sort order of the window ids.
+#
+# The defect this replaced assigned `gid = OWN_DATA_GID_BASE + index` over
+# `sorted(windows)`, so the suffix was monotone in the alphabetical order of the
+# practitioner's own window names. A practitioner whose window ids sort by
+# outcome -- and plenty do, because the outcome is often in the name -- therefore
+# got an opaque name that ranks the windows by their answer. That is the same
+# leak the article measures on its own metric names (RQ2), shipped as the feature
+# that is supposed to prevent it.
+#
+# The check below is written as a comparison against that defect rather than as
+# an assertion about the fix, so it is a test that fails on the code it was
+# written for: `_positional_gids` is the old rule, it is run over the same files,
+# and it is *asserted to leak*. If the instrument stopped detecting the leak, the
+# instrument would fail first.
+LEAK_WINDOWS = 40            # per dataset; 20 PASS then 20 FAIL by name
+LEAK_DATASETS = 40           # independent files, so the claim is distributional
+
+
+def _outcome_sorted_file(tmp: Path, tag: str, bump: float = 0.0,
+                         suffix: str = "") -> Tuple[Path, Dict[str, str]]:
+    """A file whose window ids sort by outcome: every PASS name before every FAIL.
+
+    `a-deploy-NNN-ok` and `z-deploy-NNN-rollback`, which is what a practitioner
+    who names windows after what happened ends up with. `tag` varies the content
+    between datasets, so each one draws its own salt.
+    """
+    rows = ["scenario,metric,side,timestamp,value,kind,direction,label"]
+    truth: Dict[str, str] = {}
+    half = LEAK_WINDOWS // 2
+    for i in range(LEAK_WINDOWS):
+        passing = i < half
+        name = (f"a-deploy-{i:03d}-ok-{tag}" if passing
+                else f"z-deploy-{i:03d}-rollback-{tag}")
+        label = "PASS" if passing else "FAIL"
+        truth[name] = label
+        for j in range(12):
+            stamp = f"2026-03-14T09:{j:02d}:00Z"
+            base = 0.20 + 0.001 * i + 0.0001 * j + bump
+            canary = base * (1.0 if passing else 2.0)
+            rows.append(f"{name},checkout_latency,control,{stamp},{base!r},"
+                        f"latency,increase,{label}")
+            rows.append(f"{name},checkout_latency,canary,{stamp},{canary!r},"
+                        f"latency,increase,{label}")
+    path = tmp / f"outcome-sorted-{tag}{suffix}.csv"
+    path.write_text("\n".join(rows) + "\n", encoding="utf-8")
+    return path, truth
+
+
+def _positional_gids(names: List[str]) -> Dict[str, int]:
+    """The defect, kept here as the instrument's control: gid by sort position."""
+    return {name: own_data.OWN_DATA_GID_BASE + i for i, name in enumerate(sorted(names))}
+
+
+def _best_single_cut(gids: List[int], labels: List[str]) -> float:
+    """The best accuracy any rule of the form `gid < t -> PASS` can reach.
+
+    Both orientations, every cut between two observed gids and the two degenerate
+    ones. This is the rule Reviewer 2 ran on the study's own metric names -- one
+    cut at 0060 reproduces all 405 labels -- so it is the rule the anonymiser's
+    output has to defeat.
+    """
+    order = sorted(zip(gids, labels))
+    n = len(order)
+    best = 0.0
+    for cut in range(n + 1):
+        low = order[:cut]
+        high = order[cut:]
+        for pass_side, fail_side in ((low, high), (high, low)):
+            right = sum(1 for _, y in pass_side if y == "PASS")
+            right += sum(1 for _, y in fail_side if y == "FAIL")
+            best = max(best, right / n)
+    return best
+
+
+def _auc(gids: List[int], labels: List[str]) -> float:
+    """P(gid of a FAIL window > gid of a PASS one), ties at a half.
+
+    0.5 is no information; 1.0 or 0.0 is a suffix that ranks the windows by their
+    answer. Computed directly rather than through roc_pr_curves so this check
+    does not depend on the module it is checking the study's tables with.
+    """
+    pos = [g for g, y in zip(gids, labels) if y == "FAIL"]
+    neg = [g for g, y in zip(gids, labels) if y == "PASS"]
+    if not pos or not neg:
+        return 0.5
+    wins = sum((1.0 if a > b else 0.5 if a == b else 0.0) for a in pos for b in neg)
+    return wins / (len(pos) * len(neg))
+
+
+def gid_carries_no_order(tmp: Path) -> List[str]:
+    """R2-3. Window ids that sort by outcome must not produce suffixes that do.
+
+    Three claims, all asserted over the same files:
+
+      1. the old positional rule leaks completely -- one cut on the suffix
+         reproduces every label, and the rank correlation with the label is
+         perfect. This is the control: it establishes that the two statistics
+         below can see the defect at all;
+      2. the shipped anonymiser does not -- no cut reproduces every label in any
+         of the datasets, and the mean rank correlation with the label sits
+         inside the interval a suffix drawn independently of the label would;
+      3. and the suffix carries nothing about the *name* either: the mean rank
+         correlation between a window's place in the sorted file and its gid is
+         inside the same interval. The label is one thing a name can sort by; the
+         claim the format needs is the stronger one, that it sorts by none.
+
+    The intervals are the null's own: a mean over `LEAK_DATASETS` independent
+    files, four standard errors wide. Nothing here is eyeballed and nothing is a
+    magic constant read off a run.
+    """
+    failures: List[str] = []
+    n = LEAK_WINDOWS
+    # SE of the Mann-Whitney statistic for n/2 vs n/2 under the null, then of a
+    # mean of LEAK_DATASETS of them.
+    half = n // 2
+    se_one = math.sqrt((half + half + 1) / (12.0 * half * half))
+    se_mean = se_one / math.sqrt(LEAK_DATASETS)
+    band = 4.0 * se_mean
+
+    label_aucs: List[float] = []
+    position_aucs: List[float] = []
+    leaked: List[str] = []
+    control_checked = False
+
+    for d in range(LEAK_DATASETS):
+        path, truth = _outcome_sorted_file(tmp, f"{d:03d}")
+        scenarios, manifest = own_data.load(str(path))
+        names = [s.params["own_data"]["scenario"] for s in scenarios]
+        gids = [s.gid for s in scenarios]
+        labels = [truth[name] for name in names]
+
+        if len(set(gids)) != len(gids):
+            failures.append(f"dataset {d}: two windows share a gid; "
+                            f"{len(gids) - len(set(gids))} collision(s) went unresolved")
+        for gid in gids:
+            if not own_data.OWN_DATA_GID_BASE <= gid < own_data.OWN_DATA_GID_LIMIT:
+                failures.append(f"dataset {d}: gid {gid} is outside the own-data range")
+                break
+        if not manifest.get("gid_salt"):
+            failures.append(f"dataset {d}: the manifest records no gid_salt, so the "
+                            f"names this run was judged under cannot be re-derived")
+
+        # 1. The control: the rule that was shipped, over the same windows.
+        if not control_checked:
+            control_checked = True
+            positional = _positional_gids(names)
+            old_gids = [positional[name] for name in names]
+            if _best_single_cut(old_gids, labels) != 1.0:
+                failures.append("the instrument is broken: the positional gid rule this "
+                                "check exists to detect is not detected by it")
+            if _auc(old_gids, labels) != 1.0:
+                failures.append("the instrument is broken: the positional gid rule does "
+                                "not rank the windows by their label under _auc")
+
+        # 2. The fix, on the same statistics.
+        cut = _best_single_cut(gids, labels)
+        if cut == 1.0:
+            leaked.append(f"dataset {d}: a single cut on the opaque suffix reproduces "
+                          f"all {n} labels")
+        label_aucs.append(_auc(gids, labels))
+        # 3. The suffix against the name's own sort position, label aside.
+        position = {name: i for i, name in enumerate(sorted(names))}
+        first_half = ["PASS" if position[name] < half else "FAIL" for name in names]
+        position_aucs.append(_auc(gids, first_half))
+
+    failures.extend(leaked[:5])
+    mean_label = sum(label_aucs) / len(label_aucs)
+    mean_position = sum(position_aucs) / len(position_aucs)
+    if abs(mean_label - 0.5) > band:
+        failures.append(f"the opaque suffix ranks the windows by their label: mean AUC "
+                        f"{mean_label:.4f} over {LEAK_DATASETS} datasets, outside "
+                        f"0.5 +/- {band:.4f} (4 SE)")
+    if abs(mean_position - 0.5) > band:
+        failures.append(f"the opaque suffix ranks the windows by where their name sorts: "
+                        f"mean AUC {mean_position:.4f} over {LEAK_DATASETS} datasets, "
+                        f"outside 0.5 +/- {band:.4f} (4 SE)")
+
+    # 4. Two datasets must not share a namespace: the same window name in two
+    #    files gets different suffixes, so a suffix seen in one run says nothing
+    #    about a window in another.
+    # The same window names, the same shape, different numbers.
+    a, _ = _outcome_sorted_file(tmp, "salt", suffix="-a")
+    b_path, _ = _outcome_sorted_file(tmp, "salt", bump=0.5, suffix="-b")
+    sa, ma = own_data.load(str(a))
+    sb, mb = own_data.load(str(b_path))
+    if [s.params["own_data"]["scenario"] for s in sa] != \
+            [s.params["own_data"]["scenario"] for s in sb]:
+        failures.append("the salt fixtures do not carry the same window names, so the "
+                        "cross-dataset check below is not the check it claims to be")
+    if ma["gid_salt"] == mb["gid_salt"]:
+        failures.append("two datasets differing in a value share a gid salt, so the same "
+                        "window name gets the same opaque suffix in both")
+    same = sum(1 for x, y in zip([s.gid for s in sa], [s.gid for s in sb]) if x == y)
+    if same == len(sa):
+        failures.append("two different datasets produced an identical gid assignment")
+
+    # 5. Determinism, which the round trip rests on: one file, two loads.
+    again, _ = own_data.load(str(a))
+    if [s.gid for s in sa] != [s.gid for s in again]:
+        failures.append("two loads of one file assigned different gids")
+    return failures
+
+
 # 6. The same file, twice.
 def determinism(tmp: Path) -> List[str]:
     """Two loads of one file must be the same run.
@@ -679,6 +896,178 @@ def determinism(tmp: Path) -> List[str]:
         failures.append("windows are not ordered by the user's own identifier")
     return failures
 
+
+
+# 6b. The file declares the metric order, and the loader honours it.
+ORDER_HEADER = ("scenario,metric,side,timestamp,value,kind,direction,label,group,"
+                "metric_order\n")
+
+# A three-metric window whose NAME order and KIND order disagree, which is the
+# shape the defect needed. Declared: latency, memory, errors -- the generator's
+# order for `cross_metric_marginal`. Sorted by name: errors, latency, memory.
+# So the two orders put a different metric last, and `_group_weights` hands the
+# leftover 0.01 to the group of the last one.
+ORDER_METRICS = (
+    # (metric name, kind, group, declared rank)
+    ("p99_seconds", "latency", "latency", 1),
+    ("rss_bytes", "memory", "resources", 2),
+    ("errors_per_second", "errors", "errors", 3),
+)
+ORDER_BY_NAME = ["errors_per_second", "p99_seconds", "rss_bytes"]
+ORDER_DECLARED = ["p99_seconds", "rss_bytes", "errors_per_second"]
+
+
+def _order_rows(declare: bool) -> List[str]:
+    """One row per (metric, side, sample), as a list so a caller can shuffle it."""
+    out: List[str] = []
+    for rank, (metric, kind, group, order) in enumerate(ORDER_METRICS, start=1):
+        for side in ("control", "canary"):
+            for i in range(12):
+                out.append(
+                    f"win-a,{metric},{side},2026-06-21T09:{i:02d}:00Z,"
+                    f"{100 * rank + i},{kind},increase,FAIL,{group},"
+                    f"{order if declare else ''}\n")
+    return out
+
+
+def _order_load(tmp: Path, name: str, rows: List[str], *,
+                anonymise: bool = False) -> Tuple[ed.Scenario, Dict[str, Any]]:
+    path = _write(tmp, name, "".join(rows), header=ORDER_HEADER)
+    scenarios, manifest = own_data.load(str(path), anonymise=anonymise)
+    return scenarios[0], manifest
+
+
+def metric_order_is_declared(tmp: Path) -> List[str]:
+    """The order a window's metrics reach the judge in is the file's to state.
+
+    This is the test the original defect needed and did not have. The loader
+    ordered a window's metrics by the practitioner's metric name, which for a
+    window whose names and kinds disagree is not the order its owner had; and
+    because `eval_dataset._group_weights` gives the leftover 0.01 to the group of
+    the LAST metric, a silent reordering is a silent change to the classifier
+    configuration as well as to the prompt.
+
+    Two properties, and they have to hold together:
+
+      * order-faithful -- a file that declares an order gets that order, whatever
+        sequence its rows are in;
+      * deterministic -- two loads of one file, and of that file shuffled, are one
+        run, declared or not.
+
+    A file that declares nothing keeps the old sorted-by-name rule, which is the
+    only order two ends can agree on without being told.
+    """
+    failures: List[str] = []
+
+    declared, manifest = _order_load(tmp, "declared.csv", _order_rows(True))
+    got = [m.name for m in declared.metrics]
+    if got != ORDER_DECLARED:
+        failures.append(f"declared order {ORDER_DECLARED} came back {got}")
+    if manifest["n_windows_with_declared_metric_order"] != 1:
+        failures.append(f"manifest records "
+                        f"{manifest['n_windows_with_declared_metric_order']} window(s) with a "
+                        f"declared metric order, not 1")
+
+    # The prompt. The only field of a pair that reaches the model is `name`
+    # (judge-service/app/representations.py), so the pair order IS the order the
+    # model reads the metrics in.
+    pairs = ed.build_pairs(declared, ed.series_for_scenario(declared),
+                           declared.base_millis, declared.step_seconds * 1000)
+    if [p["name"] for p in pairs] != ORDER_DECLARED:
+        failures.append(f"metricSetPairList order {[p['name'] for p in pairs]} is not the "
+                        f"declared {ORDER_DECLARED}")
+
+    # The group weights. Last declared metric is the errors one, so `errors`
+    # takes the 33.34 and the other two take 33.33.
+    weights = ed.build_canary_config(declared, STAT_JUDGE)["classifier"]["groupWeights"]
+    if weights != {"latency": 33.33, "resources": 33.33, "errors": 33.34}:
+        failures.append(f"declared order gives groupWeights {weights}, not "
+                        f"{{'latency': 33.33, 'resources': 33.33, 'errors': 33.34}}")
+    if list(weights) != ["latency", "resources", "errors"]:
+        failures.append(f"groupWeights are keyed in {list(weights)}, not the declared "
+                        f"['latency', 'resources', 'errors']")
+
+    # Order-faithful under shuffling: the declaration is a column, not a row
+    # sequence, and a file is the one thing a user is free to re-sort.
+    rows = _order_rows(True)
+    for seed in (1, 2, 3):
+        shuffled = list(rows)
+        random.Random(seed).shuffle(shuffled)
+        other, _ = _order_load(tmp, f"declared-{seed}.csv", shuffled)
+        failures.extend(_diff(f"shuffled(seed={seed}): metricSetPairList", pairs,
+                              ed.build_pairs(other, ed.series_for_scenario(other),
+                                             other.base_millis, other.step_seconds * 1000)))
+        failures.extend(_diff(f"shuffled(seed={seed}): canary config",
+                              ed.build_canary_config(declared, STAT_JUDGE),
+                              ed.build_canary_config(other, STAT_JUDGE)))
+
+    # Two loads of one file are one run.
+    again, _ = _order_load(tmp, "declared.csv", _order_rows(True))
+    failures.extend(_diff("second load: canary config",
+                          ed.build_canary_config(declared, STAT_JUDGE),
+                          ed.build_canary_config(again, STAT_JUDGE)))
+
+    # Declaring an order must not rename anything: the gid salt is taken over the
+    # values, not over the declaration. That is what lets a dataset state its
+    # order while carrying names it was judged under.
+    anon_declared, man_a = _order_load(tmp, "declared.csv", _order_rows(True), anonymise=True)
+    anon_bare, man_b = _order_load(tmp, "bare.csv", _order_rows(False), anonymise=True)
+    if man_a["gid_salt"] != man_b["gid_salt"]:
+        failures.append("declaring the metric order changed the gid salt; it must be a "
+                        "digest of the values, not of the declaration")
+    if sorted(m.name for m in anon_declared.metrics) != sorted(m.name for m in anon_bare.metrics):
+        failures.append(f"declaring the metric order renamed the series: "
+                        f"{sorted(m.name for m in anon_declared.metrics)} vs "
+                        f"{sorted(m.name for m in anon_bare.metrics)}")
+    if [m.kind for m in anon_declared.metrics] != ["latency", "memory", "errors"]:
+        failures.append(f"anonymised, the declared order came back "
+                        f"{[m.kind for m in anon_declared.metrics]}, not "
+                        f"['latency', 'memory', 'errors']")
+
+    # A file that declares nothing falls back to sorting on the name, unchanged.
+    bare, man_bare = _order_load(tmp, "bare.csv", _order_rows(False))
+    if [m.name for m in bare.metrics] != ORDER_BY_NAME:
+        failures.append(f"with no declaration the order is {[m.name for m in bare.metrics]}, "
+                        f"not the sorted-by-name {ORDER_BY_NAME}")
+    if man_bare["n_windows_with_declared_metric_order"] != 0:
+        failures.append("a file that declares no order is recorded as declaring one")
+    bare_weights = ed.build_canary_config(bare, STAT_JUDGE)["classifier"]["groupWeights"]
+    if bare_weights.get("resources") != 33.34:
+        failures.append(f"with no declaration the leftover 0.01 should go to the group of "
+                        f"the last sorted name (resources); weights are {bare_weights}")
+    if bare_weights == weights:
+        failures.append("the declared and undeclared orders produce the same group "
+                        "weights, so this fixture no longer exercises the defect")
+    for seed in (4, 5):
+        shuffled = _order_rows(False)
+        random.Random(seed).shuffle(shuffled)
+        other, _ = _order_load(tmp, f"bare-{seed}.csv", shuffled)
+        failures.extend(_diff(f"undeclared, shuffled(seed={seed}): canary config",
+                              ed.build_canary_config(bare, STAT_JUDGE),
+                              ed.build_canary_config(other, STAT_JUDGE)))
+
+    # And a declaration that is not a declaration is refused rather than
+    # half-honoured: a partial one, and one that ranks two metrics the same.
+    partial = [r.replace(",2\n", ",\n") for r in _order_rows(True)]
+    messages, note = _refusal(_write(tmp, "partial.csv", "".join(partial), header=ORDER_HEADER))
+    if messages is None:
+        failures.append(f"a window declaring metric_order for two of its three metrics: {note}")
+    elif not any("all of its metrics or of none" in m for m in messages):
+        failures.append(f"the partial declaration was refused without saying why: {messages}")
+    clash = [r.replace(",3\n", ",1\n") for r in _order_rows(True)]
+    messages, note = _refusal(_write(tmp, "clash.csv", "".join(clash), header=ORDER_HEADER))
+    if messages is None:
+        failures.append(f"a window giving two metrics the same metric_order: {note}")
+    elif not any("must be distinct" in m for m in messages):
+        failures.append(f"the duplicate rank was refused without saying why: {messages}")
+    text = [r.replace(",2\n", ",second\n") for r in _order_rows(True)]
+    messages, note = _refusal(_write(tmp, "text.csv", "".join(text), header=ORDER_HEADER))
+    if messages is None:
+        failures.append(f"a metric_order that is not an integer: {note}")
+    elif not any("not an" in m and "integer" in m for m in messages):
+        failures.append(f"the non-integer rank was refused without saying why: {messages}")
+
+    return failures
 
 
 # 7. The published tables stay published.
@@ -892,7 +1281,9 @@ CHECKS = (
     ("unlabelled_mode", unlabelled_mode),
     ("accuracy_guard", accuracy_guard),
     ("leakage_protection", leakage_protection),
+    ("gid_carries_no_order", gid_carries_no_order),
     ("determinism", determinism),
+    ("metric_order_is_declared", metric_order_is_declared),
     ("published_tables", published_tables),
     ("reports_survive_figures", reports_survive_figures),
 )

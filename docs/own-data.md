@@ -32,6 +32,7 @@ draw a conclusion from a number this produces.
 - [What a window is](#what-a-window-is)
 - [The input format](#the-input-format)
 - [Required and optional fields](#required-and-optional-fields)
+  - [Metric order is the file's to declare](#metric-order-is-the-files-to-declare)
 - [Running without labels](#running-without-labels)
 - [Window shape: length, gaps and step](#window-shape-length-gaps-and-step)
 - [Metric names, scenario names and leakage](#metric-names-scenario-names-and-leakage)
@@ -69,7 +70,9 @@ or exported from your Prometheus.
 **Long-format CSV: one row per (window, metric, side, sample).** UTF-8, a header row,
 comma-separated, RFC 4180 quoting (the Python `csv` default). Rows may appear in any
 order; the loader groups them, sorts each series by timestamp, orders the windows by
-your scenario identifier and the metrics within a window by your metric name. Nothing
+your scenario identifier and the metrics within a window by
+[what the file declares in `metric_order`](#metric-order-is-the-files-to-declare) —
+falling back to your metric name when it declares nothing. Nothing
 a judge sees depends on where a row sits in the file: two exports of the same windows
 with the rows shuffled produce the same opaque ids, the same renamed metric names, the
 same order in the prompt and the same group weights. Blank lines and
@@ -135,6 +138,11 @@ Both forms are normalised to the same internal rows and go through the same vali
 they accept and reject exactly the same data. A `values` array may carry `null` for a
 missing sample; the timestamps array must be the same length as the values array.
 
+A metric object takes the optional keys the CSV takes as columns, including
+`metric_order`. It is **stated, not inferred from the metric's place in the `metrics`
+array** — for the same reason the CSV reads it out of a column rather than out of the row
+sequence, and so that a file whose `metrics` array is re-sorted is still the same run.
+
 ---
 
 ## Required and optional fields
@@ -153,11 +161,70 @@ missing sample; the timestamps array must be the same length as the values array
 | `unit` | string | no | Recorded in the manifest. Not shown to the model, not used in judging. |
 | `family` | string | no | A label *you* choose to group windows for reporting (`deploy`, `config-change`, `dependency`). Defaults to `own`. It never reaches the model, and it gives you the per-family accuracy table for free. |
 | `metric_label` | enum | no | `pass` or `high`, the per-metric truth. Defaults from the scenario's `label`. Recorded, not scored. |
+| `metric_order` | integer | no | This metric's place within its window. Distinct integers, and either every metric of a window declares one or none does. Absent = the metrics are ordered by `metric` instead. See [below](#metric-order-is-the-files-to-declare). |
 
 Columns the loader does not recognise are ignored, and it prints which ones it ignored —
 so an export that carries `job`, `instance` or `__name__` needs no editing, and a
 misspelled required column still fails the required-column check rather than being
 silently dropped.
+
+### Metric order is the file's to declare
+
+A window's metrics reach the judge in an order, and the order is not decoration.
+
+- The only field of a metric pair the model is shown is its name
+  (`judge-service/app/representations.py`), so the pair order **is** the order the
+  metrics appear in the prompt.
+- `eval_dataset._group_weights` splits 100 evenly over the groups present and hands the
+  leftover hundredth to the **last** one: three groups are `33.33 / 33.33 / 33.34`, and
+  which group gets the `33.34` is decided by which metric is last.
+
+So the order is part of the configuration a window is judged under, and the file states
+it. `metric_order` gives each metric its place, one-based by convention — any distinct
+integers work, so numbering by tens or carrying a subset of a longer list is fine. The
+loader reads the declaration out of a *column*, never out of the row sequence, which is
+the one thing you are free to re-sort:
+
+```csv
+scenario,metric,side,timestamp,value,kind,direction,group,metric_order
+checkout-2026-03-14,p99_seconds,control,2026-03-14T09:00:00Z,0.201,latency,increase,latency,1
+checkout-2026-03-14,rss_bytes,control,2026-03-14T09:00:00Z,6.1e8,memory,increase,resources,2
+checkout-2026-03-14,errors_per_second,control,2026-03-14T09:00:00Z,0.50,errors,increase,errors,3
+```
+
+Those three sort by name `errors_per_second`, `p99_seconds`, `rss_bytes` — a different
+order, with a different group taking the leftover hundredth. Declared, the window is
+judged as `latency, resources, errors` however its rows arrive.
+
+A window that declares nothing is ordered by `metric`, which is what the loader has
+always done. That rule makes a file shuffle-proof, and it is the only order two ends can
+agree on without being told — but it is an order the *loader* invents, and for a window
+whose metric names and metric kinds disagree it is usually not the one you had. Two
+practitioners with the same telemetry, one exporting alphabetically and one by kind,
+would otherwise be judged under two different classifier configurations with nothing in
+either file recording the difference.
+
+`tools/own_data.py --export` writes `metric_order` for every window, so an export and a
+re-import give back the order as well as the values.
+
+Both properties hold together, and `tools/test_own_data_contract.py::metric_order_is_declared`
+asserts them on a three-metric window whose name order and kind order disagree:
+
+- **deterministic** — two loads of one file, and of the same file with its rows
+  shuffled, give identical scenarios, identical prompts and identical group weights,
+  declared or not;
+- **order-faithful** — a file that declares an order gets that order, whatever sequence
+  its rows are in.
+
+Declaring an order does not rename anything. The gid salt is a digest of the values, not
+of the declaration, so adding the column to a file leaves every opaque name exactly as it
+was.
+
+The loader refuses, by line and column, a window that declares `metric_order` for some of
+its metrics and not the others, one that gives two metrics the same number, and one whose
+number is not an integer. There is no half-honoured declaration: every way of placing an
+undeclared metric among declared ones is a guess about which group takes the leftover
+hundredth.
 
 ### `direction` is required on purpose
 
@@ -308,16 +375,32 @@ renames everything the model could see:
 - Each window is assigned an opaque id `own_0000`, `own_0001`, … by sorting your distinct
   scenario identifiers, so the mapping is stable: the same file always yields the same
   ids, and two runs over it are comparable.
-- Each window is assigned a global id starting at `2000` — disjoint from the seeded
+- Each window is assigned a global id in `2000…9999` — disjoint from the seeded
   datasets' ranges (`0…` and `1000…`), so an own-data metric can never be confused with a
-  study metric in a metric store, a log filename or a cache key.
-- Each metric is renamed `{kind}_g{gid:04d}` — `latency_g2000`, `errors_g2000`. When a
+  study metric in a metric store, a log filename or a cache key. **Which** id inside that
+  range is a salted hash of your own window identifier, not the window's place in the
+  sorted file. It used to be the place (`2000 + index` over your sorted scenario ids), and
+  that made the opaque suffix monotone in the alphabetical order of your window names: if
+  your ids sort by outcome — and they do, if the outcome is in the name — the suffix ranked
+  your windows by their answer, which is precisely the leak this renaming exists to
+  prevent. The salt is a digest of the file's content, so the same window name in two
+  different files gets two different suffixes and a suffix seen in one run says nothing
+  about a window in another; it is recorded in the run manifest as `gid_salt`, so the names
+  a run was judged under are re-derivable from the file it was judged from. Collisions are
+  detected and resolved deterministically — the window that keeps a contested id is decided
+  by the hash, never by where its name sorts — and a file carrying more than 8000 windows
+  is refused rather than given two windows one id.
+- Each metric is renamed `{kind}_g{gid:04d}` — `latency_g4831`, `errors_g4831` (4831 is an
+  example; the number means nothing outside the one file it was drawn in). When a
   window carries more than one metric of a kind they are numbered from one and padded to
-  the width of the count: `latency_1_g2000`, `latency_2_g2000`, `latency_3_g2000`, and
-  `latency_01_g2000` … `latency_12_g2000` for a window with twelve of them. Numbering the
+  the width of the count: `latency_1_g4831`, `latency_2_g4831`, `latency_3_g4831`, and
+  `latency_01_g4831` … `latency_12_g4831` for a window with twelve of them. Numbering the
   first one and padding the rest is what makes the naming a fixed point — sorting these
   names gives back the order they were assigned in, so a window exported through
-  `own_data.export()` and re-imported is the same window rather than a rotation of it.
+  `own_data.export()` and re-imported is the same window rather than a rotation of it. A
+  re-import also keeps the id the file already carries rather than drawing a new one, for
+  the same reason: the window id in an exported file is the `own_NNNN` the loader invented,
+  not your identifier, so hashing *that* would rename every series on every round trip.
   The name the model sees is therefore drawn from a seven-word closed vocabulary plus a
   number, and cannot carry a meaning you did not intend.
 - The metrics of a window are then ordered by that name, which is the order the file
@@ -541,13 +624,16 @@ are identical to the ones the generated path produces. If the two ever differ, t
 this whole page rests on — that your windows reach the judges the same way the study's do
 — is false, and the test says so.
 
-One thing the file does not carry is the order of the metrics within a window: the
-exporter writes them sorted by the `metric` column it writes, and the loader reads them
-back sorted by that same column, so that a re-sorted file is the same run. The comparison
-is therefore against the source scenario in that order, and that the two orders are a
-permutation of each other is checked rather than assumed. Eight of the nine families have
-one metric, so the two orders coincide; `cross_metric_marginal` declares latency, memory,
-errors and is stored latency, errors, memory.
+The file carries the order of the metrics within a window, in `metric_order`, and the
+comparison is made in sequence with nothing canonicalised: a round trip that reorders a
+window is a failure. It used not to be. The exporter wrote a window's metrics sorted by
+the `metric` column and the loader read them back sorted by the same column, and this
+test compared against the source scenario re-sorted the same way — so the reordering was
+the fixture rather than the finding. Eight of the nine families carry one metric, so the
+two orders coincide there; `cross_metric_marginal` declares latency, memory, errors where
+sorting the names gives latency, errors, memory, and that moves both the prompt order and
+the group that takes the leftover hundredth of the classifier's weights. See
+[Metric order is the file's to declare](#metric-order-is-the-files-to-declare).
 
 Sharing the key is necessary and was not sufficient, because under the default the loader
 does not read the name back — it derives a new opaque one from it. `anonymised` is the
@@ -555,7 +641,7 @@ second round-trip check and the one that covers that: it exports an already-rena
 and re-imports it twice, over three windows (three metrics of one kind, three kinds, and a
 single metric), and compares the `metricSetPairList` and the canary config each time. It
 fails on the naming scheme this page used to describe, where the first metric of a kind was
-unnumbered: `latency_g2000`, `latency_2_g2000` and `latency_3_g2000` sort `_2`, `_3`, then
+unnumbered: `latency_gNNNN`, `latency_2_gNNNN` and `latency_3_gNNNN` sort `_2`, `_3`, then
 the bare one, because a digit sorts before a letter, so each series came back under its
 neighbour's name and rotated once more on every round trip. Nothing in the harness reaches
 `export()` with a renamed window today — `--export` exports seeded scenarios, and every
