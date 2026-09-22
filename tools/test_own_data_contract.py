@@ -12,7 +12,10 @@ its documentation, so each is checked here by running it:
     over all 180 scenarios;
   * the seeded path did not move while that entry point was added -- the
     pre-change `tools/eval_dataset.py` is read back out of git, run beside the
-    current one, and the two are compared over both datasets;
+    current one, and the two are compared over both datasets, with the one
+    difference 1.1.0 makes on purpose asserted rather than waived: the canary
+    configuration's `name` and `description` no longer carry the family and the
+    ground-truth label, and must not;
   * a file that cannot be judged honestly is refused with the file, the line and
     the column, not repaired;
   * a window carrying no label is judged and written but enters no denominator,
@@ -91,6 +94,58 @@ KNOWN_LOSSY = {"Scenario.gid", "Scenario.seed", "Scenario.params", "MetricSpec.b
 # Fields a round trip must preserve exactly, because a judge sees them.
 SCENARIO_KEPT = ("id", "family", "truth")
 METRIC_KEPT = ("name", "group", "unit", "direction", "truth")
+
+# The two canary-configuration fields 1.1.0 changes on purpose, and the reason
+# they are set aside from the identity comparisons below. v1.0.0 wrote the
+# scenario id, its family and its ground-truth label into the config Kayenta
+# stores and the judge service logs verbatim:
+#
+#   name         eval-no_change_000
+#   description  eval dataset scenario no_change_000 (family=no_change, truth=PASS)
+#
+# From v1.0.1 both carry the window's opaque handle and nothing else --
+# `eval-g0000`, `eval dataset scenario g0000`. Neither field is read by any
+# judge and no verdict has ever depended on one, but a ground-truth label has no
+# place in a request, and anyone running this testbed on their own telemetry
+# would otherwise inherit the habit. Removing it is itself a leakage fix, so
+# these two are *expected* to differ -- between `main` and this tree, and across
+# an export and a re-import, which draws the window a fresh handle out of the
+# own-data gid namespace.
+#
+# Set aside is not ignored. Like KNOWN_LOSSY above, this is asserted rather than
+# annotated: every check that excludes these two also asserts, through
+# `_handle_fields_changed`, that they differ on *every* scenario and that
+# neither string carries a family or a label. A change that quietly put the
+# label back into the configuration name fails here.
+CONFIG_HANDLE_FIELDS = ("name", "description")
+
+
+def _without_handle(config: Dict[str, Any]) -> Dict[str, Any]:
+    """The canary config minus CONFIG_HANDLE_FIELDS: all of it a judge reads."""
+    return {k: v for k, v in config.items() if k not in CONFIG_HANDLE_FIELDS}
+
+
+def _handle_fields_changed(where: str, old: Dict[str, Any], new: Dict[str, Any],
+                           family: str, truth: str) -> List[str]:
+    """The other half of setting the two aside, so the exclusion cannot go stale.
+
+    `old` is the labelled string -- v1.0.0's, or the one that went out through
+    the exporter -- and `new` is the one this tree produces. The release's claim
+    is that the second replaced the first and carries neither the family nor the
+    label, so both halves are checked: unchanged is a failure, and so is a
+    family or a truth value reappearing inside either string.
+    """
+    out: List[str] = []
+    for field in CONFIG_HANDLE_FIELDS:
+        if old[field] == new[field]:
+            out.append(f"{where}: canary config {field} is unchanged at {new[field]!r}; "
+                       f"1.1.0 replaces the labelled string with an opaque handle, so "
+                       f"this field has to differ")
+        for value, what in ((family, "family"), (truth, "ground-truth label")):
+            if value and value in new[field]:
+                out.append(f"{where}: canary config {field} is {new[field]!r}, which "
+                           f"carries the {what} {value!r}; 1.1.0 takes it out")
+    return out
 
 
 # 1. Round trip over the whole dataset.
@@ -206,9 +261,17 @@ def roundtrip_judge_surface(tmp: Path) -> List[str]:
                                    target.step_seconds * 1000)
         failures.extend(_diff(f"{source.id}: metricSetPairList", want_pairs, got_pairs))
         for judge, label in ((STAT_JUDGE, "statistical"), (REMOTE_JUDGE, "remote")):
+            # Every key but `name` and `description`, which name the window's
+            # handle rather than describe its evidence and which a re-import
+            # necessarily reassigns -- CONFIG_HANDLE_FIELDS above. That they
+            # changed, and that neither carries the family or the label, is
+            # asserted just below rather than left unsaid.
+            want_config = ed.build_canary_config(source, judge)
+            got_config = ed.build_canary_config(target, judge)
             failures.extend(_diff(f"{source.id}: canary config ({label})",
-                                  ed.build_canary_config(source, judge),
-                                  ed.build_canary_config(target, judge)))
+                                  _without_handle(want_config), _without_handle(got_config)))
+            failures.extend(_handle_fields_changed(f"{source.id} ({label})", want_config,
+                                                   got_config, source.family, source.truth))
     return failures
 
 
@@ -310,14 +373,24 @@ def _pristine_module(tmp: Path) -> Tuple[Optional[Any], str]:
     return module, ""
 
 
-def _seeded_digest(module: Any) -> Tuple[Dict[str, str], str]:
+def _seeded_digest(module: Any) -> Tuple[Dict[str, str], str, Dict[str, Dict[str, Any]]]:
     """Per-scenario digests of everything the seeded path produces, plus one for
-    the module's constants. Keyed by scenario id so a difference has a name."""
+    the module's constants. Keyed by scenario id so a difference has a name.
+
+    The canary config goes into the digest without `name` and `description`
+    (CONFIG_HANDLE_FIELDS): those two are the one thing 1.1.0 changes here on
+    purpose, so digesting them would make this check assert the opposite of what
+    the CHANGELOG says. They are returned alongside instead, and
+    `seeded_path_unchanged` asserts over them directly.
+    """
     digests: Dict[str, str] = {}
+    handles: Dict[str, Dict[str, Any]] = {}
     for dataset, n in (("original-180", N_PER_FAMILY), ("generalisation-60", N_PER_FAMILY)):
         scenarios = module.build_scenarios(MASTER_SEED, n, dataset)
         for s in scenarios:
             series = module.series_for_scenario(s)
+            statistical = module.build_canary_config(s, STAT_JUDGE)
+            remote = module.build_canary_config(s, REMOTE_JUDGE)
             blob = json.dumps({
                 "id": s.id, "family": s.family, "gid": s.gid, "seed": s.seed,
                 "truth": s.truth, "params": s.params,
@@ -328,11 +401,13 @@ def _seeded_digest(module: Any) -> Tuple[Dict[str, str], str]:
                 "series": {k: {side: [repr(x) for x in v[side]]
                                for side in ("control", "experiment")}
                            for k, v in series.items()},
-                "statistical": module.build_canary_config(s, STAT_JUDGE),
-                "remote": module.build_canary_config(s, REMOTE_JUDGE),
+                "statistical": _without_handle(statistical),
+                "remote": _without_handle(remote),
                 "pairs": module.build_pairs(s, series, FIXED_BASE_MILLIS),
             }, sort_keys=True)
             digests[f"{dataset}/{s.id}"] = hashlib.sha256(blob.encode()).hexdigest()
+            handles[f"{dataset}/{s.id}"] = {"statistical": statistical, "remote": remote,
+                                            "family": s.family, "truth": s.truth}
         manifest = module.build_manifest(MASTER_SEED, n, scenarios, FIXED_BASE_MILLIS)
         manifest.pop("generated_at", None)
         digests[f"{dataset}/_manifest"] = hashlib.sha256(
@@ -354,24 +429,65 @@ def _seeded_digest(module: Any) -> Tuple[Dict[str, str], str]:
     whole = hashlib.sha256("".join(digests[k] for k in sorted(digests)).encode()
                            + constants.encode()).hexdigest()
     digests["_constants"] = hashlib.sha256(constants.encode()).hexdigest()
-    return digests, whole
+    return digests, whole, handles
 
 
 def seeded_path_unchanged(tmp: Path) -> List[str]:
-    """Both seeded datasets, every scenario, against the pre-change module."""
+    """Both seeded datasets, every scenario, against the pre-change module.
+
+    The property, stated so the assertion can be read against it: the generated
+    series, the metric names, the metricSetPairList, the ground-truth labels,
+    the manifest and every canary-configuration field other than `name` and
+    `description` are identical to `main`, over all 240 scenarios of both seeded
+    datasets and both manifests.
+
+    Those two fields are the exception, and the exception is asserted rather
+    than waived: 1.1.0 takes the family and the label out of them
+    (CONFIG_HANDLE_FIELDS), so they must differ from `main` on every scenario
+    and the new strings must carry neither. Asserting identity over them as well
+    would be asserting something this release makes false by design, which is
+    worse than not checking at all; asserting nothing over them would let a
+    later change put the label back without a word.
+    """
     pristine, error = _pristine_module(tmp)
     if pristine is None:
         return [error]
-    before, before_all = _seeded_digest(pristine)
-    after, after_all = _seeded_digest(ed)
-    if before_all == after_all:
-        return []
-    failures = [f"the seeded path changed: {len(before)} digest(s) before, "
-                f"{len(after)} after; whole-dataset digest {before_all[:16]} -> {after_all[:16]}"]
-    for key in sorted(set(before) | set(after)):
-        if before.get(key) != after.get(key):
-            failures.append(f"  {key}: {before.get(key, '(absent)')[:16]} -> "
-                            f"{after.get(key, '(absent)')[:16]}")
+    before, before_all, before_handles = _seeded_digest(pristine)
+    after, after_all, after_handles = _seeded_digest(ed)
+
+    failures: List[str] = []
+    if before_all != after_all:
+        failures.append(f"the seeded path changed: {len(before)} digest(s) before, "
+                        f"{len(after)} after; whole-dataset digest "
+                        f"{before_all[:16]} -> {after_all[:16]}")
+        for key in sorted(set(before) | set(after)):
+            if before.get(key) != after.get(key):
+                failures.append(f"  {key}: {before.get(key, '(absent)')[:16]} -> "
+                                f"{after.get(key, '(absent)')[:16]}")
+        return failures[:12]
+
+    # The intended difference, over the same 240 scenarios and both judges.
+    # Reported as a count of the comparisons that went wrong with the first few
+    # lines behind it, rather than as several hundred lines.
+    lines: List[str] = []
+    bad = 0
+    for key in sorted(after_handles):
+        old, new = before_handles.get(key), after_handles[key]
+        if old is None:
+            failures.append(f"{key}: present now, absent on main")
+            continue
+        for label in ("statistical", "remote"):
+            said = _handle_fields_changed(f"{key} ({label})", old[label], new[label],
+                                          new["family"], new["truth"])
+            if said:
+                bad += 1
+                lines.extend(said)
+    if lines:
+        failures.append(f"the canary config's name and description are not what 1.1.0 "
+                        f"makes them on {bad} of {2 * len(after_handles)} comparison(s); "
+                        f"the family and the truth label have to be gone from both, and "
+                        f"they are not")
+        failures.extend(f"  {line}" for line in lines[:8])
     return failures[:12]
 
 

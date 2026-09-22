@@ -20,6 +20,12 @@ Nothing is approximated: floats are compared as floats and the structures are
 compared whole. If the two ever differ, the claim is false and this test says
 which scenario, which metric and which field.
 
+The config's `name` and `description` are the one exception, and the exception
+is asserted rather than waived: from v1.0.1 they carry the window's opaque
+handle instead of its id, family and ground-truth label, so a re-imported
+window's must differ from the one it went out with, and neither may carry a
+family or a label. See CONFIG_HANDLE_FIELDS below.
+
 The order of the metrics within a window is carried, not canonicalised. The
 exporter writes each metric's place in `metric_order` and the loader honours it,
 so the comparison below is made in sequence against the source scenario with
@@ -59,6 +65,46 @@ import own_data  # noqa: E402
 
 N_PER_FAMILY = 2
 JUDGE = {"name": "NetflixACAJudge-v1.0", "judgeConfigurations": {}}
+
+# The two canary-configuration fields a round trip is not asked to preserve, and
+# why. v1.0.0 wrote the scenario id, its family and its ground-truth label into
+# the config Kayenta stores and the judge service logs verbatim --
+# `eval-no_change_000`, `eval dataset scenario no_change_000 (family=no_change,
+# truth=PASS)`. From v1.0.1 both carry the window's opaque handle and nothing
+# else, `eval-g0000` and `eval dataset scenario g0000`, so no ground-truth label
+# travels in a request. No judge reads either field; `build_pairs` and the rest
+# of the config, which every judge does read, are compared whole below.
+#
+# A re-imported window draws a fresh handle out of the own-data gid namespace
+# (own_data.OWN_DATA_GID_BASE), so these two cannot come back as they went out
+# and should not: the reloaded window is a different window as far as its
+# provenance goes. That is asserted, not assumed -- `_handle_fields_changed`
+# fails if either field survives unchanged, which is what would happen if a
+# later change put `eval-{scenario.id}` and its label back, and fails if either
+# string carries a family or a label at all.
+CONFIG_HANDLE_FIELDS = ("name", "description")
+
+
+def _without_handle(config: Dict[str, Any]) -> Dict[str, Any]:
+    """The canary config minus CONFIG_HANDLE_FIELDS: all of it a judge reads."""
+    return {k: v for k, v in config.items() if k not in CONFIG_HANDLE_FIELDS}
+
+
+def _handle_fields_changed(where: str, out: Dict[str, Any], back: Dict[str, Any],
+                           family: str, truth: str) -> List[str]:
+    """The other half of setting the two aside, so the exclusion cannot go stale."""
+    failures: List[str] = []
+    for field in CONFIG_HANDLE_FIELDS:
+        if out[field] == back[field]:
+            failures.append(f"{where}: canary config {field} came back unchanged at "
+                            f"{back[field]!r}; a re-imported window is handed a new "
+                            f"opaque handle, so this field has to differ")
+        for value, what in ((family, "family"), (truth, "ground-truth label")):
+            if value and value in back[field]:
+                failures.append(f"{where}: canary config {field} is {back[field]!r}, "
+                                f"which carries the {what} {value!r}; from v1.0.1 "
+                                f"neither field carries one")
+    return failures
 
 
 def _pairs_and_config(scenario: ed.Scenario, series, base_millis: int, step_seconds: int):
@@ -132,7 +178,10 @@ def roundtrip(tmp: Path) -> List[str]:
                                                   target.base_millis, target.step_seconds)
 
         failures.extend(_diff(f"{source.id}: metricSetPairList", want_pairs, got_pairs))
-        failures.extend(_diff(f"{source.id}: canaryConfig", want_config, got_config))
+        failures.extend(_diff(f"{source.id}: canaryConfig",
+                              _without_handle(want_config), _without_handle(got_config)))
+        failures.extend(_handle_fields_changed(source.id, want_config, got_config,
+                                               source.family, source.truth))
         if source.truth != target.truth:
             failures.append(f"{source.id}: truth {source.truth!r} came back {target.truth!r}")
         if source.family != target.family:
@@ -458,6 +507,8 @@ def main() -> int:
           f"metricSetPairList and an identical canary config, over "
           f"{len(ed.FAMILIES) * N_PER_FAMILY} scenarios,\n"
           f"with the metrics of a window in the order the file declares for them.\n"
+          f"The config's name and description are the exception, and they carry an\n"
+          f"opaque handle rather than the window's family and label, as they must.\n"
           f"Your own windows reach the judges the way the study's do.")
     return 0
 
