@@ -11,10 +11,18 @@ runs this script inside that container:
 
     docker compose exec -T judge-service python - < tools/render_figures.py
 
-It reads the figure spec from /app/data/ai-logs/_exp_figdata.json (the ai-logs
-bind mount is the host<->container transport) and writes PNGs to
-/app/data/ai-logs/_exp_figs/, which run_experiment.py then copies into
-results/figures/.
+--spec and --out say which spec to draw and where to put the PNGs, and both
+default to the seeded run's locations under /app/data/ai-logs -- the ai-logs bind
+mount is the host<->container transport, and the seeded spec has always lived
+there. run_experiment.py passes them explicitly: for the seeded run it passes
+those same two paths, and for a run whose --out moved them it passes the run's
+own, and reaches them through a bind mount of the whole repository because the
+running service has only ai-logs mounted.
+
+The closing JSON line names the figures that were drawn. run_experiment.py copies
+those, and only those, into the run's figures/ directory: --out is shared with
+every other figure tool for the seeded run, so copying whatever *.png it found
+there published sixteen of the study's figures as an own-data run's output.
 """
 
 import argparse
@@ -118,6 +126,9 @@ def main() -> int:
                          "hybrid:gated on this benchmark (Section 7.1)")
     args = ap.parse_args()
     IN, OUT, DPI = args.spec, args.out, args.dpi
+    # What this invocation drew, reported on the closing line. The caller copies
+    # these names rather than globbing OUT, which it does not own.
+    drawn = []
 
     spec = {}
     if os.path.exists(IN):
@@ -157,6 +168,7 @@ def main() -> int:
         ax.grid(True, axis="y", alpha=0.3)
         fig.tight_layout()
         fig.savefig(f"{OUT}/accuracy_bars.png")
+        drawn.append("accuracy_bars.png")
         plt.close(fig)
     else:
         print("[render-figures] no bar block in the spec; skipping accuracy_bars.png")
@@ -214,6 +226,7 @@ def main() -> int:
     fig.colorbar(im, ax=ax, fraction=0.025, pad=0.02, label="accuracy")
     fig.tight_layout()
     fig.savefig(f"{OUT}/family_heatmap.png")
+    drawn.append("family_heatmap.png")
     plt.close(fig)
 
     # 3) Confusion matrices for the headline judges.
@@ -236,9 +249,10 @@ def main() -> int:
         fig.suptitle("Confusion matrices (FAIL = positive)")
         fig.tight_layout()
         fig.savefig(f"{OUT}/confusion_matrices.png")
+        drawn.append("confusion_matrices.png")
         plt.close(fig)
 
-    print(json.dumps({"ok": True, "out": OUT}))
+    print(json.dumps({"ok": True, "out": OUT, "figures": drawn}))
     return 0
 
 

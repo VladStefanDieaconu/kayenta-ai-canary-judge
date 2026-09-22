@@ -246,9 +246,23 @@ def part_b_headline(results_dir: Path = RESULTS_DIR, agg_dir: Path = AGG_DIR) ->
     assert recomputed_acc == recorded_acc == 0.544, (
         f"accuracy mismatch: recomputed {recomputed_acc} vs recorded {recorded_acc}")
 
+    # results_raw.csv holds every judgement, labelled or not: an own-data run
+    # with unlabelled windows writes them there too (docs/own-data.md), and
+    # `--own-data F --out results` puts them in this very file. They are dropped
+    # here, before any bootstrap population is built, because `truth == "FAIL"`
+    # would read an unlabelled window as a genuine PASS-truth one. It also keeps
+    # this bootstrap over the same rows as the TP/FP/TN/FN in summary.csv, which
+    # run_experiment already counted over the labelled rows alone.
     raw_by_key: Dict[Tuple[str, str], List[Dict[str, str]]] = defaultdict(list)
+    n_unlabelled = 0
     for r in raw:
+        if not (r.get("truth") or "").strip():
+            n_unlabelled += 1
+            continue
         raw_by_key[(r["judge"], r["model"])].append(r)
+    if n_unlabelled:
+        print(f"[bounded_confidence_intervals] dropped {n_unlabelled} unlabelled row(s) "
+              f"from the bootstrap population; they enter no denominator", file=sys.stderr)
 
     header = ["judge", "model", "family", "metric", "k", "n", "rate",
               "wilson_low", "wilson_high", "boot_low", "boot_high"]

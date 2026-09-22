@@ -85,9 +85,19 @@ def confusion_counts(rows, true_key: str = "y_true", pred_key: str = "y_pred", p
     """Same formula as tools/run_experiment.py::confusion(), generalised to
     whatever the truth/prediction column names are in the source CSV (that
     script's rows use truth/verdict; results/agg/long_results.csv uses
-    y_true/y_pred)."""
+    y_true/y_pred).
+
+    Including its refusal to score a row with no ground truth: `!= pos` would
+    read an unlabelled window as a genuine negative, and a judge that says PASS
+    to everything would then score 1.000 on data nobody labelled. Filter to the
+    labelled rows before calling this."""
     c = {"TP": 0, "FP": 0, "TN": 0, "FN": 0}
     for r in rows:
+        if not (r.get(true_key) or ""):
+            raise ValueError(
+                f"confusion_counts() was given a row whose {true_key!r} is empty "
+                f"(scenario={r.get('scenario', '?')!r}); an unlabelled window enters "
+                f"no accuracy denominator")
         t = r[true_key] == pos
         p = r[pred_key] == pos
         if t and p:

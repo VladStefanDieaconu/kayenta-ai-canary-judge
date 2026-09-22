@@ -152,7 +152,7 @@ def run_default_judge(pairs: List[Dict[str, Any]], config: Dict[str, Any],
 def judge_ai(pairs: List[Dict[str, Any]], config: Dict[str, Any], mode: str, model: str,
              pass_t: float = 75.0, marginal_t: float = 50.0,
              judge_url: str = JUDGE_URL, timeout: int = 300,
-             prompt_id: str = "") -> Dict[str, Any]:
+             prompt_id: str = "", log_subdir: str = "") -> Dict[str, Any]:
     cfg = dict(config)
     judge_cfg: Dict[str, Any] = {"mode": mode, "model": model}
     # Omitted rather than blank: an empty prompt_id in the config would have to be
@@ -160,6 +160,13 @@ def judge_ai(pairs: List[Dict[str, Any]], config: Dict[str, Any], mode: str, mod
     # is the frozen rubric, which is what an unspecified caller wants.
     if prompt_id:
         judge_cfg["prompt_id"] = prompt_id
+    # Same rule, same reason. `log_subdir` asks the service to write this call's
+    # payload record into its own subdirectory of the ai-logs volume instead of
+    # into the study's archive, which tools/replay_ai_logs.py replays wholesale.
+    # Unset is the study's own behaviour and where the archive's 16,623 payloads
+    # were written.
+    if log_subdir:
+        judge_cfg["log_subdir"] = log_subdir
     cfg["judge"] = {"name": "RemoteJudge-v1.0", "judgeConfigurations": judge_cfg}
     body = {
         "canaryConfig": cfg,

@@ -47,6 +47,7 @@ Start here:
 Making it yours:
 
 - [Using your own metrics](#using-your-own-metrics)
+- [Bringing your own canary windows](#bringing-your-own-canary-windows)
 - [Bringing your own model or provider](#bringing-your-own-model-or-provider)
 - [Adding your own scenario family](#adding-your-own-scenario-family)
 - [Rendering figures from your own results](#rendering-figures-from-your-own-results)
@@ -332,10 +333,106 @@ score the verdict against. Your own traffic has no such label, so on your own me
 you get verdicts, scores and Referee reports (the operational output) and no
 scoreboard.
 
-`make experiment` will not work on your data. It generates its own labelled dataset,
-seeds it, and scores against it; pointing it at a real service is not a matter of
-configuration. Scoring judges on your own service means labelling your own incidents
-first, which is a data-collection exercise this repository does not automate.
+`make experiment` will not work this way either. It generates its own labelled dataset,
+seeds it, and scores against it; pointing it at a live service is not a matter of
+configuration, because nothing here fetches from Prometheus or Datadog.
+
+This section is the **live** workflow: Kayenta querying your metric store during a real
+deployment, one window at a time, with no ground truth to score against. To score the
+judges on windows whose answer you already know, export those windows to a file and see
+[Bringing your own canary windows](#bringing-your-own-canary-windows) below. Labelling
+them is still yours to do; nothing here automates it.
+
+## Bringing your own canary windows
+
+The live workflow above gives you verdicts. This one gives you a **scoreboard**: the
+same statistical, AI and hybrid judges, under the same configuration and the same
+scoring code as the study's own dataset, run over windows from your own service — and
+scored, because you know which of those deploys you rolled back.
+
+You export the windows; the harness reads the file. There is no code to edit.
+
+```bash
+make own-data-template OUT=windows.csv   # a valid file, to copy the shape from
+make own-data-check OWN_DATA=windows.csv # validate + print exactly what will be judged
+make own-data OWN_DATA=windows.csv       # the scored run -> results/own-data/
+make analysis RESULTS=results/own-data   # re-derive the tables offline, from your run
+```
+
+A committed example lives in `example-data/`, so the path can be run from a fresh clone
+before you have exported anything:
+
+```bash
+make own-data-check OWN_DATA=example-data/own-data-example.csv
+```
+
+### The file
+
+One row per (window, metric, side, sample), UTF-8 CSV with a header. A *window* is one
+promotion decision: a control series and a canary series for one or more metrics, plus
+the verdict that decision should have had.
+
+```csv
+scenario,metric,side,timestamp,value,kind,direction,label
+checkout-2026-03-14T09:00Z,checkout_p99_seconds,control,2026-03-14T09:00:00Z,0.201,latency,increase,FAIL
+checkout-2026-03-14T09:00Z,checkout_p99_seconds,canary,2026-03-14T09:00:00Z,0.204,latency,increase,FAIL
+```
+
+`scenario`, `metric`, `side`, `timestamp`, `value`, `kind` and `direction` are required;
+`label`, `group`, `unit`, `family` and `metric_label` are optional. Columns the loader
+does not recognise are ignored and named in the output, so an export carrying `job`,
+`instance` and `__name__` loads unedited — turning a Prometheus `query_range` result
+into this file is adding four constant columns, not writing a parser. JSON is accepted
+as a second form. Every field and every rule the loader enforces is specified in
+[docs/own-data.md](docs/own-data.md).
+
+`direction` is required and has no default on purpose: guessing `increase` for a
+success-rate metric inverts its verdict silently, and a collapse to 79% then passes
+cleanly.
+
+### Five things worth knowing before you run it
+
+- **Labels are optional.** Without them every judge still runs and every verdict, score
+  and rationale is written; the unlabelled rows are excluded from the accuracy, the
+  confusion matrix, McNemar and kappa — not counted as wrong, not counted at all.
+  Partial labelling is the expected case: label the incidents you remember, leave the
+  rest.
+- **Your window and metric names never reach the model.** They are renamed to
+  `latency_g4831` and such before any prompt is built, because a window called
+  `2026-03-14-rollback-FAIL` would otherwise hand the model its own answer. The number is
+  a salted hash of your window id, not its place in the sorted file, so the renamed names
+  do not rank your windows by anything your own names happened to sort by. The real
+  names are written only to the manifest, which stays on your disk. `--keep-ids` turns
+  the renaming off.
+- **The order of a window's metrics is yours to state.** It is not decoration: the
+  metrics reach the prompt in that order, and the classifier hands the leftover
+  hundredth of its 100 points to the group of the last one. Put each metric's place in
+  the optional `metric_order` column and your window is judged in your order however
+  your rows are sorted; leave it out and the metrics are ordered by name, which is
+  shuffle-proof but is an order the loader picked rather than yours.
+  `tools/own_data.py --export` writes the column, so an export and a re-import give back
+  the order as well as the values.
+- **Your telemetry values do reach the model.** The renaming protects names, not
+  numbers, and the numbers are the payload. With a local Ollama model nothing leaves the
+  machine; with a hosted model your production values leave your network under that
+  provider's terms.
+- **Nothing is resampled, interpolated or aligned for you.** A window the harness cannot
+  judge honestly is rejected with a reason and a line number rather than repaired.
+
+`make own-data-check` needs neither the stack nor a model, and is the target to run
+first: it prints, per window, the samples per side, the derived step and span, the
+missing count, the label if any, and the renamed metrics — so you can see exactly what
+will be judged before a single model call is paid for.
+
+Your own tolerances can replace the tuned statistical template
+(`make own-data OWN_DATA=windows.csv STAT_CONFIG=tolerances.json`); a run that does so
+is marked in `results.md` as not comparable with the published numbers.
+
+The full and honest list of what this does **not** give you — starting with the fact
+that a dataset made only of real incidents makes every judge look excellent, because a
+judge that always says FAIL then scores 100% — is in
+[docs/own-data.md](docs/own-data.md#what-this-does-not-give-you). Read it before drawing
+a conclusion from a number this produces.
 
 ## Bringing your own model or provider
 
@@ -426,18 +523,32 @@ Every one takes an input and an output:
 
 | generator | input | output | draws |
 |---|---|---|---|
-| `figure_distributions.py` | `--results`, `--seed`, `--n` | `--out` | location shift against equal-median shape change |
-| `figure_blindspot_series.py` | `--results`, `--seed`, `--n` | `--out` | two blind-spot scenarios as time series |
+| `figure_distributions.py` | `--seed`, `--n` (`--results` accepted, not read) | `--out` | location shift against equal-median shape change |
+| `figure_blindspot_series.py` | `--seed`, `--n` (`--results` accepted, not read) | `--out` | two blind-spot scenarios as time series |
 | `figure_new_families.py` | `--seed`, `--n` | `--out`, `--outfile` | one instance of each added family |
 | `figure_approach_bars.py` | `--results` (`summary.csv` + `agg/`) | `--out` | the strongest configuration of each approach |
 | `figure_threshold_summaries.py` | `--results` (`agg/roc_pr_auc.csv`) | `--out` | AUC-ROC and both precision-recall summaries |
-| `figure_multiseed_intervals.py` | `--results` (`agg/metrics_with_ci.csv`) | `--out` | per-configuration accuracy with confidence intervals |
+| `figure_multiseed_intervals.py` | `--results` (`agg/metrics_with_ci.csv`, from the five-seed sweep) | `--out` | per-configuration accuracy with confidence intervals |
+| `figure_diagrams.py` | nothing (`--results` accepted, not read) | `--out` | the four schematics, Figures 1, 4, 5 and 6 |
 | `figure_prompt_comparison.py` | `--experiments` long-format frame | `--out`, `--outfile` | one rubric against another, per family |
 | `figure_ablation_summary.py` | `--experiments` long-format frame | `--out`, `--outfile` | the same comparison in one panel |
 | `render_figures.py` | `--results`, `--spec` | `--out` | accuracy bars, family heatmap, confusion matrices |
 
-The three that take `--seed`/`--n` draw from the scenario generator rather than
+The ones that take `--seed`/`--n` draw from the scenario generator rather than
 from a results file, because what they illustrate is the dataset itself.
+
+`make figures` reflects that split. Against the seeded run it renders all of them.
+Against any other — `make figures RESULTS=results/own-data` — it renders only the
+generators that read `--results`, and prints the four it left out with the reason. They
+accept `--results` for a uniform interface but do not read it, so running them against
+your directory does not produce your figures: it writes the study's figures into it,
+under the study's filenames. Run `make analysis RESULTS=<dir>` first, since one of the
+generators draws from the ROC/PR table that target writes.
+
+The figure spec `render_figures.py` reads belongs to the run that wrote it:
+`data/ai-logs/_exp_figdata.json` for the seeded run, where it has always been, and
+`<results>/_exp_figdata.json` for every other. `make figures` picks the same one
+`run_experiment.py` wrote.
 
 Figures render inside the `judge-service` image, which already carries matplotlib
 for the `plot` representation, so the host virtualenv stays dependency-light:
@@ -493,6 +604,11 @@ a zero from a comparison:
 | `make seed-eval` | Seed the labelled nine-family dataset into VictoriaMetrics and write the manifest. `--probe` runs the genuine `NetflixACAJudge` per family. | No |
 | `make experiment` | The full scored experiment: every judge × every scenario × every present model, into `results/`. Absent models are skipped. | Yes |
 | `make experiment-quick` | Smoke run of the experiment (n=1, two default models). | Yes |
+| `make own-data-template [OUT=<file>]` | Write a valid example file in the own-data format, exported from the seeded dataset. | No |
+| `make own-data-check OWN_DATA=<file>` | Validate your own windows and print exactly what the harness will judge. | No |
+| `make own-data OWN_DATA=<file>` | The scored experiment over your own windows, into `results/own-data/`. | Yes |
+| `make own-data-quick OWN_DATA=<file>` | Smoke run over the first two of your own windows. | Yes |
+| `make analysis [RESULTS=<dir>]` | Re-derive every offline table from a results directory (default `results/`; `results/own-data` for your own run). | No |
 | `make scenario` | Run the blind-spot stress test through all judges, with Referee links. | Yes |
 | `make demo-dummy` | The three judges over the dummy dataset, standalone. Prints Referee links. | No |
 | `make results` | Table of the latest recorded Kayenta result per judge (verdict, score, model, Referee link). | No |
@@ -504,6 +620,12 @@ a zero from a comparison:
 You can override the experiment size with environment variables: `EVAL_N` (instances
 per family, default 12), `EVAL_SEED` (master seed), and `EVAL_MODELS` (a comma-separated
 allow-list). The host tools run in a local `.venv` that `make` creates for you.
+`OWN_DATA`, `STAT_CONFIG`, `MIN_SAMPLES`, `ALLOW_GAPS` and `KEEP_IDS` work the same way
+for the own-data targets — every switch `docs/own-data.md` documents has a variable, and
+all three targets that read your file pass all of them — so `OWN_DATA=./windows.csv` in
+`.env` makes them work with no argument. `RESULTS` does the same for `make analysis` and
+`make figures`, which default to `results/` and take `RESULTS=results/own-data` for a run
+of your own.
 
 These are read from `.env`, and **the tools load `.env` themselves** (`tools/repo_env.py`,
 imported by every entry point) rather than relying on the shell. Docker Compose reads that
@@ -669,7 +791,10 @@ once, and on a final failure returns a valid `CanaryJudgeResult` with an explici
 error classification. No run ever crashes the analysis or returns a raw error. The
 experiment includes a determinism preflight that runs one scenario twice and asserts
 an identical verdict. Every AI call is logged to `data/ai-logs/`: the prompt, the chart
-PNG and its sha256, the raw response, the parsed verdict, and the resolved model.
+PNG and its sha256, the raw response, the parsed verdict, and the resolved model. A
+`--own-data` run writes its payloads to `data/ai-logs/own-data/<run timestamp>/` instead,
+because `data/ai-logs/` is the study's archive and `make replay-logs` replays every
+`*.json` in it; see [docs/own-data.md](docs/own-data.md).
 
 ### Models evaluated
 
@@ -1071,8 +1196,10 @@ canaryLLM/
 |- prompts/                   # one rubric per file; v1-frozen-2026-06 is the default
 |- litellm/config.yaml        # gateway: alias -> provider/model (local + cloud examples)
 |- referee/Dockerfile         # builds Nike-Inc/referee from source
+|- docs/own-data.md           # the bring-your-own-windows format, specified
 |- tools/                     # host-run Python (in .venv)
 |  |- eval_dataset.py         # the seeded datasets + config template
+|  |- own_data.py             # read/validate/export your own windows (make own-data)
 |  |- repo_env.py             # loads .env so a bare `python tools/...` matches `make`
 |  |- results_schema.py       # the long-format result schema and its only loader
 |  |- seed_eval_dataset.py    # load the dataset into VM + manifest (make seed-eval)
@@ -1080,10 +1207,12 @@ canaryLLM/
 |  |- run_experiment.py       # the scored experiment (make experiment) -> results/
 |  |- run_multiseed_corrected.py  # the multi-seed sweep, written through the schema
 |  |- test_failed_call_is_not_scored.py  # the regression test for the defect above
+|  |- test_own_data_roundtrip.py  # your windows reach the judges as the study's do
 |  |- figure_*.py             # the figure generators, each parameterised by input path
 |  |- render_figures.py       # matplotlib figures, run inside the judge-service container
 |  \- ...                     # CIs, ensemble, frontier, ROC, McNemar, replay
 |- example-results/           # a small committed run, so `make demo` works from a clone
+|- example-data/              # a valid own-data input file, so `make own-data` does too
 \- data/                      # last_run.json, ai-logs/, eval_manifest.json, eval-configs/
 ```
 

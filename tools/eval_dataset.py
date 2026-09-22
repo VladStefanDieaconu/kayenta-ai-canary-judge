@@ -203,10 +203,19 @@ class Scenario:
     family: str
     gid: int
     seed: int
-    truth: str           # PASS | FAIL
+    truth: str           # PASS | FAIL, or "" for a window carrying no label
     metrics: List[MetricSpec]
     params: Dict[str, Any] = field(default_factory=dict)
     token: str = ""      # opaque metric-name token; empty for gid-suffixed datasets
+    # Supplied rather than generated (tools/own_data.py). None -- the default,
+    # and every seeded caller -- means the series come from the family generator
+    # below, so a scenario built the way build_scenarios() builds it is unchanged
+    # in every field. A supplied scenario also carries its own window geometry,
+    # because someone else's export is not 31 samples at 60 seconds.
+    series: Optional[Dict[str, Dict[str, List[Optional[float]]]]] = None
+    step_seconds: int = STEP_SECONDS
+    base_millis: Optional[int] = None
+    canary_overrides: Optional[Dict[str, Any]] = None
 
 
 # Series generation: one function per family, parameterised by a seeded RNG.
@@ -546,7 +555,19 @@ def build_scenarios(master_seed: int = DEFAULT_MASTER_SEED,
 def series_for_scenario(scenario: Scenario) -> Dict[str, Dict[str, List[float]]]:
     """Regenerate the (control, experiment) arrays for every metric of a scenario,
     deterministically from its seed. Both the seeder and the runner call this, so
-    the data fed to VM and to the AI judge are byte-identical."""
+    the data fed to VM and to the AI judge are byte-identical.
+
+    A scenario carrying supplied series (own_data.load()) hands those back
+    instead, copied so a caller that mutates the lists cannot corrupt the source.
+    The generated path's two side effects -- setting MetricSpec.truth and
+    scenario.params -- are deliberately skipped there: the loader has already set
+    both from the user's file, and regenerating them would overwrite the user's
+    labels with a family generator's opinion."""
+    if scenario.series is not None:
+        return {name: {"control": list(sides["control"]),
+                       "experiment": list(sides["experiment"])}
+                for name, sides in scenario.series.items()}
+
     out: Dict[str, Dict[str, List[float]]] = {}
     params: Dict[str, Any] = {}
     # A separate RNG stream per metric (seed offset by metric index) keeps each
@@ -573,6 +594,30 @@ def _group_weights(groups: List[str]) -> Dict[str, float]:
     return weights
 
 
+def _canary_block(m: MetricSpec, overrides: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """The per-metric analysis config: the tuned template, this metric's own
+    direction, then the scenario's overrides if it carries any.
+
+    Byte-identical to `dict(STAT_CANARY_TEMPLATE)` for the seeded path, and
+    checkably so rather than by assertion: every metric of both seeded datasets
+    has direction "increase", which is the template's own value, and updating an
+    existing key leaves its position in the dict unchanged.
+
+    `effectSize` and `outliers` merge sub-key by sub-key so that overriding
+    allowedIncrease alone leaves the other four gates tuned; they are rebuilt as
+    new dicts rather than updated in place, because a shallow copy of the
+    template shares them with it.
+    """
+    block = dict(STAT_CANARY_TEMPLATE)
+    block["direction"] = m.direction
+    for key, value in (overrides or {}).items():
+        if key in ("effectSize", "outliers") and isinstance(value, dict):
+            block[key] = {**block[key], **value}
+        else:
+            block[key] = value
+    return block
+
+
 def build_canary_config(scenario: Scenario, judge: Dict[str, Any],
                         legacy_description: bool = False) -> Dict[str, Any]:
     """Build a canary config for one scenario from the tuned template. `judge` is
@@ -591,7 +636,7 @@ def build_canary_config(scenario: Scenario, judge: Dict[str, Any],
                 "labelBindings": [],
             },
             "groups": [m.group],
-            "analysisConfigurations": {"canary": dict(STAT_CANARY_TEMPLATE)},
+            "analysisConfigurations": {"canary": _canary_block(m, scenario.canary_overrides)},
             "scopeName": "default",
         })
     # Kayenta stores the name and description, and the judge service logs them
