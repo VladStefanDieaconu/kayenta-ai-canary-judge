@@ -184,7 +184,7 @@ def published_sources(results_dir: Path, raw_path=None) -> List[Dict[str, Any]]:
     matters for anyone re-deriving the published table from the deposit.
     """
     agg = results_dir / "agg"
-    # raw_path overrides the per-scenario file (v1.0.1), so the local rows can be
+    # raw_path overrides the per-scenario file (v1.1.0), so the local rows can be
     # read from a corrected results_raw.csv while agg/ stays where it is.
     raw = Path(raw_path) if raw_path else results_dir / "results_raw.csv"
     frontier = agg / "frontier_long_claude-opus-4-8-vlm.csv"
@@ -264,7 +264,7 @@ def derived_sources(results_dir: Path) -> List[Dict[str, Any]]:
 def sources_for(results_dir: Path, raw_path=None) -> List[Dict[str, Any]]:
     """The configurations to sweep: the published five, or this run's own.
 
-    `raw_path` overrides the per-scenario file for the published five (v1.0.1),
+    `raw_path` overrides the per-scenario file for the published five (v1.1.0),
     so the local rows can be read from a corrected results_raw.csv while agg/
     stays where it is. A derived list is read off the run's own summary.csv and
     results_raw.csv, which is the run the override is not about, so it does not

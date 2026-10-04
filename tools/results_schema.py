@@ -57,7 +57,7 @@ COLUMNS: List[str] = [
 
 # An error row is not a verdict. Analysis excludes these by default; counting
 # them as FAIL is exactly the fault this schema exists to make impossible.
-# "truncated" is written only when JUDGE_TRUNCATION_IS_ERROR is set (v1.0.1, off by default).
+# "truncated" is written only when JUDGE_TRUNCATION_IS_ERROR is set (v1.1.0, off by default).
 ERROR_KINDS = ("empty_completion", "parse_failure", "api_error", "transport", "unknown_prompt", "truncated")
 
 

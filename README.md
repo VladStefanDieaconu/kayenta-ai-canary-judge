@@ -834,7 +834,7 @@ The hybrid is not a reimplementation of either judge. When Kayenta calls
 
 The merge policy lives in `judge-service/app/hybrid_policy.py` as a pure
 `decide_policy()` function, and the experiment runner imports the same function. The
-runner passes the AI verdict derived from the AI score (`classify(score)`). From v1.0.1
+runner passes the AI verdict derived from the AI score (`classify(score)`). From v1.1.0
 the service does the same by default, so the scored hybrid is what the service returns;
 `judgeConfigurations.hybridAiVerdict=label` makes the service use the model's own
 `overallVerdict` instead (the v1.0.0 behaviour), and no published number was scored that
@@ -868,7 +868,7 @@ isolated by namespacing the metric names with the global id (for example
 `http_request_duration_seconds_g0007`), never the family name, so neither the family
 name nor the label appears in what the model sees. The global id is sequential in
 family order and each family uses fixed metric kinds, so the id and the metric kinds
-together still identify the family. Datasets added from v1.0.1 on use a random opaque
+together still identify the family. Datasets added from v1.1.0 on use a random opaque
 token instead, and the per-scenario canary config no longer names the family or the
 label (`build_canary_config(..., legacy_description=True)` restores the v1.0.0 text). `data/eval_manifest.json` records, per scenario:
 id, family, seed, parameters, ground-truth verdict, and per-metric truth.
@@ -1246,7 +1246,7 @@ Twenty-one of them fell in FAIL-truth families and scored as *correct*, which
 flattered the configurations they damaged.
 
 The harness no longer does this. A call that produces no usable answer, from a model
-or (from v1.0.1) from the statistical judge, emits an error row carrying an
+or (from v1.1.0) from the statistical judge, emits an error row carrying an
 `error_kind` and no verdict, and `results_schema.load()`
 excludes such rows from every denominator.
 `tools/test_failed_call_is_not_scored.py` checks it on this code rather than

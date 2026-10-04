@@ -21,7 +21,7 @@ Design:
     (`..._g0007`). The global id is sequential in family order, so it is not
     opaque: with the metric kinds a family uses, it identifies the family. It is
     kept for those datasets because renaming would re-key every archived result.
-    A dataset added from v1.0.1 on gets a random opaque token instead (see
+    A dataset added from v1.1.0 on gets a random opaque token instead (see
     `metric_suffix` in DATASETS).
   * A manifest records, per scenario: id, family, seed, parameters, the
     ground-truth verdict (PASS/FAIL) and per-metric truth.
@@ -642,7 +642,7 @@ def build_canary_config(scenario: Scenario, judge: Dict[str, Any],
     # Kayenta stores the name and description, and the judge service logs them
     # verbatim (main.py). v1.0.0 wrote the scenario id, family and truth label into
     # them. No judge reads either field, so no verdict depends on them, but a label
-    # has no place in a request: from v1.0.1 both carry only the metric-name
+    # has no place in a request: from v1.1.0 both carry only the metric-name
     # suffix. legacy_description=True reproduces the v1.0.0 strings exactly.
     handle = scenario.token or f"g{scenario.gid:04d}"
     if legacy_description:

@@ -115,7 +115,7 @@ METRIC_KEPT = ("name", "group", "unit", "direction", "truth")
 #   name         eval-no_change_000
 #   description  eval dataset scenario no_change_000 (family=no_change, truth=PASS)
 #
-# From v1.0.1 both carry the window's opaque handle and nothing else --
+# From v1.1.0 both carry the window's opaque handle and nothing else --
 # `eval-g0000`, `eval dataset scenario g0000`. Neither field is read by any
 # judge and no verdict has ever depended on one, but a ground-truth label has no
 # place in a request, and anyone running this testbed on their own telemetry

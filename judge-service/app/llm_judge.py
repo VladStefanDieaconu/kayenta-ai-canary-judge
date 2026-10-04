@@ -16,7 +16,7 @@ score is 0 with classification "Fail" (fail closed for a live analysis), carryin
 `judgeMetadata.ok = false` and an `error_kind`. Callers key on `judgeMetadata.ok`,
 never on the Fail: a failed call is not a judgement.
 
-Two checks are recorded on every call from v1.0.1. Neither is an error by
+Two checks are recorded on every call from v1.1.0. Neither is an error by
 default, because making either one an error could change a verdict that was
 scored in the published runs:
   - `judgeMetadata.score_check`: "ok", or why `overallScore` is not a finite

@@ -16,9 +16,9 @@ and scores every judge across every model present locally:
                    (text models use their summary verdict, vision models plot).
                    The AI verdict is classify(AI score); the model's own label
                    is not read. The service does the same by default from
-                   v1.0.1 (`hybridAiVerdict=score`).
+                   v1.1.0 (`hybridAiVerdict=score`).
 
-A failed call, statistical (from v1.0.1) or AI, is written to errors.csv and is
+A failed call, statistical (from v1.1.0) or AI, is written to errors.csv and is
 never scored; no hybrid is derived from a failed call.
 
 Every judge sees the same pairs per scenario (built once from the seed), so the

@@ -236,3 +236,19 @@ visible.
   reproduces all forty labels of its fixtures, AUC 1.0 -- and then that the shipped
   one does not.
 - `tools/test_own_data_roundtrip.py`: export and reload are the identity on names.
+
+
+### Deferred to 1.2.0
+
+- **`tools/ensemble_multiseed_ci.py` writes two tables into one file.** It emits the per-seed and
+  pooled ensemble metrics, a blank line, and then the ensemble-vs-LLM-vs-frontier comparison with a
+  second header, so a CSV reader cannot parse the file as one table. Fixing it means a new commit on
+  the release branch and a tag that no longer sits at `2eb7c34`, the commit the revision's conditions
+  pin and three reviewers verified against, so it is not fixed here. The result data record ships
+  each block as its own file beside the concatenated one, and the writer is corrected in 1.2.0.
+- **The own-data display index is derived from the window's position in `sorted(windows)`.** A
+  practitioner who names their own windows can still order a results file by the `own_NNNN` id, which
+  is a residue of their naming that no judge sees. Changing the derivation now would stop the released
+  1.1.0 code reproducing the `own_NNNN` ids that are already in the deposited arm-2 export, which a
+  reviewer audited against all 3,087 payloads, so the export and the derivation are re-cut together in
+  1.2.0.

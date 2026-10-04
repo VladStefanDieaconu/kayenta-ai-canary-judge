@@ -127,7 +127,7 @@ def run_scenario(sc: ed.Scenario, model: str, modes: List[str], base_millis: int
     d_verdict = hybrid_policy.classify(d_score, PASS_T, MARGINAL_T)
     d_nonpass = any(p["classification"] not in hybrid_policy.PASS_OK for p in stat["per_metric"])
     # A failed statistical call is an error row (no verdict) in the long frame, is
-    # left out of the legacy rows, and no hybrid is derived from it (v1.0.1).
+    # left out of the legacy rows, and no hybrid is derived from it (v1.1.0).
     if stat_ok:
         rows.append(exp._row(sc, "statistical", "", "-", stat["verdict"], d_score, stat["latency"], stat["error"]))
     long_rows.append(_long(sc, "statistical", "", "-", "", "", stat))

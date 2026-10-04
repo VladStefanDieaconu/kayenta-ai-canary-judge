@@ -21,14 +21,14 @@ pure function of the two judges' (verdict, score, per-metric), so the experiment
 runner (tools/run_experiment.py) reuses the same code to score all three policies
 offline. The policy lives in hybrid_policy.py.
 
-Which AI verdict the policy receives (v1.0.1). The offline harness that scored
+Which AI verdict the policy receives (v1.1.0). The offline harness that scored
 every published hybrid number passes `classify(AI score)` and never reads the
 model's own `overallVerdict` label. v1.0.0 of this service passed the label, so
 the served hybrid was a different decision function from the scored one. The
 default is now the score, as in the harness; `judgeConfigurations.hybridAiVerdict
 = "label"` restores the v1.0.0 behaviour.
 
-A failed AI half is not a verdict (v1.0.1). v1.0.0 passed the placeholder of a
+A failed AI half is not a verdict (v1.1.0). v1.0.0 passed the placeholder of a
 failed call (Fail at score 0) into the policy, where it overrides a clean
 statistical PASS. By default the hybrid now returns the statistical verdict alone,
 with `judgeMetadata.ok = false` and `error_kind = "ai_half_failed"`;
@@ -36,7 +36,7 @@ with `judgeMetadata.ok = false` and `error_kind = "ai_half_failed"`;
 instead (fail closed). The failure is named in the reason either way.
 
 `prompt_id` and `seed` in judgeConfigurations are forwarded to the AI half
-(v1.0.1); v1.0.0 dropped them, so a hybrid ran under the default rubric and seed.
+(v1.1.0); v1.0.0 dropped them, so a hybrid ran under the default rubric and seed.
 """
 
 from __future__ import annotations

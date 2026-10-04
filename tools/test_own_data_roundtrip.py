@@ -21,7 +21,7 @@ compared whole. If the two ever differ, the claim is false and this test says
 which scenario, which metric and which field.
 
 The config's `name` and `description` are the one exception, and the exception
-is asserted rather than waived: from v1.0.1 they carry the window's opaque
+is asserted rather than waived: from v1.1.0 they carry the window's opaque
 handle instead of its id, family and ground-truth label, so a re-imported
 window's must differ from the one it went out with, and neither may carry a
 family or a label. See CONFIG_HANDLE_FIELDS below.
@@ -70,7 +70,7 @@ JUDGE = {"name": "NetflixACAJudge-v1.0", "judgeConfigurations": {}}
 # why. v1.0.0 wrote the scenario id, its family and its ground-truth label into
 # the config Kayenta stores and the judge service logs verbatim --
 # `eval-no_change_000`, `eval dataset scenario no_change_000 (family=no_change,
-# truth=PASS)`. From v1.0.1 both carry the window's opaque handle and nothing
+# truth=PASS)`. From v1.1.0 both carry the window's opaque handle and nothing
 # else, `eval-g0000` and `eval dataset scenario g0000`, so no ground-truth label
 # travels in a request. No judge reads either field; `build_pairs` and the rest
 # of the config, which every judge does read, are compared whole below.
@@ -102,7 +102,7 @@ def _handle_fields_changed(where: str, out: Dict[str, Any], back: Dict[str, Any]
         for value, what in ((family, "family"), (truth, "ground-truth label")):
             if value and value in back[field]:
                 failures.append(f"{where}: canary config {field} is {back[field]!r}, "
-                                f"which carries the {what} {value!r}; from v1.0.1 "
+                                f"which carries the {what} {value!r}; from v1.1.0 "
                                 f"neither field carries one")
     return failures
 

@@ -86,7 +86,7 @@ def _normalise(result: Dict[str, Any], pass_t: float, marginal_t: float,
 
 # The failure object of both clients, statistical and AI. Its FAIL/0.0 fields exist
 # only so a caller always has a well-formed dict; `ok` is False and no caller may
-# score it. From v1.0.1 the runners check `ok` on the statistical call as well.
+# score it. From v1.1.0 the runners check `ok` on the statistical call as well.
 def _err(msg: str, latency: float = 0.0, error_kind: str = "transport") -> Dict[str, Any]:
     return {"verdict": "FAIL", "classification": "Fail", "score": 0.0, "per_metric": [],
             "rationale": "", "judge_name": "", "model": "", "latency": latency,

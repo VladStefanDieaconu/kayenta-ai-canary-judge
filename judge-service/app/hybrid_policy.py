@@ -4,7 +4,7 @@ Kept apart from hybrid.py (which pulls in FastAPI/pydantic/Kayenta) so that both
 the in-service hybrid judge and the host-side experiment runner
 (tools/run_experiment.py) import the same policy code. The scored hybrid matches
 what the service returns only when both pass the policy the same AI verdict: the
-harness passes classify(AI score), and so does the service by default from v1.0.1
+harness passes classify(AI score), and so does the service by default from v1.1.0
 (`hybridAiVerdict=score`). With `hybridAiVerdict=label` the service passes the
 model's own label and the two can disagree. Pure stdlib.
 

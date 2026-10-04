@@ -1,4 +1,4 @@
-"""Checks for the v1.0.1 service changes, with every network call stubbed.
+"""Checks for the v1.1.0 service changes, with every network call stubbed.
 
   1. The hybrid's AI verdict comes from the score by default, as the offline
      harness scored it; `hybridAiVerdict=label` restores the v1.0.0 behaviour.
@@ -134,7 +134,7 @@ def main() -> int:
     if failures:
         print(f"FAILED: {failures}")
         return 1
-    print("all v1.0.1 service checks passed")
+    print("all v1.1.0 service checks passed")
     return 0
 
 
