@@ -43,12 +43,38 @@ keywords:
   - LLM-as-a-judge
   - anomaly detection
   - site reliability engineering
-# This file describes the software in this repository, and nothing else. The
-# study the testbed was built for is a separate work with its own byline and its
-# own citation; it is not restated here.
+# This file describes the software in this repository. Its author list is the
+# article's byline, in the article's order, set here on the author's own
+# instruction of 2026-09-25 -- "update the citation to include all authors" --
+# and replacing the single-author list this file carried through 1.0.0 and
+# 1.1.0. Affiliations are the article's front matter, without the postal codes.
+# The study the testbed was built for is still a separate work with its own
+# citation, which is not restated here; only the people are the same.
 authors:
   - family-names: Dieaconu
     given-names: Vlad-Ștefan
     affiliation: >-
       Faculty of Automatic Control and Computers, National University of Science
       and Technology POLITEHNICA Bucharest, Bucharest, Romania
+  - family-names: Rughiniș
+    given-names: Răzvan
+    affiliation: >-
+      Faculty of Automatic Control and Computers, National University of Science
+      and Technology POLITEHNICA Bucharest, Bucharest, Romania; Academy of
+      Romanian Scientists, Bucharest, Romania
+  - family-names: Dieaconu-Usurelu
+    given-names: Andreea-Loredana
+    affiliation: >-
+      Faculty of Automatic Control and Computers, National University of Science
+      and Technology POLITEHNICA Bucharest, Bucharest, Romania
+  - family-names: Rosner
+    given-names: Daniel
+    affiliation: >-
+      Faculty of Automatic Control and Computers, National University of Science
+      and Technology POLITEHNICA Bucharest, Bucharest, Romania
+  - family-names: Țurcanu
+    given-names: Dinu
+    affiliation: >-
+      Faculty of Electronics and Telecommunications and National Institute of
+      Innovations in Cybersecurity “CYBERCOR”, Technical University of Moldova,
+      Chișinău, Republic of Moldova
