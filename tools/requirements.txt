@@ -1,1 +1,7 @@
+# requests and its four dependencies, pinned at the versions the study's testbed used;
+# make venv installs them with --no-deps, so every one of them must be listed here.
 requests==2.32.3
+urllib3==2.7.0
+idna==3.18
+charset-normalizer==3.4.9
+certifi==2026.6.17

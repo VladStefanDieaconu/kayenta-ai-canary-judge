@@ -114,6 +114,7 @@ services:
 
   # --- 6. judge-service: configurable remote AI judge (Remote Judge contract) ----
   judge-service:
+    image: canary-judge-service
     build:
       context: ./judge-service
     container_name: canary-judge-service
@@ -186,6 +187,7 @@ services:
 
   # --- 7. Referee: standalone Kayenta UI (built from source) --------------
   referee:
+    image: canary-referee
     build:
       context: ./referee
     container_name: canary-referee

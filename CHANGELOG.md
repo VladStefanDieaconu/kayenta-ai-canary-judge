@@ -3,6 +3,59 @@
 Version 1.0.0 stays tagged and archived. Each entry says what changed, whether it
 can change a verdict, and what a reader of 1.0.0 could have been misled on.
 
+## 1.1.1 (2026-11-05)
+
+**What stays the same.**
+- The scenarios, seeds, metric names and series.
+- The rubric texts and their hashes.
+- Every verdict.
+- The judge service code, which still reports version 1.1.0 because it is unchanged
+  since that release.
+
+### Changed: the two locally built images are named explicitly
+
+- **`docker-compose.yml` names the images** `canary-judge-service` and
+  `canary-referee`, so their names no longer depend on the folder the repository was
+  cloned into.
+- **The Makefile, the tools and the README use the new image name.** `FIGURE_IMAGE` in
+  the `Makefile` and in `tools/run_experiment.py`, the `docker run` call in
+  `tools/container_plot.py`, the usage notes of five `tools/figure_*.py` scripts, and
+  the `docker run` example in the README.
+- **The README's repository tree starts at `kayenta-ai-canary-judge/`**, the name of
+  the repository, instead of a local folder name.
+- **The default Kayenta user label in `tools/kayenta_client.py` is now `canary`.**
+  Kayenta stores this label with each new execution; nothing in this repository reads
+  it back.
+
+### Changed: the host tools' dependencies are pinned
+
+- **`make venv` works on a Python with no `requests` installed.**
+  `tools/requirements.txt` now pins `requests` with its four dependencies (urllib3
+  2.7.0, idna 3.18, charset-normalizer 3.4.9 and certifi 2026.6.17, the versions in
+  the study's testbed), because the target installs with `--no-deps`; the error
+  message no longer assumes that the package index was unreachable. Machines that
+  already had these packages, like the study's testbed, were not affected.
+
+### Changed: citation metadata
+
+- **`CITATION.cff` lists the four authors:** Vlad-Ștefan Dieaconu, Răzvan Rughiniș,
+  Andreea-Loredana Dieaconu-Ușurelu and Flavia Zaim-Oprea, with ORCID iDs for the
+  first two.
+- **Its identifier is the concept DOI,** `10.5281/zenodo.22553877`, which resolves to
+  the latest archived version and lists every version.
+- **Its version is 1.1.1.**
+
+### Changed: documentation
+
+- **README:** the DOI badges and links use the concept DOIs, which resolve to the
+  latest version of each record.
+- **Wording:** the 1.1.0 entry and two code comments name the study's internal review
+  rounds as such.
+- **A note on the 1.1.0 entry:** its section "Deferred to 1.2.0" speaks of the v1.1.0
+  tag as sitting at `2eb7c34`; the tag sits at `e39b3b1`, two commits later, which
+  list the five authors in the citation metadata, relabel version strings from v1.0.1
+  to v1.1.0 in comments, docstrings, messages and the README, and add that section.
+
 ## 1.1.0 (2026-09-21)
 
 **What stays the same.**
@@ -243,12 +296,13 @@ visible.
 - **`tools/ensemble_multiseed_ci.py` writes two tables into one file.** It emits the per-seed and
   pooled ensemble metrics, a blank line, and then the ensemble-vs-LLM-vs-frontier comparison with a
   second header, so a CSV reader cannot parse the file as one table. Fixing it means a new commit on
-  the release branch and a tag that no longer sits at `2eb7c34`, the commit the revision's conditions
-  pin and three reviewers verified against, so it is not fixed here. The result data record ships
-  each block as its own file beside the concatenated one, and the writer is corrected in 1.2.0.
+  the release branch and a tag that no longer sits at `2eb7c34`, the commit the internal review's
+  conditions pin and three internal reviewers verified against, so it is not fixed here. The result
+  data record ships each block as its own file beside the concatenated one, and the writer is
+  corrected in 1.2.0.
 - **The own-data display index is derived from the window's position in `sorted(windows)`.** A
   practitioner who names their own windows can still order a results file by the `own_NNNN` id, which
   is a residue of their naming that no judge sees. Changing the derivation now would stop the released
-  1.1.0 code reproducing the `own_NNNN` ids that are already in the deposited arm-2 export, which a
-  reviewer audited against all 3,087 payloads, so the export and the derivation are re-cut together in
-  1.2.0.
+  1.1.0 code reproducing the `own_NNNN` ids that are already in the deposited arm-2 export, which an
+  internal reviewer audited against all 3,087 payloads, so the export and the derivation are re-cut
+  together in 1.2.0.

@@ -831,7 +831,7 @@ def _best_single_cut(gids: List[int], labels: List[str]) -> float:
     """The best accuracy any rule of the form `gid < t -> PASS` can reach.
 
     Both orientations, every cut between two observed gids and the two degenerate
-    ones. This is the rule Reviewer 2 ran on the study's own metric names -- one
+    ones. This is the rule an internal reviewer ran on the study's own metric names -- one
     cut at 0060 reproduces all 405 labels -- so it is the rule the anonymiser's
     output has to defeat.
     """

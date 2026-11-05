@@ -10,8 +10,8 @@
 </p>
 
 <p align="center">
-  <a href="https://doi.org/10.5281/zenodo.22553878"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.22553878.svg" alt="DOI (software)"></a>
-  <a href="https://doi.org/10.5281/zenodo.22551774"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.22551774.svg" alt="DOI (data)"></a>
+  <a href="https://doi.org/10.5281/zenodo.22553877"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.22553877.svg" alt="DOI (software)"></a>
+  <a href="https://doi.org/10.5281/zenodo.22551773"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.22551773.svg" alt="DOI (data)"></a>
 </p>
 
 A Docker Compose testbed that runs a complete automated canary analysis pipeline
@@ -178,7 +178,7 @@ The stack itself is small. What costs time is inference.
 |---|---|
 | Docker with Compose v2, and `make` | required |
 | Python 3.11 on the host | the `make` targets build a `.venv` from `tools/requirements.txt` |
-| one reachable Python package, `requests` | the venv is created with `--system-site-packages`, so a host-installed copy is inherited; behind a gated index with no system copy, `make venv` fails loudly and every host-side target is unavailable |
+| `requests` and its four dependencies, pinned in `tools/requirements.txt` | the venv is created with `--system-site-packages`, so host-installed copies are inherited; behind a gated index with no system copy, `make venv` fails loudly and every host-side target is unavailable |
 | RAM | ~6 GB for the seven-service stack, plus whatever the models need |
 | Disk | the stack images are ~3 GB; the eight models in the study are ~40 GB together, from 1.7 GB (Moondream) to 9.1 GB (Phi-4) |
 | GPU | not required. Ollama runs on the host because the Metal GPU is not reachable from Docker on macOS |
@@ -554,7 +554,7 @@ Figures render inside the `judge-service` image, which already carries matplotli
 for the `plot` representation, so the host virtualenv stays dependency-light:
 
 ```bash
-docker run --rm -v "$PWD":/work -w /work canaryllm-judge-service \
+docker run --rm -v "$PWD":/work -w /work canary-judge-service \
     python tools/figure_approach_bars.py --results results --out results/figures
 ```
 
@@ -571,8 +571,8 @@ cover the Mann-Whitney judge's blind spots. The rest of this README is about the
 testbed; this section is the only part about the paper.
 
 [`CITATION.cff`](CITATION.cff) is how to cite the testbed. It is also archived on
-Zenodo as a versioned software snapshot:
-[10.5281/zenodo.22553878](https://doi.org/10.5281/zenodo.22553878). The study is
+Zenodo as versioned software snapshots; this DOI resolves to the latest:
+[10.5281/zenodo.22553877](https://doi.org/10.5281/zenodo.22553877). The study is
 a separate work and carries its own citation.
 
 ### The data
@@ -581,8 +581,8 @@ The study's result artefacts are not in this repository. They are data for the
 paper rather than code for the testbed, and they are large: 8,550 verdicts in the
 multi-seed run alone. Cloning this to judge your own canaries should not cost you
 a copy of somebody else's DeepSeek-R1 verdicts, so they are archived separately,
-on Zenodo: [10.5281/zenodo.22551774](https://doi.org/10.5281/zenodo.22551774)
-(CC-BY-4.0; later versions are listed on that record).
+on Zenodo: [10.5281/zenodo.22551773](https://doi.org/10.5281/zenodo.22551773)
+(CC-BY-4.0; this DOI resolves to the latest version).
 
 The dataset itself is generated deterministically from a fixed master seed
 (`20260621`), so the published runs can be regenerated on any machine with the
@@ -1168,7 +1168,7 @@ Where a common assumption differs from the source, the source wins:
 ## Repository layout
 
 ```
-canaryLLM/
+kayenta-ai-canary-judge/
 |- docker-compose.yml         # the 7-service stack (+ host.docker.internal for Ollama)
 |- .env / .env.example        # pinned image tags, ports, creds, judge defaults, model tags
 |- Makefile                   # every workflow (validate, demo, experiment, scenario, ...)

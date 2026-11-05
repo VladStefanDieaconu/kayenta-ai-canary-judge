@@ -57,9 +57,10 @@ build: ## Build the locally-built images (judge-service, referee)
 
 venv: $(VENV)/.installed ## Create the host Python venv for the tools
 
-# --system-site-packages lets the venv inherit a host-installed `requests`, so the
-# tools work on a machine where the package index is gated or offline but the
-# dependency is already present system-wide.
+# --system-site-packages lets the venv inherit host-installed copies of `requests`
+# and its dependencies, so the tools work on a machine where the package index is
+# gated or offline but the packages are already present system-wide.
+# tools/requirements.txt lists all five, because the install uses --no-deps.
 #
 # The install itself is allowed to fail (the `-` prefix) for exactly that case.
 # What must not happen is failing quietly: a venv with no `requests` looks ready
@@ -71,14 +72,14 @@ $(VENV)/.installed: tools/requirements.txt
 	-$(PIP) install --no-deps -r tools/requirements.txt
 	@$(PY) -c "import requests" 2>/dev/null || { \
 	  echo ""; \
-	  echo "ERROR: the host tools need 'requests' and it is not importable."; \
+	  echo "ERROR: the host tools need 'requests' and its dependencies, and they are not importable."; \
 	  echo ""; \
-	  echo "  The install step above could not reach a package index, and this"; \
-	  echo "  machine has no system-wide 'requests' for the venv to inherit."; \
+	  echo "  The install step above did not complete (is a package index reachable?),"; \
+	  echo "  and this machine has no system-wide copy for the venv to inherit."; \
 	  echo ""; \
 	  echo "  Fix it either way:"; \
-	  echo "    $(PIP) install requests==2.32.3     # if you can reach an index"; \
-	  echo "    pip3 install --user requests==2.32.3 # then re-run: make venv"; \
+	  echo "    $(PIP) install --no-deps -r tools/requirements.txt   # once an index is reachable"; \
+	  echo "    pip3 install --user -r tools/requirements.txt         # then re-run: make venv"; \
 	  echo ""; \
 	  exit 1; }
 	@touch $(VENV)/.installed
@@ -389,7 +390,7 @@ HAS_LABELLED_RUN = labelled=$$(awk -F, 	'NR == 1 { for (i = 1; i <= NF; i++) if 
 # The locally-built judge-service image, named without an explicit tag so docker
 # resolves it to whatever `make build` produced. Nothing upstream is referenced
 # here, so there is no external tag to pin.
-FIGURE_IMAGE := canaryllm-judge-service
+FIGURE_IMAGE := canary-judge-service
 
 require-results:
 	@if [ ! -f "$(RESULTS)/results_raw.csv" ]; then \

@@ -28,7 +28,7 @@ selected.
 
 Needs matplotlib. On a host without it, run inside the judge-service image:
 
-    docker run --rm -v "$PWD":/work -w /work canaryllm-judge-service \
+    docker run --rm -v "$PWD":/work -w /work canary-judge-service \
         python tools/figure_multiseed_intervals.py
 
 Usage:

@@ -63,7 +63,7 @@ import eval_dataset as ed
 # -ok-...` before `2026-03-14-rollback-...`, or anything else that puts the good
 # deploys first) then got an opaque name that ranks the windows by their answer,
 # which is the label leak this harness exists to measure, shipped as the feature
-# that prevents it. Reviewer 2, finding R2-3.
+# that prevents it. Internal review, finding R2-3.
 OWN_DATA_GID_BASE = 2000
 # Exclusive. Four digits keeps `_g{gid:04d}` the width every other name in the
 # harness has; the span is what a file's windows are hashed into, so it is also
