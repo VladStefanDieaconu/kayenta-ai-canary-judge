@@ -108,7 +108,7 @@ FIGSCRATCH_DIR = AILOG_DIR / "_exp_figs"
 AI_LOG_SUBDIR = ""
 # The locally-built judge-service image, named the way the Makefile names it.
 # Used only when the spec lives somewhere the running service cannot see.
-FIGURE_IMAGE = "canaryllm-judge-service"
+FIGURE_IMAGE = "canary-judge-service"
 OLLAMA_URL = "http://localhost:11434"
 PASS_T, MARGINAL_T = ed.SCORE_THRESHOLDS["pass"], ed.SCORE_THRESHOLDS["marginal"]
 

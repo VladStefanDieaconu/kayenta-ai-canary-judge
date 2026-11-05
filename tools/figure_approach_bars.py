@@ -18,7 +18,7 @@ absent, since neither is reachable without cloud credentials or a full run.
 
 Needs matplotlib. On a host without it, run inside the judge-service image:
 
-    docker run --rm -v "$PWD":/work -w /work canaryllm-judge-service \
+    docker run --rm -v "$PWD":/work -w /work canary-judge-service \
         python tools/figure_approach_bars.py
 
 Usage:

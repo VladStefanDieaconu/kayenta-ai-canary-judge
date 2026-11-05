@@ -114,7 +114,7 @@ def render(plot_code: str, spec: Dict[str, Any], timeout: int = 300,
          ["docker", "compose", "exec", "-T", "judge-service", "python", "-c", runner]),
         (f"/work/data/ai-logs/_render_transport/{leaf}",
          ["docker", "run", "--rm", "-i", "-v", f"{REPO_ROOT}:/work", "-w", "/work",
-          "canaryllm-judge-service", "python", "-c", runner]),
+          "canary-judge-service", "python", "-c", runner]),
     ]
     # Last resort, and the one the Makefile's own comment promises: a host that
     # already has matplotlib runs the same isolated script in a subprocess, so

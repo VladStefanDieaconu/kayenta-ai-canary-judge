@@ -134,7 +134,7 @@ class KayentaClient:
         lifetime_mins: int = 25,
         analysis_interval_mins: int = 25,
         application: str = "ad-hoc",
-        user: str = "canaryllm",
+        user: str = "canary",
     ) -> str:
         execution_request = {
             "scopes": scopes,

@@ -20,19 +20,21 @@ abstract: >-
   derives each anonymised window's opaque metric suffix from a salted hash of
   the window identifier instead of its position in the sorted file. The
   benchmark scenarios, seeds, metric names, series and rubric hashes are
-  generated exactly as in 1.0.0.
+  generated exactly as in 1.0.0. Version 1.1.1 names the two locally built
+  images explicitly, so the Make targets work from a clone in any folder, pins
+  the Python dependencies of the host tools, and updates the citation metadata;
+  scenarios, seeds, metric names, series and rubric hashes are unchanged.
 type: software
 license: Apache-2.0
 repository-code: "https://github.com/VladStefanDieaconu/kayenta-ai-canary-judge"
-version: 1.1.0
-date-released: '2026-09-21'
+version: 1.1.1
+date-released: '2026-11-05'
 identifiers:
   - type: doi
-    value: 10.5281/zenodo.22553878
+    value: 10.5281/zenodo.22553877
     description: >-
       Concept DOI of the Zenodo record for this software; it resolves to the
-      latest archived version and lists every version. The version DOI for
-      1.1.0 is minted when this version is archived and is not written here.
+      latest archived version and lists every version.
 keywords:
   - automated canary analysis
   - continuous delivery
@@ -43,38 +45,27 @@ keywords:
   - LLM-as-a-judge
   - anomaly detection
   - site reliability engineering
-# This file describes the software in this repository. Its author list is the
-# article's byline, in the article's order, set here on the author's own
-# instruction of 2026-09-25 -- "update the citation to include all authors" --
-# and replacing the single-author list this file carried through 1.0.0 and
-# 1.1.0. Affiliations are the article's front matter, without the postal codes.
-# The study the testbed was built for is still a separate work with its own
-# citation, which is not restated here; only the people are the same.
 authors:
   - family-names: Dieaconu
     given-names: Vlad-Ștefan
+    orcid: "https://orcid.org/0009-0004-0863-5761"
     affiliation: >-
       Faculty of Automatic Control and Computers, National University of Science
       and Technology POLITEHNICA Bucharest, Bucharest, Romania
   - family-names: Rughiniș
     given-names: Răzvan
+    orcid: "https://orcid.org/0000-0003-2794-280X"
     affiliation: >-
       Faculty of Automatic Control and Computers, National University of Science
       and Technology POLITEHNICA Bucharest, Bucharest, Romania; Academy of
       Romanian Scientists, Bucharest, Romania
-  - family-names: Dieaconu-Usurelu
+  - family-names: Dieaconu-Ușurelu
     given-names: Andreea-Loredana
     affiliation: >-
       Faculty of Automatic Control and Computers, National University of Science
       and Technology POLITEHNICA Bucharest, Bucharest, Romania
-  - family-names: Rosner
-    given-names: Daniel
+  - family-names: Zaim-Oprea
+    given-names: Flavia
     affiliation: >-
       Faculty of Automatic Control and Computers, National University of Science
       and Technology POLITEHNICA Bucharest, Bucharest, Romania
-  - family-names: Țurcanu
-    given-names: Dinu
-    affiliation: >-
-      Faculty of Electronics and Telecommunications and National Institute of
-      Innovations in Cybersecurity “CYBERCOR”, Technical University of Moldova,
-      Chișinău, Republic of Moldova
