@@ -1,0 +1,2278 @@
+{
+ "protocol_id": "r1-controls-protocol",
+ "written_for": "the first revision of the Future Internet manuscript",
+ "repository": {
+  "base_commit": "f9c8f0c221e6f425f4e5a21511e7ffdcf05d9370",
+  "base_release": "1.1.1",
+  "branch": "release/v1.2.0"
+ },
+ "statement_no_judge_before_commit": "No statistical, model-free or model judge was run on any window of kind-controls-180 or heldout-benign-100 before this file was committed. Before the commit, the windows were only generated (protocol/make_series.py, tools/test_r1_control_datasets.py) and described by the realised checks below, which are descriptions of the windows, not judges. The tests check generator properties only. Smoke tests and reproduction checks use windows of original-180 only.",
+ "seeds": {
+  "master_seed": 20260621,
+  "n_per_family": 20,
+  "token_seeds": {
+   "kind-controls-180": 20261122,
+   "heldout-benign-100": 20261123
+  },
+  "gid_bases": {
+   "kind-controls-180": 2000,
+   "heldout-benign-100": 3000
+  },
+  "scenario_seed": "(master_seed * 1000003 + gid * 97 + idx) & 0x7FFFFFFF, idx = index within family",
+  "metric_rng": "random.Random(scenario_seed + 1000 * metric_index), one stream per metric",
+  "metric_names": "opaque: <base metric name>_<token>, token from tools/eval_dataset.py _opaque_tokens(dataset_id, token_seed, count), one per window"
+ },
+ "window": {
+  "n_samples": 31,
+  "step_seconds": 60,
+  "metric_kinds": {
+   "latency": {
+    "base": 0.2,
+    "noise_sd": 0.008,
+    "unit": "s"
+   },
+   "memory": {
+    "base": 629145600.0,
+    "noise_sd": 6291456.0,
+    "unit": "bytes"
+   },
+   "errors": {
+    "base": 0.5,
+    "noise_sd": 0.02,
+    "unit": "err/s"
+   }
+  }
+ },
+ "datasets": {
+  "kind-controls-180": {
+   "gid_base": 2000,
+   "token_seed": 20261122,
+   "windows": 180,
+   "families_in_order": [
+    {
+     "family": "kc_latency_nochange",
+     "truth": "PASS",
+     "metric_kinds": [
+      "latency"
+     ],
+     "generator": "exchangeable_nochange",
+     "windows": 20,
+     "gids": [
+      2000,
+      2019
+     ]
+    },
+    {
+     "family": "kc_memory_nochange",
+     "truth": "PASS",
+     "metric_kinds": [
+      "memory"
+     ],
+     "generator": "exchangeable_nochange",
+     "windows": 20,
+     "gids": [
+      2020,
+      2039
+     ]
+    },
+    {
+     "family": "kc_errors_nochange",
+     "truth": "PASS",
+     "metric_kinds": [
+      "errors"
+     ],
+     "generator": "exchangeable_nochange",
+     "windows": 20,
+     "gids": [
+      2040,
+      2059
+     ]
+    },
+    {
+     "family": "kc_tri_nochange",
+     "truth": "PASS",
+     "metric_kinds": [
+      "latency",
+      "memory",
+      "errors"
+     ],
+     "generator": "exchangeable_nochange",
+     "windows": 20,
+     "gids": [
+      2060,
+      2079
+     ]
+    },
+    {
+     "family": "kc_memory_shared_ramp",
+     "truth": "PASS",
+     "metric_kinds": [
+      "memory"
+     ],
+     "generator": "shared_ramp",
+     "windows": 20,
+     "gids": [
+      2080,
+      2099
+     ]
+    },
+    {
+     "family": "kc_latency_drift",
+     "truth": "FAIL",
+     "metric_kinds": [
+      "latency"
+     ],
+     "generator": "gradual_drift",
+     "windows": 20,
+     "gids": [
+      2100,
+      2119
+     ]
+    },
+    {
+     "family": "kc_memory_drift",
+     "truth": "FAIL",
+     "metric_kinds": [
+      "memory"
+     ],
+     "generator": "gradual_drift",
+     "windows": 20,
+     "gids": [
+      2120,
+      2139
+     ]
+    },
+    {
+     "family": "kc_errors_drift",
+     "truth": "FAIL",
+     "metric_kinds": [
+      "errors"
+     ],
+     "generator": "gradual_drift",
+     "windows": 20,
+     "gids": [
+      2140,
+      2159
+     ]
+    },
+    {
+     "family": "kc_tri_marginal",
+     "truth": "FAIL",
+     "metric_kinds": [
+      "latency",
+      "memory",
+      "errors"
+     ],
+     "generator": "cross_metric_marginal",
+     "windows": 20,
+     "gids": [
+      2160,
+      2179
+     ]
+    }
+   ]
+  },
+  "heldout-benign-100": {
+   "gid_base": 3000,
+   "token_seed": 20261123,
+   "windows": 100,
+   "families_in_order": [
+    {
+     "family": "hb_shared_partial_recovery",
+     "truth": "PASS",
+     "metric_kinds": [
+      "latency"
+     ],
+     "generator": "shared_partial_recovery",
+     "windows": 20,
+     "gids": [
+      3000,
+      3019
+     ]
+    },
+    {
+     "family": "hb_shared_late_step",
+     "truth": "PASS",
+     "metric_kinds": [
+      "latency"
+     ],
+     "generator": "shared_late_step",
+     "windows": 20,
+     "gids": [
+      3020,
+      3039
+     ]
+    },
+    {
+     "family": "hb_isolated_spikes_both",
+     "truth": "PASS",
+     "metric_kinds": [
+      "latency"
+     ],
+     "generator": "isolated_spikes_both",
+     "windows": 20,
+     "gids": [
+      3040,
+      3059
+     ]
+    },
+    {
+     "family": "hb_recovered_mid_transient",
+     "truth": "PASS",
+     "metric_kinds": [
+      "latency"
+     ],
+     "generator": "recovered_mid_transient",
+     "windows": 20,
+     "gids": [
+      3060,
+      3079
+     ]
+    },
+    {
+     "family": "hb_brief_early_blip",
+     "truth": "PASS",
+     "metric_kinds": [
+      "latency"
+     ],
+     "generator": "brief_early_blip",
+     "windows": 20,
+     "gids": [
+      3080,
+      3099
+     ]
+    }
+   ]
+  }
+ },
+ "generators": {
+  "base_and_noise": "base and noise are the METRIC_KINDS values of the metric's kind; n = 31; one RNG stream per metric",
+  "exchangeable_nochange": "control_i = base + N(0, noise); experiment_i = base + N(0, noise). Draw the control series first, then the experiment series.",
+  "shared_ramp": "start ~ U(0.80, 0.85) and end_mag ~ U(1.30, 1.50), drawn once, with the level sequence of gradual_drift (s = max(1, int(n * start)); level = base for i < s, else base * (1 + (end_mag - 1) * (i - s) / max(1, n - 1 - s))). Both sides follow that level sequence, each with its own N(0, noise). Draw start, end_mag, the control noise, then the experiment noise.",
+  "shared_partial_recovery": "deg ~ U(1.5, 1.9), dur ~ U(0.40, 0.50), residual ~ U(1.18, 1.25), with k = max(2, int(n * dur)), rec = max(3, int(n * 0.20)) and the level sequence of partial_recovery. Both sides follow it, each with its own noise. Draw deg, dur, residual, the control noise, then the experiment noise.",
+  "shared_late_step": "onset ~ U(0.72, 0.78), mag ~ U(1.35, 1.55), s = max(1, int(n * onset)), with the level sequence of late_transient (base for i < s, base * mag from s). Both sides follow it, each with its own noise. Draw onset, mag, the control noise, then the experiment noise.",
+  "isolated_spikes_both": "n_runs ~ randint(2, 3), run_len ~ randint(3, 4), n_elev = n_runs * run_len, elev_ratio ~ U(1.25, 1.45), as in sustained_excursion. Each side independently gets n - n_elev baseline values (base + noise) and n_elev elevated values (base * elev_ratio + noise) placed at isolated, never adjacent positions chosen by the rule that places the control spikes of sustained_excursion (a shuffled candidate order, taking a position when it is not adjacent to one already taken). If that rule ends with fewer than n_elev positions, shuffle again from the same RNG and repeat until all are placed. Draw order: n_runs, run_len, elev_ratio; then, for the control side and then for the experiment side: the n - n_elev baseline values, the n_elev elevated values, then the positions (each repeat discards the positions and shuffles a fresh list 0..n-1). Values are placed in time order (elevated values at the elevated positions in increasing position order, baseline values elsewhere). The number of repeats is recorded per window and side (params placement_repeats_control and placement_repeats_experiment). Neither side has a run of two elevated samples.",
+  "recovered_mid_transient": "onset ~ U(0.25, 0.35), dur ~ U(0.20, 0.30), deg ~ U(1.5, 1.9); s = int(n * onset), k = max(2, int(n * dur)), rec = max(3, int(n * 0.15)). Control is base + noise. The canary level is base before sample s, base * deg for the next k samples, then falls linearly to base over rec samples (level = base * deg - (base * deg - base) * (j / rec) for j = 0 .. rec - 1), and is base from then to the end of the window, plus noise throughout. Draw onset, dur, deg, the control noise, then the canary noise.",
+  "brief_early_blip": "k ~ randint(2, 4), deg ~ U(1.5, 1.9). Control is base + noise. The canary level is base * deg for the first k samples and base for the rest, plus noise throughout. Draw k, deg, the control noise, then the canary noise.",
+  "gradual_drift": "the existing gradual_drift code path of tools/eval_dataset.py, unchanged (kc_latency_drift, kc_memory_drift, kc_errors_drift)",
+  "cross_metric_marginal": "the existing cross_metric_marginal code path, unchanged (kc_tri_marginal)"
+ },
+ "isolated_spikes_both_placement_repeats": {
+  "hb_isolated_spikes_both_000": {
+   "n_elevated": 6,
+   "control": 0,
+   "experiment": 0
+  },
+  "hb_isolated_spikes_both_001": {
+   "n_elevated": 6,
+   "control": 0,
+   "experiment": 0
+  },
+  "hb_isolated_spikes_both_002": {
+   "n_elevated": 6,
+   "control": 0,
+   "experiment": 0
+  },
+  "hb_isolated_spikes_both_003": {
+   "n_elevated": 12,
+   "control": 0,
+   "experiment": 0
+  },
+  "hb_isolated_spikes_both_004": {
+   "n_elevated": 6,
+   "control": 0,
+   "experiment": 0
+  },
+  "hb_isolated_spikes_both_005": {
+   "n_elevated": 9,
+   "control": 0,
+   "experiment": 0
+  },
+  "hb_isolated_spikes_both_006": {
+   "n_elevated": 6,
+   "control": 0,
+   "experiment": 0
+  },
+  "hb_isolated_spikes_both_007": {
+   "n_elevated": 12,
+   "control": 0,
+   "experiment": 0
+  },
+  "hb_isolated_spikes_both_008": {
+   "n_elevated": 9,
+   "control": 0,
+   "experiment": 0
+  },
+  "hb_isolated_spikes_both_009": {
+   "n_elevated": 8,
+   "control": 0,
+   "experiment": 0
+  },
+  "hb_isolated_spikes_both_010": {
+   "n_elevated": 12,
+   "control": 0,
+   "experiment": 0
+  },
+  "hb_isolated_spikes_both_011": {
+   "n_elevated": 9,
+   "control": 0,
+   "experiment": 0
+  },
+  "hb_isolated_spikes_both_012": {
+   "n_elevated": 12,
+   "control": 0,
+   "experiment": 0
+  },
+  "hb_isolated_spikes_both_013": {
+   "n_elevated": 6,
+   "control": 0,
+   "experiment": 0
+  },
+  "hb_isolated_spikes_both_014": {
+   "n_elevated": 12,
+   "control": 0,
+   "experiment": 0
+  },
+  "hb_isolated_spikes_both_015": {
+   "n_elevated": 6,
+   "control": 0,
+   "experiment": 0
+  },
+  "hb_isolated_spikes_both_016": {
+   "n_elevated": 6,
+   "control": 0,
+   "experiment": 0
+  },
+  "hb_isolated_spikes_both_017": {
+   "n_elevated": 12,
+   "control": 0,
+   "experiment": 0
+  },
+  "hb_isolated_spikes_both_018": {
+   "n_elevated": 12,
+   "control": 0,
+   "experiment": 0
+  },
+  "hb_isolated_spikes_both_019": {
+   "n_elevated": 12,
+   "control": 0,
+   "experiment": 0
+  }
+ },
+ "label_basis": "The five control PASS families and the first three held-out PASS families are benign by construction: control and canary are draws from the same process (same deterministic component, independent noise), so the two sides are exchangeable and there is no canary-specific change. This is why exchangeable_nochange does not reuse the no_change generator, which shifts the canary level by up to 1.5%. hb_recovered_mid_transient and hb_brief_early_blip are labelled PASS under the objective that healed_transient's label encodes and that rubric v2 states (the canary is judged by its behaviour at the end of the window); that label is contested for the same reason as healed_transient's, so these two families are always reported apart from the exchangeable ones and are also labelled under policies P6 and P7 of D2 in the analysis. The three drift families carry the label of gradual_drift (the canary ends the window 30% to 50% above control and rising); kc_tri_marginal carries the contested label of cross_metric_marginal and is therefore also reported separately.",
+ "what_these_datasets_are_not": "Their parameters are fixed here, before any method is run on them, and none is tuned. But the drift controls reuse a generator whose parameters were adjusted against the statistical judge (Table 4 of the manuscript), and noise relative to level differs by kind (about 4% for latency and errors, 1% for memory). The manuscript says both.",
+ "files_sha256": {
+  "protocol/series_kind-controls-180.jsonl": "dcafa48bbeaf02d01bc7f5b672bea7a1854c925aef97945dbba646c8f7c9df7b",
+  "protocol/series_heldout-benign-100.jsonl": "fdf383f7bc4faf454ef5addd368a2ff51d5e45f9256b0e90f22cb7e24770372d",
+  "protocol/realised_checks_kind-controls-180.csv": "76dcf4aa89975f8bfa1f212246d5c5361440dc8ade1d9c77b664930d7915e113",
+  "protocol/realised_checks_heldout-benign-100.csv": "a8e060519453329720b17756b141c4fd3dda3b4e0d89b6638ec4b3aceb4c87ed",
+  "protocol/isolated_spikes_both_repeats.csv": "729a5e42f5978b66b8fe76b28356923a004e7520f02f9b3a3a1d76d89208b400",
+  "protocol/realised_checks_provenance.json": "f0fb1e21d4a16a03809d7f4e49ef5fad2a26f810c0ee0d264f8cd9f1fc308667",
+  "protocol/make_series.py": "2f16583c5aee13e1be67de254a95978aa230bb24753f470f549fd125b9b97e5d"
+ },
+ "code_sha256_at_commit": {
+  "tools/eval_dataset.py": "ef903b5613de64f2687e0c2680a9e9f3201f6967045be14539c5d4bb3cb5eedf",
+  "tools/run_frontier_experiment.py": "8a05e7b45d60203b4e66626068523267fcdb1026782ba44b69d0f7e8011543bb",
+  "tools/run_fp_guard_experiment.py": "abf828818396df2826f435295d63097bf4491faab46afb08c92f1437e74d1a09",
+  "tools/test_r1_control_datasets.py": "17675a7e0d04a3eb41dd6ad59b07daae78035113bf4d724b9c95381d7e93cf5d",
+  "tools/judge_clients.py": "8dd2eac45fb437176a21686c85b35ad932cdf7539dea355e557d16549e7b0653",
+  "tools/results_schema.py": "fe2d0f33a2fcca7dce8c54299966d52adcd14e66cb4f40982a1890c93cf1194e",
+  "judge-service/app/series_guards.py": "0a54fbe6ea13b262561c9611f08459648df153c00fde296804ab14f7bc991678",
+  "judge-service/app/ensemble_judge.py": "b5afffc58bb5bd9a97439fcb458a967884b67c635670bf2ea1e8228f51dee36b",
+  "judge-service/ensemble_tuned.json": "d593963b88c2a10cc8070ba1b6408052c500fe9655cf5a81bf6fa449b485f8c1",
+  "judge-service/app/hybrid_policy.py": "a138a142dc4d1a2d597d3f5cded4a7f35dc8ba2ad076d694e97ad75bf6a2a826",
+  "judge-service/app/llm_judge.py": "ca79fdf15d55f596b0b51bed3b67402c50cba3fbf1bb565c32f730fb379a7449",
+  "judge-service/models.yaml": "bf29f034e311aaad467c60cd17f8e77ea8ee895f855bac670e2897092367aa8b",
+  "litellm/config.yaml": "ef7404aed94d624568a5a1fc3174695186728c86edd240547fe711d2184f106b"
+ },
+ "realised_checks": {
+  "what": "per window and metric: mean ratio, sample SD ratio, maximum ratio, the ratio of the mean of the last five canary samples to the control mean, and the two one-sided tests at 5% of the control mean (pooled variance, df 60, alpha 0.05 per test; equivalent iff p < 0.05)",
+  "functions": "mean, sd, tost_p, t_cdf, betainc_reg, _betacf of analysis/area-F-instrument-audit/analyze_F.py of data deposit 1.1.1 (the script Table S42 names for Table 1), executed as written; source hashes in protocol/realised_checks_provenance.json",
+  "status": "descriptions of the windows, not judges"
+ },
+ "code_changes_on_release_v1_2_0": [
+  "tools/eval_dataset.py: datasets kind-controls-180 and heldout-benign-100 (DATASETS entries with token seeds, opaque names), generator_of(), the seven new generators in _gen_kind and _isolated_positions(); series_for_scenario() calls the family's generator. The two published datasets are unchanged (golden record identical before and after).",
+  "tools/run_frontier_experiment.py: --max-idx K (keeps the windows with index below K after the scenario list is built) and --skip-failed LEDGER (failed calls of an earlier attempt of the same invocation are written as error rows and not called again).",
+  "tools/run_fp_guard_experiment.py: build_guard_signals() takes a dataset id (default original-180); its detectors and constants are unchanged.",
+  "tools/test_r1_control_datasets.py: the checks of the two datasets and of the two harness options.",
+  "protocol/: this file, the series files, the realised checks and the script that wrote them.",
+  "The judge service is not changed."
+ ],
+ "judges": {
+  "statistical": "Kayenta NetflixACAJudge through /judges/judge, recomputed for every window in every invocation by tools/run_frontier_experiment.py, statistical template of tools/eval_dataset.py STAT_CANARY_TEMPLATE",
+  "model_configurations": {
+   "hosted": {
+    "claude-opus-4-8-vlm": [
+     "summary",
+     "raw",
+     "plot"
+    ],
+    "gpt-oss-120b-llm": [
+     "summary",
+     "raw"
+    ],
+    "qwen3-vl-235b-vlm": [
+     "summary",
+     "raw",
+     "plot"
+    ]
+   },
+   "local": {
+    "qwen-llm": [
+     "summary",
+     "raw"
+    ],
+    "phi4-llm": [
+     "summary",
+     "raw"
+    ],
+    "olmo2-llm": [
+     "summary",
+     "raw"
+    ],
+    "mistral-nemo-llm": [
+     "summary",
+     "raw"
+    ],
+    "deepseek-r1-llm": [
+     "summary",
+     "raw"
+    ],
+    "moondream-vlm": [
+     "plot"
+    ],
+    "granite-vision-vlm": [
+     "plot"
+    ],
+    "minicpm-v-vlm": [
+     "plot"
+    ]
+   },
+   "count": 21
+  },
+  "hybrids": "hybrid:gated, hybrid:or, hybrid:and from judge-service/app/hybrid_policy.decide_policy, derived by the harness from each model's primary representation (plot if present, else the first representation listed: summary for gpt-oss-120b and the five local text models)",
+  "model_free_comparators": {
+   "applied_to": [
+    "kind-controls-180",
+    "heldout-benign-100",
+    "generalisation-60"
+   ],
+   "constants": "frozen published constants; a comparator whose reproduction check on original-180 fails is not applied and is reported",
+   "statistical_judge": "as above",
+   "tuned_ensemble": "judge-service/app/ensemble_judge.decide_ensemble with judge-service/ensemble_tuned.json tuned_config, inputs from tools/run_ensemble_experiment.materialise(20260621, 20, dataset_id); published counts on original-180: 102/120 detected, 9/60 false alarms",
+   "guard_rule": "FAIL unless the statistical judge passes and a guard fires; guards from tools/run_fp_guard_experiment.build_guard_signals(20260621, 20, dataset_id) (recovered transient on any metric; equal-variance noise on single-metric windows; judge-service/app/series_guards.py default constants); published: 114/120 and 12/60",
+   "bf_ks_battery": "the per-metric one-sided Brown-Forsythe and exact one-sided Kolmogorov-Smirnov tests of Archive S1 posthoc_reanalysis.py, FAIL if any p < 0.05 / (2 x number of metrics); published BA 0.788 on original-180",
+   "metric_kind_rule": "FAIL if and only if the window has a metric of kind memory or errors; published MCC 0.378 on original-180",
+   "metric_kind_plus_statistical_rule": "FAIL if and only if the metric-kind rule or the statistical judge fails the window; published MCC 0.618 on original-180"
+  }
+ },
+ "rubrics": {
+  "hashes": {
+   "v1-frozen-2026-06": "ae9455dfe48cb0f3",
+   "v2-operational-2026-07": "db72944909fb423b",
+   "v3-temporal-2026-07": "66093d87318d11c5"
+  },
+  "note": "printed by judge-service/app/prompt_registry; equal to Table S3"
+ },
+ "part_b_table": [
+  {
+   "run": "H1",
+   "name": "hosted anchors",
+   "dataset": "original-180, --max-idx 2 (18 windows)",
+   "judges": "the 8 hosted configurations",
+   "rubric": "v1",
+   "judgements": 144
+  },
+  {
+   "run": "H2",
+   "name": "kind controls, hosted",
+   "dataset": "kind-controls-180",
+   "judges": "the same 8",
+   "rubric": "v1",
+   "judgements": 1440
+  },
+  {
+   "run": "H3",
+   "name": "held-out benign",
+   "dataset": "heldout-benign-100",
+   "judges": "the 3 hosted models on raw series",
+   "rubric": "v1, v2, v3",
+   "judgements": 900
+  },
+  {
+   "run": "H4",
+   "name": "held-out regressions, same session",
+   "dataset": "generalisation-60",
+   "judges": "the 3 hosted models on raw series",
+   "rubric": "v1, v2, v3",
+   "judgements": 540
+  },
+  {
+   "run": "L1",
+   "name": "local anchors",
+   "dataset": "original-180, --max-idx 2",
+   "judges": "the 13 local configurations",
+   "rubric": "v1",
+   "judgements": 234
+  },
+  {
+   "run": "L2",
+   "name": "kind controls, local",
+   "dataset": "kind-controls-180",
+   "judges": "the same 13",
+   "rubric": "v1",
+   "judgements": 2340
+  }
+ ],
+ "run_order": [
+  "H1",
+  "H2",
+  "H3",
+  "H4",
+  "L1",
+  "L2"
+ ],
+ "invocations": {
+  "interpreter": ".venv/bin/python -I (Python 3.12, tools/requirements.txt), working directory: the repository root",
+  "rule": "one invocation per model with all of that model's representations, and per rubric because the harness takes one rubric per invocation; invocations run one at a time in the order of run_table; local calls one at a time; no parallel streams",
+  "attempts": "an invocation without a DONE marker is re-attempted from the harness cache (successful calls only) with a new attempt number <NN>; --skip-failed lists every failed call of its earlier attempts, so a failed call is never re-run",
+  "temperature_top_p_max_tokens_seed": "those of the .env, as published (JUDGE_TEMPERATURE, JUDGE_TOP_P, JUDGE_MAX_TOKENS, JUDGE_SEED; per-alias max_tokens of judge-service/models.yaml)",
+  "judgements_total": 5598
+ },
+ "run_table": [
+  {
+   "invocation_id": "H1-claude-opus-4-8-vlm",
+   "run": "H1",
+   "stream": "hosted",
+   "model": "claude-opus-4-8-vlm",
+   "representations": [
+    "summary",
+    "raw",
+    "plot"
+   ],
+   "primary_representation": "plot",
+   "dataset": "original-180",
+   "rubric": "v1-frozen-2026-06",
+   "max_idx": 2,
+   "windows": 18,
+   "judgements_expected": 54,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "claude-opus-4-8-vlm",
+    "--modes",
+    "summary,raw,plot",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "original-180",
+    "--prompt-id",
+    "v1-frozen-2026-06",
+    "--max-idx",
+    "2"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-H1-claude-opus-4-8-vlm-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/H1-claude-opus-4-8-vlm.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/H1-claude-opus-4-8-vlm"
+   }
+  },
+  {
+   "invocation_id": "H1-gpt-oss-120b-llm",
+   "run": "H1",
+   "stream": "hosted",
+   "model": "gpt-oss-120b-llm",
+   "representations": [
+    "summary",
+    "raw"
+   ],
+   "primary_representation": "summary",
+   "dataset": "original-180",
+   "rubric": "v1-frozen-2026-06",
+   "max_idx": 2,
+   "windows": 18,
+   "judgements_expected": 36,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "gpt-oss-120b-llm",
+    "--modes",
+    "summary,raw",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "original-180",
+    "--prompt-id",
+    "v1-frozen-2026-06",
+    "--max-idx",
+    "2"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-H1-gpt-oss-120b-llm-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/H1-gpt-oss-120b-llm.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/H1-gpt-oss-120b-llm"
+   }
+  },
+  {
+   "invocation_id": "H1-qwen3-vl-235b-vlm",
+   "run": "H1",
+   "stream": "hosted",
+   "model": "qwen3-vl-235b-vlm",
+   "representations": [
+    "summary",
+    "raw",
+    "plot"
+   ],
+   "primary_representation": "plot",
+   "dataset": "original-180",
+   "rubric": "v1-frozen-2026-06",
+   "max_idx": 2,
+   "windows": 18,
+   "judgements_expected": 54,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "qwen3-vl-235b-vlm",
+    "--modes",
+    "summary,raw,plot",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "original-180",
+    "--prompt-id",
+    "v1-frozen-2026-06",
+    "--max-idx",
+    "2"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-H1-qwen3-vl-235b-vlm-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/H1-qwen3-vl-235b-vlm.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/H1-qwen3-vl-235b-vlm"
+   }
+  },
+  {
+   "invocation_id": "H2-claude-opus-4-8-vlm",
+   "run": "H2",
+   "stream": "hosted",
+   "model": "claude-opus-4-8-vlm",
+   "representations": [
+    "summary",
+    "raw",
+    "plot"
+   ],
+   "primary_representation": "plot",
+   "dataset": "kind-controls-180",
+   "rubric": "v1-frozen-2026-06",
+   "max_idx": null,
+   "windows": 180,
+   "judgements_expected": 540,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "claude-opus-4-8-vlm",
+    "--modes",
+    "summary,raw,plot",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "kind-controls-180",
+    "--prompt-id",
+    "v1-frozen-2026-06"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-H2-claude-opus-4-8-vlm-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/H2-claude-opus-4-8-vlm.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/H2-claude-opus-4-8-vlm"
+   }
+  },
+  {
+   "invocation_id": "H2-gpt-oss-120b-llm",
+   "run": "H2",
+   "stream": "hosted",
+   "model": "gpt-oss-120b-llm",
+   "representations": [
+    "summary",
+    "raw"
+   ],
+   "primary_representation": "summary",
+   "dataset": "kind-controls-180",
+   "rubric": "v1-frozen-2026-06",
+   "max_idx": null,
+   "windows": 180,
+   "judgements_expected": 360,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "gpt-oss-120b-llm",
+    "--modes",
+    "summary,raw",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "kind-controls-180",
+    "--prompt-id",
+    "v1-frozen-2026-06"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-H2-gpt-oss-120b-llm-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/H2-gpt-oss-120b-llm.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/H2-gpt-oss-120b-llm"
+   }
+  },
+  {
+   "invocation_id": "H2-qwen3-vl-235b-vlm",
+   "run": "H2",
+   "stream": "hosted",
+   "model": "qwen3-vl-235b-vlm",
+   "representations": [
+    "summary",
+    "raw",
+    "plot"
+   ],
+   "primary_representation": "plot",
+   "dataset": "kind-controls-180",
+   "rubric": "v1-frozen-2026-06",
+   "max_idx": null,
+   "windows": 180,
+   "judgements_expected": 540,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "qwen3-vl-235b-vlm",
+    "--modes",
+    "summary,raw,plot",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "kind-controls-180",
+    "--prompt-id",
+    "v1-frozen-2026-06"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-H2-qwen3-vl-235b-vlm-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/H2-qwen3-vl-235b-vlm.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/H2-qwen3-vl-235b-vlm"
+   }
+  },
+  {
+   "invocation_id": "H3-claude-opus-4-8-vlm-v1",
+   "run": "H3",
+   "stream": "hosted",
+   "model": "claude-opus-4-8-vlm",
+   "representations": [
+    "raw"
+   ],
+   "primary_representation": "raw",
+   "dataset": "heldout-benign-100",
+   "rubric": "v1-frozen-2026-06",
+   "max_idx": null,
+   "windows": 100,
+   "judgements_expected": 100,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "claude-opus-4-8-vlm",
+    "--modes",
+    "raw",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "heldout-benign-100",
+    "--prompt-id",
+    "v1-frozen-2026-06"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-H3-claude-opus-4-8-vlm-v1-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/H3-claude-opus-4-8-vlm-v1.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/H3-claude-opus-4-8-vlm-v1"
+   }
+  },
+  {
+   "invocation_id": "H3-claude-opus-4-8-vlm-v2",
+   "run": "H3",
+   "stream": "hosted",
+   "model": "claude-opus-4-8-vlm",
+   "representations": [
+    "raw"
+   ],
+   "primary_representation": "raw",
+   "dataset": "heldout-benign-100",
+   "rubric": "v2-operational-2026-07",
+   "max_idx": null,
+   "windows": 100,
+   "judgements_expected": 100,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "claude-opus-4-8-vlm",
+    "--modes",
+    "raw",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "heldout-benign-100",
+    "--prompt-id",
+    "v2-operational-2026-07"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-H3-claude-opus-4-8-vlm-v2-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/H3-claude-opus-4-8-vlm-v2.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/H3-claude-opus-4-8-vlm-v2"
+   }
+  },
+  {
+   "invocation_id": "H3-claude-opus-4-8-vlm-v3",
+   "run": "H3",
+   "stream": "hosted",
+   "model": "claude-opus-4-8-vlm",
+   "representations": [
+    "raw"
+   ],
+   "primary_representation": "raw",
+   "dataset": "heldout-benign-100",
+   "rubric": "v3-temporal-2026-07",
+   "max_idx": null,
+   "windows": 100,
+   "judgements_expected": 100,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "claude-opus-4-8-vlm",
+    "--modes",
+    "raw",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "heldout-benign-100",
+    "--prompt-id",
+    "v3-temporal-2026-07"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-H3-claude-opus-4-8-vlm-v3-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/H3-claude-opus-4-8-vlm-v3.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/H3-claude-opus-4-8-vlm-v3"
+   }
+  },
+  {
+   "invocation_id": "H3-gpt-oss-120b-llm-v1",
+   "run": "H3",
+   "stream": "hosted",
+   "model": "gpt-oss-120b-llm",
+   "representations": [
+    "raw"
+   ],
+   "primary_representation": "raw",
+   "dataset": "heldout-benign-100",
+   "rubric": "v1-frozen-2026-06",
+   "max_idx": null,
+   "windows": 100,
+   "judgements_expected": 100,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "gpt-oss-120b-llm",
+    "--modes",
+    "raw",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "heldout-benign-100",
+    "--prompt-id",
+    "v1-frozen-2026-06"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-H3-gpt-oss-120b-llm-v1-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/H3-gpt-oss-120b-llm-v1.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/H3-gpt-oss-120b-llm-v1"
+   }
+  },
+  {
+   "invocation_id": "H3-gpt-oss-120b-llm-v2",
+   "run": "H3",
+   "stream": "hosted",
+   "model": "gpt-oss-120b-llm",
+   "representations": [
+    "raw"
+   ],
+   "primary_representation": "raw",
+   "dataset": "heldout-benign-100",
+   "rubric": "v2-operational-2026-07",
+   "max_idx": null,
+   "windows": 100,
+   "judgements_expected": 100,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "gpt-oss-120b-llm",
+    "--modes",
+    "raw",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "heldout-benign-100",
+    "--prompt-id",
+    "v2-operational-2026-07"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-H3-gpt-oss-120b-llm-v2-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/H3-gpt-oss-120b-llm-v2.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/H3-gpt-oss-120b-llm-v2"
+   }
+  },
+  {
+   "invocation_id": "H3-gpt-oss-120b-llm-v3",
+   "run": "H3",
+   "stream": "hosted",
+   "model": "gpt-oss-120b-llm",
+   "representations": [
+    "raw"
+   ],
+   "primary_representation": "raw",
+   "dataset": "heldout-benign-100",
+   "rubric": "v3-temporal-2026-07",
+   "max_idx": null,
+   "windows": 100,
+   "judgements_expected": 100,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "gpt-oss-120b-llm",
+    "--modes",
+    "raw",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "heldout-benign-100",
+    "--prompt-id",
+    "v3-temporal-2026-07"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-H3-gpt-oss-120b-llm-v3-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/H3-gpt-oss-120b-llm-v3.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/H3-gpt-oss-120b-llm-v3"
+   }
+  },
+  {
+   "invocation_id": "H3-qwen3-vl-235b-vlm-v1",
+   "run": "H3",
+   "stream": "hosted",
+   "model": "qwen3-vl-235b-vlm",
+   "representations": [
+    "raw"
+   ],
+   "primary_representation": "raw",
+   "dataset": "heldout-benign-100",
+   "rubric": "v1-frozen-2026-06",
+   "max_idx": null,
+   "windows": 100,
+   "judgements_expected": 100,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "qwen3-vl-235b-vlm",
+    "--modes",
+    "raw",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "heldout-benign-100",
+    "--prompt-id",
+    "v1-frozen-2026-06"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-H3-qwen3-vl-235b-vlm-v1-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/H3-qwen3-vl-235b-vlm-v1.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/H3-qwen3-vl-235b-vlm-v1"
+   }
+  },
+  {
+   "invocation_id": "H3-qwen3-vl-235b-vlm-v2",
+   "run": "H3",
+   "stream": "hosted",
+   "model": "qwen3-vl-235b-vlm",
+   "representations": [
+    "raw"
+   ],
+   "primary_representation": "raw",
+   "dataset": "heldout-benign-100",
+   "rubric": "v2-operational-2026-07",
+   "max_idx": null,
+   "windows": 100,
+   "judgements_expected": 100,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "qwen3-vl-235b-vlm",
+    "--modes",
+    "raw",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "heldout-benign-100",
+    "--prompt-id",
+    "v2-operational-2026-07"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-H3-qwen3-vl-235b-vlm-v2-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/H3-qwen3-vl-235b-vlm-v2.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/H3-qwen3-vl-235b-vlm-v2"
+   }
+  },
+  {
+   "invocation_id": "H3-qwen3-vl-235b-vlm-v3",
+   "run": "H3",
+   "stream": "hosted",
+   "model": "qwen3-vl-235b-vlm",
+   "representations": [
+    "raw"
+   ],
+   "primary_representation": "raw",
+   "dataset": "heldout-benign-100",
+   "rubric": "v3-temporal-2026-07",
+   "max_idx": null,
+   "windows": 100,
+   "judgements_expected": 100,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "qwen3-vl-235b-vlm",
+    "--modes",
+    "raw",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "heldout-benign-100",
+    "--prompt-id",
+    "v3-temporal-2026-07"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-H3-qwen3-vl-235b-vlm-v3-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/H3-qwen3-vl-235b-vlm-v3.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/H3-qwen3-vl-235b-vlm-v3"
+   }
+  },
+  {
+   "invocation_id": "H4-claude-opus-4-8-vlm-v1",
+   "run": "H4",
+   "stream": "hosted",
+   "model": "claude-opus-4-8-vlm",
+   "representations": [
+    "raw"
+   ],
+   "primary_representation": "raw",
+   "dataset": "generalisation-60",
+   "rubric": "v1-frozen-2026-06",
+   "max_idx": null,
+   "windows": 60,
+   "judgements_expected": 60,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "claude-opus-4-8-vlm",
+    "--modes",
+    "raw",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "generalisation-60",
+    "--prompt-id",
+    "v1-frozen-2026-06"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-H4-claude-opus-4-8-vlm-v1-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/H4-claude-opus-4-8-vlm-v1.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/H4-claude-opus-4-8-vlm-v1"
+   }
+  },
+  {
+   "invocation_id": "H4-claude-opus-4-8-vlm-v2",
+   "run": "H4",
+   "stream": "hosted",
+   "model": "claude-opus-4-8-vlm",
+   "representations": [
+    "raw"
+   ],
+   "primary_representation": "raw",
+   "dataset": "generalisation-60",
+   "rubric": "v2-operational-2026-07",
+   "max_idx": null,
+   "windows": 60,
+   "judgements_expected": 60,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "claude-opus-4-8-vlm",
+    "--modes",
+    "raw",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "generalisation-60",
+    "--prompt-id",
+    "v2-operational-2026-07"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-H4-claude-opus-4-8-vlm-v2-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/H4-claude-opus-4-8-vlm-v2.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/H4-claude-opus-4-8-vlm-v2"
+   }
+  },
+  {
+   "invocation_id": "H4-claude-opus-4-8-vlm-v3",
+   "run": "H4",
+   "stream": "hosted",
+   "model": "claude-opus-4-8-vlm",
+   "representations": [
+    "raw"
+   ],
+   "primary_representation": "raw",
+   "dataset": "generalisation-60",
+   "rubric": "v3-temporal-2026-07",
+   "max_idx": null,
+   "windows": 60,
+   "judgements_expected": 60,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "claude-opus-4-8-vlm",
+    "--modes",
+    "raw",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "generalisation-60",
+    "--prompt-id",
+    "v3-temporal-2026-07"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-H4-claude-opus-4-8-vlm-v3-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/H4-claude-opus-4-8-vlm-v3.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/H4-claude-opus-4-8-vlm-v3"
+   }
+  },
+  {
+   "invocation_id": "H4-gpt-oss-120b-llm-v1",
+   "run": "H4",
+   "stream": "hosted",
+   "model": "gpt-oss-120b-llm",
+   "representations": [
+    "raw"
+   ],
+   "primary_representation": "raw",
+   "dataset": "generalisation-60",
+   "rubric": "v1-frozen-2026-06",
+   "max_idx": null,
+   "windows": 60,
+   "judgements_expected": 60,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "gpt-oss-120b-llm",
+    "--modes",
+    "raw",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "generalisation-60",
+    "--prompt-id",
+    "v1-frozen-2026-06"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-H4-gpt-oss-120b-llm-v1-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/H4-gpt-oss-120b-llm-v1.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/H4-gpt-oss-120b-llm-v1"
+   }
+  },
+  {
+   "invocation_id": "H4-gpt-oss-120b-llm-v2",
+   "run": "H4",
+   "stream": "hosted",
+   "model": "gpt-oss-120b-llm",
+   "representations": [
+    "raw"
+   ],
+   "primary_representation": "raw",
+   "dataset": "generalisation-60",
+   "rubric": "v2-operational-2026-07",
+   "max_idx": null,
+   "windows": 60,
+   "judgements_expected": 60,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "gpt-oss-120b-llm",
+    "--modes",
+    "raw",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "generalisation-60",
+    "--prompt-id",
+    "v2-operational-2026-07"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-H4-gpt-oss-120b-llm-v2-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/H4-gpt-oss-120b-llm-v2.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/H4-gpt-oss-120b-llm-v2"
+   }
+  },
+  {
+   "invocation_id": "H4-gpt-oss-120b-llm-v3",
+   "run": "H4",
+   "stream": "hosted",
+   "model": "gpt-oss-120b-llm",
+   "representations": [
+    "raw"
+   ],
+   "primary_representation": "raw",
+   "dataset": "generalisation-60",
+   "rubric": "v3-temporal-2026-07",
+   "max_idx": null,
+   "windows": 60,
+   "judgements_expected": 60,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "gpt-oss-120b-llm",
+    "--modes",
+    "raw",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "generalisation-60",
+    "--prompt-id",
+    "v3-temporal-2026-07"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-H4-gpt-oss-120b-llm-v3-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/H4-gpt-oss-120b-llm-v3.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/H4-gpt-oss-120b-llm-v3"
+   }
+  },
+  {
+   "invocation_id": "H4-qwen3-vl-235b-vlm-v1",
+   "run": "H4",
+   "stream": "hosted",
+   "model": "qwen3-vl-235b-vlm",
+   "representations": [
+    "raw"
+   ],
+   "primary_representation": "raw",
+   "dataset": "generalisation-60",
+   "rubric": "v1-frozen-2026-06",
+   "max_idx": null,
+   "windows": 60,
+   "judgements_expected": 60,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "qwen3-vl-235b-vlm",
+    "--modes",
+    "raw",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "generalisation-60",
+    "--prompt-id",
+    "v1-frozen-2026-06"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-H4-qwen3-vl-235b-vlm-v1-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/H4-qwen3-vl-235b-vlm-v1.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/H4-qwen3-vl-235b-vlm-v1"
+   }
+  },
+  {
+   "invocation_id": "H4-qwen3-vl-235b-vlm-v2",
+   "run": "H4",
+   "stream": "hosted",
+   "model": "qwen3-vl-235b-vlm",
+   "representations": [
+    "raw"
+   ],
+   "primary_representation": "raw",
+   "dataset": "generalisation-60",
+   "rubric": "v2-operational-2026-07",
+   "max_idx": null,
+   "windows": 60,
+   "judgements_expected": 60,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "qwen3-vl-235b-vlm",
+    "--modes",
+    "raw",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "generalisation-60",
+    "--prompt-id",
+    "v2-operational-2026-07"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-H4-qwen3-vl-235b-vlm-v2-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/H4-qwen3-vl-235b-vlm-v2.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/H4-qwen3-vl-235b-vlm-v2"
+   }
+  },
+  {
+   "invocation_id": "H4-qwen3-vl-235b-vlm-v3",
+   "run": "H4",
+   "stream": "hosted",
+   "model": "qwen3-vl-235b-vlm",
+   "representations": [
+    "raw"
+   ],
+   "primary_representation": "raw",
+   "dataset": "generalisation-60",
+   "rubric": "v3-temporal-2026-07",
+   "max_idx": null,
+   "windows": 60,
+   "judgements_expected": 60,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "qwen3-vl-235b-vlm",
+    "--modes",
+    "raw",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "generalisation-60",
+    "--prompt-id",
+    "v3-temporal-2026-07"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-H4-qwen3-vl-235b-vlm-v3-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/H4-qwen3-vl-235b-vlm-v3.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/H4-qwen3-vl-235b-vlm-v3"
+   }
+  },
+  {
+   "invocation_id": "L1-qwen-llm",
+   "run": "L1",
+   "stream": "local",
+   "model": "qwen-llm",
+   "representations": [
+    "summary",
+    "raw"
+   ],
+   "primary_representation": "summary",
+   "dataset": "original-180",
+   "rubric": "v1-frozen-2026-06",
+   "max_idx": 2,
+   "windows": 18,
+   "judgements_expected": 36,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "qwen-llm",
+    "--modes",
+    "summary,raw",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "original-180",
+    "--prompt-id",
+    "v1-frozen-2026-06",
+    "--max-idx",
+    "2"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-L1-qwen-llm-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/L1-qwen-llm.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/L1-qwen-llm"
+   }
+  },
+  {
+   "invocation_id": "L1-phi4-llm",
+   "run": "L1",
+   "stream": "local",
+   "model": "phi4-llm",
+   "representations": [
+    "summary",
+    "raw"
+   ],
+   "primary_representation": "summary",
+   "dataset": "original-180",
+   "rubric": "v1-frozen-2026-06",
+   "max_idx": 2,
+   "windows": 18,
+   "judgements_expected": 36,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "phi4-llm",
+    "--modes",
+    "summary,raw",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "original-180",
+    "--prompt-id",
+    "v1-frozen-2026-06",
+    "--max-idx",
+    "2"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-L1-phi4-llm-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/L1-phi4-llm.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/L1-phi4-llm"
+   }
+  },
+  {
+   "invocation_id": "L1-olmo2-llm",
+   "run": "L1",
+   "stream": "local",
+   "model": "olmo2-llm",
+   "representations": [
+    "summary",
+    "raw"
+   ],
+   "primary_representation": "summary",
+   "dataset": "original-180",
+   "rubric": "v1-frozen-2026-06",
+   "max_idx": 2,
+   "windows": 18,
+   "judgements_expected": 36,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "olmo2-llm",
+    "--modes",
+    "summary,raw",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "original-180",
+    "--prompt-id",
+    "v1-frozen-2026-06",
+    "--max-idx",
+    "2"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-L1-olmo2-llm-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/L1-olmo2-llm.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/L1-olmo2-llm"
+   }
+  },
+  {
+   "invocation_id": "L1-mistral-nemo-llm",
+   "run": "L1",
+   "stream": "local",
+   "model": "mistral-nemo-llm",
+   "representations": [
+    "summary",
+    "raw"
+   ],
+   "primary_representation": "summary",
+   "dataset": "original-180",
+   "rubric": "v1-frozen-2026-06",
+   "max_idx": 2,
+   "windows": 18,
+   "judgements_expected": 36,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "mistral-nemo-llm",
+    "--modes",
+    "summary,raw",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "original-180",
+    "--prompt-id",
+    "v1-frozen-2026-06",
+    "--max-idx",
+    "2"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-L1-mistral-nemo-llm-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/L1-mistral-nemo-llm.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/L1-mistral-nemo-llm"
+   }
+  },
+  {
+   "invocation_id": "L1-deepseek-r1-llm",
+   "run": "L1",
+   "stream": "local",
+   "model": "deepseek-r1-llm",
+   "representations": [
+    "summary",
+    "raw"
+   ],
+   "primary_representation": "summary",
+   "dataset": "original-180",
+   "rubric": "v1-frozen-2026-06",
+   "max_idx": 2,
+   "windows": 18,
+   "judgements_expected": 36,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "deepseek-r1-llm",
+    "--modes",
+    "summary,raw",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "original-180",
+    "--prompt-id",
+    "v1-frozen-2026-06",
+    "--max-idx",
+    "2"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-L1-deepseek-r1-llm-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/L1-deepseek-r1-llm.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/L1-deepseek-r1-llm"
+   }
+  },
+  {
+   "invocation_id": "L1-moondream-vlm",
+   "run": "L1",
+   "stream": "local",
+   "model": "moondream-vlm",
+   "representations": [
+    "plot"
+   ],
+   "primary_representation": "plot",
+   "dataset": "original-180",
+   "rubric": "v1-frozen-2026-06",
+   "max_idx": 2,
+   "windows": 18,
+   "judgements_expected": 18,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "moondream-vlm",
+    "--modes",
+    "plot",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "original-180",
+    "--prompt-id",
+    "v1-frozen-2026-06",
+    "--max-idx",
+    "2"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-L1-moondream-vlm-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/L1-moondream-vlm.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/L1-moondream-vlm"
+   }
+  },
+  {
+   "invocation_id": "L1-granite-vision-vlm",
+   "run": "L1",
+   "stream": "local",
+   "model": "granite-vision-vlm",
+   "representations": [
+    "plot"
+   ],
+   "primary_representation": "plot",
+   "dataset": "original-180",
+   "rubric": "v1-frozen-2026-06",
+   "max_idx": 2,
+   "windows": 18,
+   "judgements_expected": 18,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "granite-vision-vlm",
+    "--modes",
+    "plot",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "original-180",
+    "--prompt-id",
+    "v1-frozen-2026-06",
+    "--max-idx",
+    "2"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-L1-granite-vision-vlm-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/L1-granite-vision-vlm.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/L1-granite-vision-vlm"
+   }
+  },
+  {
+   "invocation_id": "L1-minicpm-v-vlm",
+   "run": "L1",
+   "stream": "local",
+   "model": "minicpm-v-vlm",
+   "representations": [
+    "plot"
+   ],
+   "primary_representation": "plot",
+   "dataset": "original-180",
+   "rubric": "v1-frozen-2026-06",
+   "max_idx": 2,
+   "windows": 18,
+   "judgements_expected": 18,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "minicpm-v-vlm",
+    "--modes",
+    "plot",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "original-180",
+    "--prompt-id",
+    "v1-frozen-2026-06",
+    "--max-idx",
+    "2"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-L1-minicpm-v-vlm-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/L1-minicpm-v-vlm.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/L1-minicpm-v-vlm"
+   }
+  },
+  {
+   "invocation_id": "L2-qwen-llm",
+   "run": "L2",
+   "stream": "local",
+   "model": "qwen-llm",
+   "representations": [
+    "summary",
+    "raw"
+   ],
+   "primary_representation": "summary",
+   "dataset": "kind-controls-180",
+   "rubric": "v1-frozen-2026-06",
+   "max_idx": null,
+   "windows": 180,
+   "judgements_expected": 360,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "qwen-llm",
+    "--modes",
+    "summary,raw",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "kind-controls-180",
+    "--prompt-id",
+    "v1-frozen-2026-06"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-L2-qwen-llm-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/L2-qwen-llm.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/L2-qwen-llm"
+   }
+  },
+  {
+   "invocation_id": "L2-phi4-llm",
+   "run": "L2",
+   "stream": "local",
+   "model": "phi4-llm",
+   "representations": [
+    "summary",
+    "raw"
+   ],
+   "primary_representation": "summary",
+   "dataset": "kind-controls-180",
+   "rubric": "v1-frozen-2026-06",
+   "max_idx": null,
+   "windows": 180,
+   "judgements_expected": 360,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "phi4-llm",
+    "--modes",
+    "summary,raw",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "kind-controls-180",
+    "--prompt-id",
+    "v1-frozen-2026-06"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-L2-phi4-llm-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/L2-phi4-llm.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/L2-phi4-llm"
+   }
+  },
+  {
+   "invocation_id": "L2-olmo2-llm",
+   "run": "L2",
+   "stream": "local",
+   "model": "olmo2-llm",
+   "representations": [
+    "summary",
+    "raw"
+   ],
+   "primary_representation": "summary",
+   "dataset": "kind-controls-180",
+   "rubric": "v1-frozen-2026-06",
+   "max_idx": null,
+   "windows": 180,
+   "judgements_expected": 360,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "olmo2-llm",
+    "--modes",
+    "summary,raw",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "kind-controls-180",
+    "--prompt-id",
+    "v1-frozen-2026-06"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-L2-olmo2-llm-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/L2-olmo2-llm.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/L2-olmo2-llm"
+   }
+  },
+  {
+   "invocation_id": "L2-mistral-nemo-llm",
+   "run": "L2",
+   "stream": "local",
+   "model": "mistral-nemo-llm",
+   "representations": [
+    "summary",
+    "raw"
+   ],
+   "primary_representation": "summary",
+   "dataset": "kind-controls-180",
+   "rubric": "v1-frozen-2026-06",
+   "max_idx": null,
+   "windows": 180,
+   "judgements_expected": 360,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "mistral-nemo-llm",
+    "--modes",
+    "summary,raw",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "kind-controls-180",
+    "--prompt-id",
+    "v1-frozen-2026-06"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-L2-mistral-nemo-llm-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/L2-mistral-nemo-llm.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/L2-mistral-nemo-llm"
+   }
+  },
+  {
+   "invocation_id": "L2-deepseek-r1-llm",
+   "run": "L2",
+   "stream": "local",
+   "model": "deepseek-r1-llm",
+   "representations": [
+    "summary",
+    "raw"
+   ],
+   "primary_representation": "summary",
+   "dataset": "kind-controls-180",
+   "rubric": "v1-frozen-2026-06",
+   "max_idx": null,
+   "windows": 180,
+   "judgements_expected": 360,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "deepseek-r1-llm",
+    "--modes",
+    "summary,raw",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "kind-controls-180",
+    "--prompt-id",
+    "v1-frozen-2026-06"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-L2-deepseek-r1-llm-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/L2-deepseek-r1-llm.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/L2-deepseek-r1-llm"
+   }
+  },
+  {
+   "invocation_id": "L2-moondream-vlm",
+   "run": "L2",
+   "stream": "local",
+   "model": "moondream-vlm",
+   "representations": [
+    "plot"
+   ],
+   "primary_representation": "plot",
+   "dataset": "kind-controls-180",
+   "rubric": "v1-frozen-2026-06",
+   "max_idx": null,
+   "windows": 180,
+   "judgements_expected": 180,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "moondream-vlm",
+    "--modes",
+    "plot",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "kind-controls-180",
+    "--prompt-id",
+    "v1-frozen-2026-06"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-L2-moondream-vlm-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/L2-moondream-vlm.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/L2-moondream-vlm"
+   }
+  },
+  {
+   "invocation_id": "L2-granite-vision-vlm",
+   "run": "L2",
+   "stream": "local",
+   "model": "granite-vision-vlm",
+   "representations": [
+    "plot"
+   ],
+   "primary_representation": "plot",
+   "dataset": "kind-controls-180",
+   "rubric": "v1-frozen-2026-06",
+   "max_idx": null,
+   "windows": 180,
+   "judgements_expected": 180,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "granite-vision-vlm",
+    "--modes",
+    "plot",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "kind-controls-180",
+    "--prompt-id",
+    "v1-frozen-2026-06"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-L2-granite-vision-vlm-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/L2-granite-vision-vlm.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/L2-granite-vision-vlm"
+   }
+  },
+  {
+   "invocation_id": "L2-minicpm-v-vlm",
+   "run": "L2",
+   "stream": "local",
+   "model": "minicpm-v-vlm",
+   "representations": [
+    "plot"
+   ],
+   "primary_representation": "plot",
+   "dataset": "kind-controls-180",
+   "rubric": "v1-frozen-2026-06",
+   "max_idx": null,
+   "windows": 180,
+   "judgements_expected": 180,
+   "argv": [
+    "tools/run_frontier_experiment.py",
+    "--model",
+    "minicpm-v-vlm",
+    "--modes",
+    "plot",
+    "--n",
+    "20",
+    "--seed",
+    "20260621",
+    "--dataset",
+    "kind-controls-180",
+    "--prompt-id",
+    "v1-frozen-2026-06"
+   ],
+   "argv_added_per_attempt": [
+    "--out-tag",
+    "r1-L2-minicpm-v-vlm-a<NN>",
+    "--skip-failed",
+    "runs/ledgers/L2-minicpm-v-vlm.a<NN>.skip.jsonl"
+   ],
+   "environment_added": {
+    "EXPERIMENTS_DIR": "runs/records/L2-minicpm-v-vlm"
+   }
+  }
+ ],
+ "failed_call_rule": {
+  "verbatim": "Failed-call rule (also in the protocol). A call that fails after the harness's four attempts is a failed call: it is counted, reported, never scored and not re-run. The one exception is an outage of a whole stream (rejected or expired hosted key, LiteLLM, Bedrock or Ollama unreachable): those calls are re-attempted after the outage ends and the outage is reported. If the hosted key stops working, the hosted stream stops with status HOSTED_BLOCKED, the local stream goes on, and the result file tells Vlad to renew the key and relaunch the plan, which resumes from the cache.",
+  "failed_call": "an `ai` row with a non-empty error_kind written by the harness after its four attempts (judge_ai_cached retries=4), unless it is an outage call as defined below",
+  "outage_call": {
+   "hosted_key": {
+    "applies_to": "hosted invocations",
+    "if_error_text_contains_any": [
+     "authenticationerror",
+     "authentication failed",
+     "please make sure your api key is valid",
+     "invalid api key",
+     "api key is invalid",
+     "security token",
+     "expiredtoken",
+     "token has expired",
+     "token is expired",
+     "unrecognizedclient",
+     "invalidsignature",
+     "accessdenied",
+     "access denied",
+     "not authorized",
+     "error code: 401",
+     "error code: 403"
+    ],
+    "action": "the invocation is stopped, it and every remaining hosted invocation get status HOSTED_BLOCKED, the local invocations go on; a later restart re-attempts every hosted invocation without a DONE marker from the cache"
+   },
+   "stream_unreachable": {
+    "if_error_text_contains_any": [
+     "connection error",
+     "connection refused",
+     "connecterror",
+     "cannot connect",
+     "can not connect",
+     "all connection attempts failed",
+     "failed to establish a new connection",
+     "name or service not known",
+     "nodename nor servname",
+     "temporary failure in name resolution",
+     "max retries exceeded with url",
+     "remote end closed connection",
+     "connection reset",
+     "connection aborted",
+     "endpointconnectionerror",
+     "could not connect to the endpoint",
+     "server disconnected",
+     "network is unreachable",
+     "no route to host",
+     "serviceunavailable",
+     "service unavailable",
+     "error code: 502",
+     "error code: 503",
+     "error code: 504",
+     "bad gateway",
+     "gateway timeout",
+     "throttlingexception",
+     "too many requests",
+     "ratelimiterror",
+     "rate limit",
+     "error code: 429"
+    ],
+    "or": "a health probe fails right after the error row: judge-service /health, Kayenta /health, LiteLLM /health/liveliness, and Ollama /api/version for local invocations (none of them calls a model)",
+    "action": "the invocation is stopped, the driver waits until every probe answers (and at least 5 minutes for hosted, 1 minute for local invocations), then re-attempts it from the cache; the outage is reported in runs/STATUS.json"
+   },
+   "statistical_error_row": "a failed statistical call (Kayenta) is treated as a stream outage; the statistical judge makes no model call and is recomputed in every attempt"
+  },
+  "matching": "case-insensitive substring match on the error column of the long-format row",
+  "counting": "failed calls are counted per configuration (model, representation, rubric, dataset) as distinct judgement keys with no successful record, and excluded from every denominator"
+ },
+ "analysis_plan": {
+  "scripts": "one script tree in analysis/r1/ of this repository, reading only the long-format records (runs/records/) and the series files of this directory, reusing tools/ci_utils.py and the scripts named in Table S42 so that every statistic is computed as in the submitted version",
+  "unit_and_convention": [
+   "FAIL is positive. The harness's verdict column already maps a score below 75 (Fail or Marginal) to FAIL; Marginal counts as FAIL.",
+   "One record per judgement key (dataset_id, scenario_id, model, representation, prompt_id): the successful call, that is a row with an empty error_kind. Later attempts serve successful calls from the cache, so duplicate successful rows of a key are identical in verdict and score; the earliest by ts is used. A key whose rows all carry an error_kind is a failed call.",
+   "Failed calls are counted per configuration and excluded from denominators, as in the submitted version. Rates are k/n over the windows with a successful record.",
+   "Hybrid rows exist only where the primary representation and the statistical judge both succeeded."
+  ],
+  "statistics": {
+   "wilson": "tools/ci_utils.py wilson_interval(k, n), z = 1.959963985, 95%",
+   "bootstrap": "percentile bootstrap of Section 3.7 (the procedure of analyze_A.py boot_config, with seed 20261122): for each configuration, rng = random.Random(20261122); 2,000 replicates; in each replicate, for each family in sorted family-name order with its L scored windows in sorted scenario-id order, draw L windows with replacement by rng.randrange(L) (family sizes fixed); BA and MCC from the replicate's confusion counts; interval = (pct(v, 0.025), pct(v, 0.975)) with pct(v, q) = sorted(v)[int(round(q * (len(v) - 1)))]",
+   "paired_interval": "Newcombe method 10 for a paired difference of proportions (analyze_A.py newcombe10 of the data deposit)",
+   "mcnemar": "exact two-sided McNemar on the discordant pairs, min(1, 2 * P(X <= min(b, c))) with X ~ Bin(b + c, 1/2) (analyze_A.py p_mcnemar_exact); pairs over the windows where both members have a successful record",
+   "holm": "Holm step-down over the stated set (analyze_A.py holm_exact)",
+   "ba_mcc": "BA = (TPR + TNR) / 2; MCC = (TP*TN - FP*FN) / sqrt((TP+FP)(TP+FN)(TN+FP)(TN+FN)), 0 when a margin is empty"
+  },
+  "kind_controls": [
+   "Per family and configuration (21 model configurations, the 33 hybrids, the statistical judge and every comparator that reproduced): correct verdicts out of 20 (out of the scored windows if there are failed calls) with Wilson 95% intervals.",
+   "False alarms over the 100 benign windows (FAIL verdicts on kc_latency_nochange, kc_memory_nochange, kc_errors_nochange, kc_tri_nochange, kc_memory_shared_ramp) and by kind: latency 20 (kc_latency_nochange), memory 40 (kc_memory_nochange and kc_memory_shared_ramp), errors 20 (kc_errors_nochange), three-metric 20 (kc_tri_nochange).",
+   "Detection over the 80 regression windows (kc_latency_drift, kc_memory_drift, kc_errors_drift, kc_tri_marginal) and over the 60 drift windows without kc_tri_marginal.",
+   "BA and MCC on the 180 control windows with the percentile bootstrap above (2,000 replicates, fixed families, seed 20261122).",
+   "kc_tri_marginal is always also reported separately (contested label)."
+  ],
+  "kind_rules": [
+   "The metric-kind rule and the metric-kind + statistical rule on the 180 controls, and on the pooled 360 windows (original-180 plus kind-controls-180). Pooled figures are marked cross-session: the original-180 verdicts of model configurations are those of the published runs."
+  ],
+  "paired_comparisons_on_controls": [
+   "Each of the 21 model configurations against the metric-kind + statistical rule and against the statistical judge on the 180 control windows: exact McNemar, Holm over those 42 tests."
+  ],
+  "held_out": [
+   "Per hosted raw-series judge (claude-opus-4-8-vlm, gpt-oss-120b-llm, qwen3-vl-235b-vlm) and rubric (v1, v2, v3): false alarms out of 20 per benign family of heldout-benign-100, out of 60 over the three exchangeable families (hb_shared_partial_recovery, hb_shared_late_step, hb_isolated_spikes_both) and out of 40 over the two recovered-transient families (hb_recovered_mid_transient, hb_brief_early_blip); detection out of 20 per regression family of generalisation-60 (partial_recovery, late_transient, sustained_excursion) and out of 60 in the same session; each with Wilson intervals; score distributions by family and rubric.",
+   "Rubric effect: for each model, v2 against v1 and v3 against v1, the paired difference in false alarms on the 40 recovered-transient windows, in false alarms on the 60 exchangeable windows and in detection on the 60 regressions, with Newcombe method 10 paired intervals and exact McNemar tests, Holm over those 18 tests (3 models x 2 contrasts x 3 measures).",
+   "The 40 recovered-transient windows are also labelled under policies P6 and P7 of D2: P6 FAIL if and only if the realised mean ratio of any metric exceeds 1.05 (column mean_ratio of protocol/realised_checks_heldout-benign-100.csv); P7 FAIL if and only if, for any metric, the mean of the last five canary samples exceeds 1.05 times the control mean (column last5_mean_over_control_mean > 1.05). Report the number of windows whose label changes and the false-alarm figures (and, where the label becomes FAIL, the detection figures) under each policy.",
+   "hb_recovered_mid_transient and hb_brief_early_blip are always reported apart from the exchangeable families."
+  ],
+  "session_anchors": [
+   "For every configuration (the 21 model configurations and the hybrids derived from them): agreement of the November verdicts with the published ones on the 18 anchor windows of original-180 (index 0 and 1 of each family): identical verdicts k/n and mean absolute score difference, with the dates of the published runs read from their records.",
+   "For the hosted raw-series judges on the 60 held-out regressions under each rubric (H4 against the published generalisation-60 runs): identical verdicts k/n and mean absolute score difference.",
+   "Statistical verdicts must be identical in every invocation; any difference is reported first."
+  ],
+  "outputs": "analysis/: the tables as CSV, facts.json and FACTS-R1.md, figure data, and RESULTS-R1.md stating in plain sentences what came out, including anything unexpected"
+ },
+ "reading_rules": {
+  "status": "descriptive, fixed in advance; no other categorical reading is added after the runs",
+  "scope": "for a configuration (model configuration, hybrid, statistical judge or comparator) on a non-latency kind K in {memory, errors}",
+  "benign_families_of_kind": {
+   "memory": [
+    "kc_memory_nochange",
+    "kc_memory_shared_ramp"
+   ],
+   "errors": [
+    "kc_errors_nochange"
+   ]
+  },
+  "drift_family_of_kind": {
+   "memory": "kc_memory_drift",
+   "errors": "kc_errors_drift"
+  },
+  "note_on_three_metric_families": "kc_tri_nochange and kc_tri_marginal contain all three kinds and are not a family of a single kind; they do not enter these two rules and are reported with counts only",
+  "kind_driven": "the configuration fails at least 15 of 20 windows of at least one benign family of kind K, and fails at most 5 of 20 windows of kc_latency_nochange",
+  "not_explained_by_kind_on_these_controls": "the configuration fails at most 2 of 20 windows in every benign family of kind K, and detects at least 18 of 20 windows of the drift family of kind K",
+  "otherwise": "the counts are reported without a label",
+  "failed_calls": "a label is given only if every family the rule reads has 20 successful records for the configuration; otherwise the counts are reported without a label"
+ }
+}
