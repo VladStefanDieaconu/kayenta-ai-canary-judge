@@ -144,6 +144,50 @@ GENERALISATION_FAMILY_SPEC: Dict[str, Dict[str, Any]] = {
 }
 GENERALISATION_FAMILIES: List[str] = list(GENERALISATION_FAMILY_SPEC.keys())
 
+# Two control datasets added for the first revision round (release line 1.2.0).
+#
+# Like generalisation-60 they live in datasets of their own, with their own gid
+# ranges, so no existing scenario changes seed, name or series. A family here
+# names the _gen_kind code path its series come from in `generator`: the drift
+# and marginal controls reuse the existing gradual_drift and
+# cross_metric_marginal paths unchanged, on other metric kinds, and the other
+# families use the generators defined below. Every parameter was fixed before
+# any judge saw a window of either dataset (protocol/r1-controls-protocol.json).
+#
+# kind-controls-180 separates the metric kind from the label: in original-180
+# every benign family is latency-only, and memory and error metrics occur only
+# in two FAIL families. Here every kind has benign windows whose two sides are
+# exchangeable (same deterministic component, independent noise) and drift
+# windows that carry gradual_drift's label.
+KIND_CONTROLS_FAMILY_SPEC: Dict[str, Dict[str, Any]] = {
+    "kc_latency_nochange":   {"truth": "PASS", "kinds": ["latency"], "generator": "exchangeable_nochange"},
+    "kc_memory_nochange":    {"truth": "PASS", "kinds": ["memory"], "generator": "exchangeable_nochange"},
+    "kc_errors_nochange":    {"truth": "PASS", "kinds": ["errors"], "generator": "exchangeable_nochange"},
+    "kc_tri_nochange":       {"truth": "PASS", "kinds": ["latency", "memory", "errors"],
+                              "generator": "exchangeable_nochange"},
+    "kc_memory_shared_ramp": {"truth": "PASS", "kinds": ["memory"], "generator": "shared_ramp"},
+    "kc_latency_drift":      {"truth": "FAIL", "kinds": ["latency"], "generator": "gradual_drift"},
+    "kc_memory_drift":       {"truth": "FAIL", "kinds": ["memory"], "generator": "gradual_drift"},
+    "kc_errors_drift":       {"truth": "FAIL", "kinds": ["errors"], "generator": "gradual_drift"},
+    "kc_tri_marginal":       {"truth": "FAIL", "kinds": ["latency", "memory", "errors"],
+                              "generator": "cross_metric_marginal"},
+}
+KIND_CONTROLS_FAMILIES: List[str] = list(KIND_CONTROLS_FAMILY_SPEC.keys())
+
+# heldout-benign-100: benign windows for the held-out rubric comparison. The
+# first three families have exchangeable sides, including a step still present
+# at the end of the window on both sides; the last two are held-out
+# counterparts of healed_transient (the canary is back at control level by the
+# end of the window), with waveforms no rubric author used.
+HELDOUT_BENIGN_FAMILY_SPEC: Dict[str, Dict[str, Any]] = {
+    "hb_shared_partial_recovery": {"truth": "PASS", "kinds": ["latency"], "generator": "shared_partial_recovery"},
+    "hb_shared_late_step":        {"truth": "PASS", "kinds": ["latency"], "generator": "shared_late_step"},
+    "hb_isolated_spikes_both":    {"truth": "PASS", "kinds": ["latency"], "generator": "isolated_spikes_both"},
+    "hb_recovered_mid_transient": {"truth": "PASS", "kinds": ["latency"], "generator": "recovered_mid_transient"},
+    "hb_brief_early_blip":        {"truth": "PASS", "kinds": ["latency"], "generator": "brief_early_blip"},
+}
+HELDOUT_BENIGN_FAMILIES: List[str] = list(HELDOUT_BENIGN_FAMILY_SPEC.keys())
+
 # gid_base keeps the two datasets' metric-name namespaces disjoint, so a scenario
 # from one can never be confused with a scenario from the other -- in a metric
 # store, in an ai-log filename, or in a cache key.
@@ -160,6 +204,13 @@ DATASETS: Dict[str, Dict[str, Any]] = {
     "generalisation-60": {"spec": GENERALISATION_FAMILY_SPEC,
                           "families": GENERALISATION_FAMILIES, "gid_base": 1000,
                           "metric_suffix": "gid"},
+    # Release line 1.2.0: opaque metric-name tokens (the default) from fixed seeds.
+    "kind-controls-180":  {"spec": KIND_CONTROLS_FAMILY_SPEC,
+                           "families": KIND_CONTROLS_FAMILIES, "gid_base": 2000,
+                           "token_seed": 20261122},
+    "heldout-benign-100": {"spec": HELDOUT_BENIGN_FAMILY_SPEC,
+                           "families": HELDOUT_BENIGN_FAMILIES, "gid_base": 3000,
+                           "token_seed": 20261123},
 }
 DEFAULT_METRIC_SUFFIX = "opaque"
 TOKEN_SEED_ENV = "CANARY_TOKEN_SEED"
@@ -184,6 +235,21 @@ def family_dataset(family: str) -> str:
         if family in ds["families"]:
             return dsid
     return ""
+
+
+def generator_of(family: str) -> str:
+    """The _gen_kind code path that produces a family's series.
+
+    A family of the two published datasets is its own generator. A family that
+    names a `generator` in its spec (the 1.2.0 control datasets) uses that one,
+    so the drift and marginal controls run the gradual_drift and
+    cross_metric_marginal paths exactly as written.
+    """
+    for ds in DATASETS.values():
+        spec = ds["spec"].get(family)
+        if spec is not None:
+            return str(spec.get("generator", family))
+    return family
 
 
 @dataclass
@@ -468,7 +534,173 @@ def _gen_kind(family: str, kind: str, rng: random.Random, n: int) -> Tuple[List[
         p["excursion_starts"] = starts
         return control, exp, "high", p
 
+    # --- generators of the 1.2.0 control datasets -------------------------------
+    # Reached through a family's `generator` (see generator_of), never by family
+    # name. Each draws its parameters first, then the control noise, then the
+    # canary noise, from the metric's one RNG stream. The exchangeable ones give
+    # both sides the same deterministic component and independent noise, so the
+    # two sides are draws from one process and there is no canary-specific change.
+    if family == "exchangeable_nochange":
+        # Not no_change: that generator shifts the canary level by up to 1.5%.
+        control = _noisy(rng, base, noise, n)
+        exp = _noisy(rng, base, noise, n)
+        return control, exp, "pass", p
+
+    if family == "shared_ramp":
+        # gradual_drift's level sequence on both sides (same draws, same formula).
+        start = rng.uniform(0.80, 0.85)
+        end_mag = rng.uniform(1.30, 1.50)
+        s = max(1, int(n * start))
+        p["ramp_start_fraction"] = round(start, 3)
+        p["end_magnitude"] = round(end_mag, 3)
+        levels = []
+        for i in range(n):
+            if i < s:
+                level = base
+            else:
+                frac = (i - s) / max(1, (n - 1 - s))
+                level = base * (1 + (end_mag - 1) * frac)
+            levels.append(level)
+        control = [lv + rng.gauss(0.0, noise) for lv in levels]
+        exp = [lv + rng.gauss(0.0, noise) for lv in levels]
+        return control, exp, "pass", p
+
+    if family == "shared_partial_recovery":
+        # partial_recovery's level sequence on both sides.
+        deg = rng.uniform(1.5, 1.9)
+        dur = rng.uniform(0.40, 0.50)
+        residual = rng.uniform(1.18, 1.25)
+        k = max(2, int(n * dur))
+        rec = max(3, int(n * 0.20))
+        p["degradation_factor"] = round(deg, 3)
+        p["degraded_fraction"] = round(dur, 3)
+        p["residual_ratio"] = round(residual, 4)
+        floor = base * residual
+        levels = []
+        for i in range(n):
+            if i < k:
+                level = base * deg
+            elif i < k + rec:
+                level = base * deg - (base * deg - floor) * ((i - k) / rec)
+            else:
+                level = floor
+            levels.append(level)
+        control = [lv + rng.gauss(0.0, noise) for lv in levels]
+        exp = [lv + rng.gauss(0.0, noise) for lv in levels]
+        return control, exp, "pass", p
+
+    if family == "shared_late_step":
+        # late_transient's level sequence on both sides: a step still present at
+        # the last sample, on the control as well as on the canary.
+        onset = rng.uniform(0.72, 0.78)
+        mag = rng.uniform(1.35, 1.55)
+        s = max(1, int(n * onset))
+        p["onset_fraction"] = round(onset, 3)
+        p["step_magnitude"] = round(mag, 3)
+        levels = [base if i < s else base * mag for i in range(n)]
+        control = [lv + rng.gauss(0.0, noise) for lv in levels]
+        exp = [lv + rng.gauss(0.0, noise) for lv in levels]
+        return control, exp, "pass", p
+
+    if family == "isolated_spikes_both":
+        # sustained_excursion's parameters, with the control's arrangement on both
+        # sides: each side, independently, gets n - n_elev baseline values and
+        # n_elev elevated values, the elevated ones at isolated positions chosen by
+        # the rule that places sustained_excursion's control spikes. No side has
+        # a run of two elevated samples. Per side: the baseline values, then the
+        # elevated values, then the positions; values are placed in time order.
+        n_runs = rng.randint(2, 3)
+        run_len = rng.randint(3, 4)
+        n_elev = n_runs * run_len
+        elev_ratio = rng.uniform(1.25, 1.45)
+        sides: List[List[float]] = []
+        for side in ("control", "experiment"):
+            baseline_vals = _noisy(rng, base, noise, n - n_elev)
+            elevated_vals = [base * elev_ratio + rng.gauss(0.0, noise) for _ in range(n_elev)]
+            positions, repeats = _isolated_positions(rng, n, n_elev)
+            taken = set(positions)
+            bi = ei = 0
+            series: List[float] = []
+            for i in range(n):
+                if i in taken:
+                    series.append(elevated_vals[ei])
+                    ei += 1
+                else:
+                    series.append(baseline_vals[bi])
+                    bi += 1
+            sides.append(series)
+            p[f"elevated_positions_{side}"] = sorted(positions)
+            p[f"placement_repeats_{side}"] = repeats
+        p["n_runs"] = n_runs
+        p["run_length"] = run_len
+        p["n_elevated"] = n_elev
+        p["elevated_ratio"] = round(elev_ratio, 4)
+        return sides[0], sides[1], "pass", p
+
+    if family == "recovered_mid_transient":
+        # A degradation that has ended before the end of the window: base, then
+        # base * deg for k samples from sample s, a linear return to base over rec
+        # samples, then base to the end (at least the last seven samples).
+        onset = rng.uniform(0.25, 0.35)
+        dur = rng.uniform(0.20, 0.30)
+        deg = rng.uniform(1.5, 1.9)
+        s = int(n * onset)
+        k = max(2, int(n * dur))
+        rec = max(3, int(n * 0.15))
+        p["onset_fraction"] = round(onset, 3)
+        p["degraded_fraction"] = round(dur, 3)
+        p["degradation_factor"] = round(deg, 3)
+        control = _noisy(rng, base, noise, n)
+        exp = []
+        for i in range(n):
+            if i < s:
+                level = base
+            elif i < s + k:
+                level = base * deg
+            elif i < s + k + rec:
+                j = i - (s + k)
+                level = base * deg - (base * deg - base) * (j / rec)
+            else:
+                level = base
+            exp.append(level + rng.gauss(0.0, noise))
+        return control, exp, "pass", p
+
+    if family == "brief_early_blip":
+        # base * deg for the first k samples, base for the rest.
+        k = rng.randint(2, 4)
+        deg = rng.uniform(1.5, 1.9)
+        p["blip_samples"] = k
+        p["degradation_factor"] = round(deg, 3)
+        control = _noisy(rng, base, noise, n)
+        exp = [(base * deg if i < k else base) + rng.gauss(0.0, noise) for i in range(n)]
+        return control, exp, "pass", p
+
     raise ValueError(f"unknown family {family}")
+
+
+def _isolated_positions(rng: random.Random, n: int, n_elev: int) -> Tuple[List[int], int]:
+    """`n_elev` pairwise non-adjacent positions in range(n), and the repeat count.
+
+    The rule that places sustained_excursion's control spikes: a shuffled
+    candidate order, taking a candidate when it is not adjacent to a position
+    already taken. If one pass ends with fewer than n_elev positions, the
+    positions are discarded and the rule is applied again to a fresh candidate
+    list shuffled from the same RNG, until a pass places all of them. The number
+    of discarded passes is returned so that it can be recorded per window.
+    """
+    repeats = 0
+    while True:
+        positions: List[int] = []
+        candidates = list(range(n))
+        rng.shuffle(candidates)
+        for c in candidates:
+            if len(positions) == n_elev:
+                break
+            if all(abs(c - q) > 1 for q in positions):
+                positions.append(c)
+        if len(positions) == n_elev:
+            return positions, repeats
+        repeats += 1
 
 
 # Scenario construction (deterministic from the master seed).
@@ -572,9 +804,12 @@ def series_for_scenario(scenario: Scenario) -> Dict[str, Dict[str, List[float]]]
     params: Dict[str, Any] = {}
     # A separate RNG stream per metric (seed offset by metric index) keeps each
     # metric independent yet reproducible.
+    # The generator is the family itself for both published datasets (see
+    # generator_of), so their series are unchanged.
+    generator = generator_of(scenario.family)
     for mi, m in enumerate(scenario.metrics):
         rng = random.Random(scenario.seed + 1000 * mi)
-        control, experiment, truth, p = _gen_kind(scenario.family, m.kind, rng, N_SAMPLES)
+        control, experiment, truth, p = _gen_kind(generator, m.kind, rng, N_SAMPLES)
         out[m.name] = {"control": control, "experiment": experiment}
         m.truth = truth
         params[m.name] = p

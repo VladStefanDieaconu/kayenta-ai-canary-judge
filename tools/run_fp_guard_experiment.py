@@ -66,7 +66,8 @@ def load_raw_csv(path: Path) -> List[Dict[str, str]]:
         return list(csv.DictReader(f))
 
 
-def build_guard_signals(master_seed: int, n_per_family: int) -> Dict[str, Dict[str, Any]]:
+def build_guard_signals(master_seed: int, n_per_family: int,
+                        dataset_id: str = ed.DEFAULT_DATASET_ID) -> Dict[str, Dict[str, Any]]:
     """scenario_id -> {family, truth, recovered_transient, equal_variance_noise, pairs}
 
     `equal_variance_noise` is deliberately scoped to single-metric scenarios
@@ -77,8 +78,12 @@ def build_guard_signals(master_seed: int, n_per_family: int) -> Dict[str, Dict[s
     `noise_equivalent`/`healed_transient` (this guard's actual targets) are
     single-metric families in this dataset, so the scoping costs nothing against
     the two families the guard targets.
+
+    `dataset_id` (release line 1.2.0) selects the scenario set the signals are
+    computed on; the default is the seeded dataset the guards were set on, and
+    the detectors and their constants are the same for every dataset.
     """
-    scenarios = ed.build_scenarios(master_seed, n_per_family)
+    scenarios = ed.build_scenarios(master_seed, n_per_family, dataset_id)
     base_millis = ed.aligned_base_millis()
     out = {}
     for sc in scenarios:

@@ -1,0 +1,157 @@
+{
+  "id": "d3-rationale-claims-v1",
+  "purpose": "Claim patterns and tolerances of the rationale check D3 (Reviewer 2, comment 8). Fixed before any rationale of the first-revision runs is read and before the check is run on the name-attribution arms of the published data. Read by analysis/r1/posthoc/d3_rationale_check.py; any later change must be a new file with a new id.",
+  "unit": {
+    "primary_text_fields": [
+      "rationale"
+    ],
+    "secondary_text_fields": [
+      "rationale",
+      "metric_reasons"
+    ],
+    "placeholder_patterns": [
+      "^\\s*$",
+      "^AI judge (summary|raw|plot)/",
+      "^<?=?\\s*60 words>?$",
+      "^<[^>]*>$",
+      "^rationale$"
+    ],
+    "note": "The primary unit is the rationale field of the parsed verdict (the text the headline records truncate to 200 characters). Per-metric reason fields are checked only in the secondary analysis. A rationale matching a placeholder pattern is counted and carries no claim."
+  },
+  "clause_split": "(?<=[.!?;])\\s+|\\s*;\\s*|,\\s+(?=(?:but|while|whereas|although|though|yet|however)\\b)|\\s+(?=(?:but|whereas)\\b)",
+  "negation": {
+    "cues": "\\b(?:no|not|without|never|neither|nor|none|lacks?|lacking|absence|absent|free of|cannot|nothing|nor)\\b|n't\\b",
+    "max_words_before": 4,
+    "rule": "A cue among the max_words_before words before the trigger term or before the direction word negates the claim: up becomes not_up, down becomes not_down, same becomes differs. A trend trigger negated without a direction word becomes none."
+  },
+  "metric_kinds": {
+    "latency": "latenc|duration|response time|request time|http_request",
+    "memory": "memory|resident|\\brss\\b|heap|\\bmib\\b|\\bbytes\\b",
+    "errors": "\\berror|5xx|failure rate|http_server_errors"
+  },
+  "metric_attribution": "If a clause names exactly one metric kind that the window carries, the claim is checked on that metric. Otherwise up, down, not_same and differs are consistent when any metric of the window satisfies them, and same, not_up and not_down when every metric does.",
+  "direction_words": {
+    "up": "\\b(?:higher|high|increase[sd]?|increasing|elevated|elevation|greater|larger|bigger|above|rose|risen|raised|inflated|exceed(?:s|ed|ing)?|worse|worsen(?:s|ed|ing)?|degrad(?:ed|es|ing|ation)|regress(?:ed|ion)|upward|upwards|up|more|heavier|grew|grown|jump(?:s|ed)?|surge[sd]?|shift(?:ed)? up|positive)\\b",
+    "down": "\\b(?:lower|low|decrease[sd]?|decreasing|reduced|reduction|reduces|below|less|smaller|dropped|drops?|declin(?:e|es|ed|ing)|fell|fallen|better|improv(?:ed|es|ement|ing)|downward|downwards|down|lighter|tighter|narrower|fewer|negative)\\b",
+    "same": "\\b(?:similar|similarly|comparable|same|identical|equal|equivalent|consistent|unchanged|stable|steady|close|matches|matching|negligible|minimal|indistinguishable|on par|in line|flat|nearly identical|essentially (?:the )?same)\\b|\\bno (?:significant |material |meaningful |notable |clear |appreciable |real |substantial )?(?:difference|change|shift|increase|degradation|regression|deviation|deterioration)s?\\b",
+    "window_words": 6,
+    "resolution": "Within one clause and one claim type, a phrase of the type's own phrase lists wins; otherwise the direction word nearest to the trigger term wins; a same word is used only when no up or down word lies in the window."
+  },
+  "claims": {
+    "level": {
+      "triggers": "\\b(?:mean|means|median|medians|average|averages|avg|level|levels|central tendency|typical values?|location|baseline value)\\b",
+      "exclude_contexts": "\\b(?:which|this|that|it) means\\b|\\b(?:significance|confidence|noise|risk|severity|alert|threshold) levels?\\b|\\bp-?value\\b",
+      "phrases_up": "\\b(?:mean|median|average|level) (?:is |was |are )?(?:notably |clearly |slightly |significantly |substantially |materially |much |considerably )?(?:higher|elevated|increased|up)\\b|\\b(?:higher|elevated|increased) (?:mean|median|average|level)s?\\b|\\blevel shift\\b",
+      "phrases_down": "\\b(?:mean|median|average|level) (?:is |was |are )?(?:slightly |notably |clearly )?(?:lower|reduced|decreased|down)\\b|\\b(?:lower|reduced|decreased) (?:mean|median|average|level)s?\\b",
+      "phrases_same": "\\b(?:similar|comparable|same|identical|unchanged|stable|consistent|matching) (?:mean|median|average|level|central tendency)s?\\b",
+      "statistic": "ratio canary/control of the mean (when the clause names mean or average), of the median (when it names median), or of either (otherwise)",
+      "tolerance": {
+        "up": "ratio > 1.0",
+        "down": "ratio < 1.0",
+        "same": "0.95 <= ratio <= 1.05",
+        "not_up": "ratio <= 1.05",
+        "not_down": "ratio >= 0.95",
+        "differs": "ratio < 0.95 or ratio > 1.05"
+      },
+      "same_band": [
+        0.95,
+        1.05
+      ],
+      "fallback_triggers": "\\b(?:latency|latencies|response times?|durations?|memory|memory usage|error rates?|errors|values)\\b",
+      "fallback_rule": "When a clause carries no level trigger and no spread, trend or tail claim, a metric word of fallback_triggers with an up, down or same direction word in the word window makes a level claim checked on the mean or the median ratio (either)."
+    },
+    "spread": {
+      "triggers": "\\b(?:variance|variances|variability|variable|varies|varying|spread|std|stddev|std dev|standard deviation|sd|volatil\\w*|erratic\\w*|jitter\\w*|dispersion|noisy|noisier|noise|fluctuat\\w*|instabilit\\w*|unstable|stability|stable|steady|steadier|flapping|oscillat\\w*|scatter\\w*)\\b",
+      "exclude_contexts": "\\bnoise level\\b|\\bwithin noise\\b|\\b(?:beyond|above|than) (?:the )?noise\\b|\\bnoise floor\\b",
+      "phrases_up": "\\b(?:more|higher|increased|greater|larger|wider|elevated|heavier) (?:variance|variability|spread|volatility|dispersion|noise|jitter|fluctuations?|instability|scatter|std(?:dev)?|standard deviation)\\b|\\b(?:more|increasingly) (?:variable|volatile|erratic|noisy|unstable|jittery)\\b|\\b(?:noisier|less stable|less steady|less consistent)\\b|\\b(?:erratic|volatile|unstable|jittery|flapping|instability|fluctuating|oscillating)\\b",
+      "phrases_down": "\\b(?:less|lower|reduced|smaller|narrower|tighter|decreased) (?:variance|variability|spread|volatility|dispersion|noise|jitter|fluctuations?|scatter|std(?:dev)?|standard deviation)\\b|\\b(?:less) (?:variable|volatile|erratic|noisy|jittery)\\b|\\b(?:more stable|more steady|steadier|more consistent|tighter)\\b",
+      "phrases_same": "\\b(?:similar|comparable|same|unchanged|equal|consistent|identical) (?:variance|variability|spread|volatility|dispersion|noise|std(?:dev)?|standard deviation|stability)\\b|\\b(?:stable|steady)\\b",
+      "statistic": "ratio canary/control of the sample standard deviation (equal to the ratio of the packet's population standard deviations)",
+      "tolerance": {
+        "up": "ratio > 1.0",
+        "down": "ratio < 1.0",
+        "same": "0.80 <= ratio <= 1.25",
+        "not_up": "ratio <= 1.25",
+        "not_down": "ratio >= 0.80",
+        "differs": "ratio < 0.80 or ratio > 1.25"
+      },
+      "same_band": [
+        0.8,
+        1.25
+      ]
+    },
+    "trend": {
+      "triggers": "\\b(?:trend|trends|trending|drift|drifts|drifting|ramp|ramps|ramping|slope|slopes|creep\\w*|climb\\w*|growing|growth|grows|rising|rises|monoton\\w*|steadily|progressive\\w*|gradual\\w*|over time|upward|downward|trajectory)\\b",
+      "exclude_contexts": "\\bslope_per_sample\\b",
+      "phrases_up": "\\b(?:upward|upwards|positive|rising|increasing|growing|climbing|worsening|deteriorating) (?:trend|drift|slope|trajectory|ramp)\\b|\\b(?:trend|drift|ramp|slope)(?:s|ing)? (?:upward|upwards|up|higher)\\b|\\b(?:creep\\w*|climb\\w*|ramp(?:s|ing)? up|drift(?:s|ing)? up|rising|growing over time|increasing over time|steadily increasing|gradually increasing)\\b",
+      "phrases_down": "\\b(?:downward|downwards|negative|declining|decreasing|falling|improving) (?:trend|drift|slope|trajectory)\\b|\\b(?:trend|drift|slope)(?:s|ing)? (?:downward|downwards|down|lower)\\b|\\b(?:decreasing over time|declining over time|falling over time)\\b",
+      "phrases_same": "\\b(?:flat|stable|neutral|negligible|zero|near-zero|minimal) (?:trend|slope|drift)s?\\b|\\b(?:slope|trend)s? (?:is |are |remains? |near |close to )?(?:flat|zero|near zero|negligible|neutral|stable)\\b",
+      "statistic": "sign of the least-squares slope of canary minus control against sample index, and the two-sided Mann-Kendall test of canary minus control (judge-service/app/ensemble_judge.py mann_kendall_p) at alpha 0.05",
+      "tolerance": {
+        "up": "slope > 0 and Mann-Kendall p < 0.05 with S > 0",
+        "down": "slope < 0 and Mann-Kendall p < 0.05 with S < 0",
+        "same": "Mann-Kendall p >= 0.05",
+        "none": "Mann-Kendall p >= 0.05",
+        "not_up": "not (slope > 0 and p < 0.05)",
+        "not_down": "not (slope < 0 and p < 0.05)",
+        "differs": "Mann-Kendall p < 0.05"
+      },
+      "alpha": 0.05,
+      "secondary": "the same claims judged on the sign of the slope alone (up: slope > 0; down: slope < 0) are reported beside the primary result"
+    },
+    "tail": {
+      "triggers": "\\b(?:tail|tails|p90|p95|p99|percentile|percentiles|spike|spikes|spiky|spiking|outlier|outliers|peak|peaks|max|maximum|maxima|extreme|extremes|burst|bursts)\\b",
+      "exclude_contexts": "\\b(?:max|maximum) (?:score|tokens)\\b",
+      "phrases_up": "\\b(?:worse|heavier|higher|elevated|increased|larger|fatter|longer) (?:tail|tails|percentiles?|p90|p95|p99|max|maximum|peaks?|spikes?|outliers?)\\b|\\b(?:tail|tails|percentiles?|p90|p95|p99|max|maximum|peaks?) (?:is |are |was |were )?(?:notably |clearly |slightly |significantly |much )?(?:worse|heavier|higher|elevated|increased|larger)\\b|\\b(?:spikes?|spiky|spiking|outliers?|bursts?)\\b",
+      "phrases_down": "\\b(?:better|lighter|lower|improved|reduced|smaller|shorter) (?:tail|tails|percentiles?|p90|p95|p99|max|maximum|peaks?)\\b|\\b(?:tail|tails|percentiles?|p90|p95|p99|max|maximum|peaks?) (?:is |are |was |were )?(?:slightly |notably )?(?:better|lighter|lower|improved|reduced|smaller)\\b|\\bfewer (?:spikes|outliers|peaks)\\b",
+      "phrases_same": "\\b(?:similar|comparable|same|unchanged|identical|consistent) (?:tail|tails|percentiles?|p90|p95|p99|max|maximum|peaks?|extremes)\\b",
+      "statistic": "ratio canary/control of the named percentile (p90, p95, p99) or maximum; for unnamed tail words the maximum ratio and the p95 ratio",
+      "tolerance": {
+        "up": "named ratio > 1.0, or max(max ratio, p95 ratio) > 1.0",
+        "down": "named ratio < 1.0, or min(max ratio, p95 ratio) < 1.0",
+        "same": "named ratio, or both ratios, within [0.95, 1.05]",
+        "not_up": "named ratio, or both ratios, <= 1.05",
+        "not_down": "named ratio, or both ratios, >= 0.95",
+        "differs": "named ratio, or either ratio, outside [0.95, 1.05]"
+      },
+      "same_band": [
+        0.95,
+        1.05
+      ]
+    },
+    "number": {
+      "pattern": "(?<![\\w.])([-+]?\\d+(?:\\.\\d+)?)(\\s?%|x\\b|\\u00d7)?(?![\\w.])",
+      "exclude_contexts_before": "(?:\\bp|_g|score(?: of| is| at)?\\s?|scores?\\s|overallscore\\s?|\\bn\\s?=\\s?|<=?\\s?|under\\s|below\\s)$",
+      "exclude_contexts_after": "^(?:\\s?/\\s?100|\\s?words|\\s?out of 100|-?\\s?word)",
+      "exclude_values": [
+        2026
+      ],
+      "candidates": "every statistic of the summary packet the model saw (count, mean, median, p90, p95, p99, standard deviation, minimum, maximum and slope of each side, the difference and the ratio of the means) and the same statistics computed from the window's series; for a number written with % or followed by 'higher', 'lower', 'increase', 'decrease' or 'more': 100*(ratio - 1), 100*(1 - ratio) and 100*ratio for the ratios canary/control of mean, median, p90, p95, p99, maximum, minimum and standard deviation; for a number written with x or the multiplication sign: those ratios",
+      "tolerance": "relative difference at most 5% of the candidate, or within half a unit of the last decimal the rationale wrote",
+      "relative_tolerance": 0.05
+    }
+  },
+  "problem_claims": {
+    "definition": "The stated reasons of a FAIL verdict are its non-negated claims of level up, spread up, trend up and tail up. The reason is absent from the data when the rationale has at least one such claim and every one of them is inconsistent with the window.",
+    "types": {
+      "level": [
+        "up"
+      ],
+      "spread": [
+        "up"
+      ],
+      "trend": [
+        "up"
+      ],
+      "tail": [
+        "up"
+      ]
+    }
+  },
+  "spot_check": {
+    "n": 40,
+    "seed": 20261122,
+    "population": "every extracted checkable claim of the primary unit, all configurations pooled"
+  },
+  "limitations": "Extraction is lexical. It also matches negated, comparative, hedged and malformed text (Text S8 warns of the same for the lexical audit), assigns a claim to a metric only by kind words, and cannot tell which side a sentence describes when the sentence names neither. Results are descriptive."
+}

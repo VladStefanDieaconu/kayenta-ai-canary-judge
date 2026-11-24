@@ -1,0 +1,30 @@
+{
+ "file": "analysis/area-F-instrument-audit/analyze_F.py",
+ "file_sha256": "b8f980d29199a42a3e7e0d84c66a1fb2581780c7d435ada6e517919ce8ecb031",
+ "functions_sha256": {
+  "_betacf": "94e8d9dd4c303df7073bf78f76d5329887b19fb2387ac9c3a8c197c778be6cca",
+  "betainc_reg": "9872630d956cb174d30d40cc1b2da1b02eb7d140afa35385c351a7ff07dffe09",
+  "mean": "44f8bf0a44fe711aae1b895e711edfca13885098b94daf0da00baac6e59dc94c",
+  "sd": "8c2ec3a179c03ef5f704240adcf6bd6d8f8af455bc01878beb08406635686710",
+  "t_cdf": "a74b5578eec2b1a2dfa1f021b3b78faa3bcebd0421eba6ac365c85b109739a04",
+  "tost_p": "9c1f061d1325df1b2e3c0a4ebc10a4f8b9b846c3e3e12b85dbd7851ed1253bfb"
+ },
+ "last5": "mean(canary[-5:]) / mean(control)",
+ "master_seed": 20260621,
+ "max_ratio": "max(canary) / max(control)",
+ "n_per_family": 20,
+ "outputs_sha256": {
+  "isolated_spikes_both_repeats.csv": "729a5e42f5978b66b8fe76b28356923a004e7520f02f9b3a3a1d76d89208b400",
+  "realised_checks_heldout-benign-100.csv": "a8e060519453329720b17756b141c4fd3dda3b4e0d89b6638ec4b3aceb4c87ed",
+  "realised_checks_kind-controls-180.csv": "76dcf4aa89975f8bfa1f212246d5c5361440dc8ade1d9c77b664930d7915e113",
+  "series_heldout-benign-100.jsonl": "fdf383f7bc4faf454ef5addd368a2ff51d5e45f9256b0e90f22cb7e24770372d",
+  "series_kind-controls-180.jsonl": "dcafa48bbeaf02d01bc7f5b672bea7a1854c925aef97945dbba646c8f7c9df7b"
+ },
+ "tost": {
+  "alpha_per_test": 0.05,
+  "df": 60,
+  "equivalent_iff": "tost_p < alpha",
+  "margin_fraction_of_control_mean": 0.05,
+  "variance": "pooled"
+ }
+}

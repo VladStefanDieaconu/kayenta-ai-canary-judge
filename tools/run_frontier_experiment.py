@@ -111,8 +111,50 @@ def judge_ai_cached(pairs, cfg, mode: str, model: str, scenario_id: str, sc_seed
     return last
 
 
+FailedKey = Tuple[str, str, str, str, int]  # (model, representation, prompt_id, scenario_id, seed)
+
+
+def load_failed_ledger(path: str) -> Dict[FailedKey, Tuple[str, str]]:
+    """Judgement keys recorded as failed calls by an earlier attempt of the same
+    invocation, as JSON lines with model, representation, prompt_id, scenario_id,
+    seed, error_kind and error. Read only when --skip-failed names a file.
+
+    A call that failed after the retries below is a failed call: counted,
+    reported, never scored and not re-run. The cache holds successful calls only,
+    so without this list a restarted invocation would call those keys again.
+    """
+    out: Dict[FailedKey, Tuple[str, str]] = {}
+    for line in Path(path).read_text().splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        e = json.loads(line)
+        key = (str(e["model"]), str(e["representation"]), str(e["prompt_id"]),
+               str(e["scenario_id"]), int(e["seed"]))
+        out[key] = (str(e.get("error_kind", "") or ""), str(e.get("error", "") or ""))
+    return out
+
+
+def _failed_earlier(entry: Tuple[str, str]) -> Dict[str, Any]:
+    """The failure object for a key that is not called again: the same shape as a
+    failed call (judge_clients._err), with the recorded error kind."""
+    kind, error = entry
+    out = judge_clients._err(f"failed call recorded by an earlier attempt of this invocation; "
+                             f"not re-run: {error}", 0.0, kind or "api_error")
+    out["_cache_hit"] = False
+    out["_failed_earlier"] = True
+    return out
+
+
+def scenario_index(sc: ed.Scenario) -> int:
+    """The scenario's index within its family (the `_NNN` of its id)."""
+    return int(sc.id.rsplit("_", 1)[1])
+
+
 def run_scenario(sc: ed.Scenario, model: str, modes: List[str], base_millis: int,
-                 use_cache: bool, prompt_id: str) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+                 use_cache: bool, prompt_id: str,
+                 failed: Optional[Dict[FailedKey, Tuple[str, str]]] = None
+                 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     """Return (legacy rows, long-format rows) for one scenario."""
     series = ed.series_for_scenario(sc)
     pairs = ed.build_pairs(sc, series, base_millis)
@@ -134,10 +176,14 @@ def run_scenario(sc: ed.Scenario, model: str, modes: List[str], base_millis: int
 
     ai_by_mode: Dict[str, Dict[str, Any]] = {}
     for mode in modes:
-        ai = judge_ai_cached(pairs, ed.build_canary_config(sc, {}), mode, model, sc.id, sc.seed,
-                             use_cache, prompt_id)
+        earlier = (failed or {}).get((model, mode, prompt_id, sc.id, sc.seed))
+        if earlier is not None:
+            ai = _failed_earlier(earlier)
+        else:
+            ai = judge_ai_cached(pairs, ed.build_canary_config(sc, {}), mode, model, sc.id, sc.seed,
+                                 use_cache, prompt_id)
         ai_by_mode[mode] = ai
-        note = "cache" if ai.get("_cache_hit") else "live"
+        note = "cache" if ai.get("_cache_hit") else ("failed-earlier" if earlier is not None else "live")
         rows.append(exp._row(sc, "ai", mode, model, ai["verdict"], ai["score"], ai["latency"],
                              ai["error"], rationale=ai["rationale"], note=note))
         long_rows.append(_long(sc, "ai", mode, model,
@@ -235,6 +281,12 @@ def main() -> int:
     ap.add_argument("--out-tag", default="",
                     help="suffix the summary filenames, so a re-run under the default "
                          "prompt and dataset cannot land on top of a published one")
+    ap.add_argument("--max-idx", type=int, default=None, metavar="K",
+                    help="keep only the scenarios whose index within their family is below K; "
+                         "applied after the scenario list is built, so seeds stay those of --n")
+    ap.add_argument("--skip-failed", default="", metavar="LEDGER",
+                    help="JSON-lines file of judgement keys that failed in an earlier attempt of "
+                         "this invocation; they are written as error rows and not called again")
     args = ap.parse_args()
 
     modes = [m.strip() for m in args.modes.split(",") if m.strip()]
@@ -252,8 +304,11 @@ def main() -> int:
         return 2
 
     scenarios = ed.build_scenarios(args.seed, args.n, args.dataset)
+    if args.max_idx is not None:
+        scenarios = [s for s in scenarios if scenario_index(s) < args.max_idx]
     if fam_restrict:
         scenarios = [s for s in scenarios if s.family in fam_restrict]
+    failed = load_failed_ledger(args.skip_failed) if args.skip_failed else {}
     base_millis = ed.aligned_base_millis()
 
     long_path = results_schema.EXPERIMENTS_DIR / f"{RUN_ID}.csv"
@@ -262,6 +317,10 @@ def main() -> int:
     print(f"kayenta-ai-canary-judge frontier-model experiment  model={args.model} modes={modes} "
           f"n={args.n}/family seed={args.seed} scenarios={len(scenarios)} cache={use_cache}")
     print(f"  prompt={prompt.id} ({prompt.hash})  dataset={args.dataset}")
+    if args.max_idx is not None:
+        print(f"  max-idx={args.max_idx} (index within family below {args.max_idx})")
+    if args.skip_failed:
+        print(f"  failed calls of earlier attempts, not re-run: {len(failed)}")
     print(f"  config: {repo_env.describe()}")
     print(f"  long-format -> {long_path}")
     print("=" * 78)
@@ -271,7 +330,8 @@ def main() -> int:
     n_error = 0
     for i, sc in enumerate(scenarios, 1):
         ts = time.time()
-        rows, long_rows = run_scenario(sc, args.model, modes, base_millis, use_cache, prompt.id)
+        rows, long_rows = run_scenario(sc, args.model, modes, base_millis, use_cache, prompt.id,
+                                       failed=failed)
         all_rows.extend(rows)
         # Flush per scenario: a run killed at scenario 140 keeps 139 scenarios of
         # usable rows rather than none.
