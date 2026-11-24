@@ -595,6 +595,26 @@ a zero from a comparison:
   same way on the same scenarios in both runs, both runs record the same failure.
   Read the `error_kind` column, not just the verdict.
 
+### Release 1.2.0: control and held-out datasets and their analysis
+
+Release 1.2.0 adds two datasets to `tools/eval_dataset.py`, `kind-controls-180` and
+`heldout-benign-100`, the protocol that fixes their runs and the analysis plan
+(`protocol/`), and the scripts that analyse the long-format records of those runs
+(`analysis/r1/`, with `analysis/r1/posthoc/` for the post-hoc analyses of the published
+data). `original-180`, `generalisation-60`, the judge service, the prompts and the
+rubrics are unchanged. The run records and the outputs of the analysis are in version
+1.2.0 of the data record (10.5281/zenodo.22551773).
+
+```bash
+.venv/bin/python -I -B tools/test_r1_control_datasets.py     # checks of the two datasets and the harness options
+python -I -B analysis/r1/inventory.py --runs <runs> --out <out>/inventory
+python -I -B analysis/r1/comparators_bfks.py --archive-s1 <archive-s1> --out <out>/comparators
+python -I -B analysis/r1/analyze_r1.py --runs <runs> --comparators <out>/comparators --bfks <out>/comparators --deposit <data-deposit> --archive-s1 <archive-s1> --out <out>
+```
+
+`analysis/r1/README.md` lists every step in order, with the inputs each one reads. The
+interpreter for the analysis is Python 3.12 with numpy, pandas and scipy, run with `-I -B`.
+
 ## Command reference
 
 | Command | What it does | Needs a model? |

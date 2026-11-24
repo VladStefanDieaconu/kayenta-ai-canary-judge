@@ -3,6 +3,49 @@
 Version 1.0.0 stays tagged and archived. Each entry says what changed, whether it
 can change a verdict, and what a reader of 1.0.0 could have been misled on.
 
+## 1.2.0 (2026-11-24)
+
+**What stays the same.**
+- The judge service code, its prompts and the three rubric texts and their hashes.
+- `original-180` and `generalisation-60`: the scenarios, seeds, metric names and series are
+  generated exactly as before, and the published datasets are unchanged.
+- The scoring path: a call that succeeds gives the same verdict as in 1.1.1.
+- The items listed under "Deferred to 1.2.0" in the 1.1.0 entry are not part of this release.
+
+### Added: two control datasets
+
+- **`kind-controls-180`** (nine families of metric-kind controls, 20 windows each) and
+  **`heldout-benign-100`** (five held-out benign families, 20 windows each) in
+  `tools/eval_dataset.py`, with opaque metric names derived from fixed token seeds and
+  their own generators. The two published datasets do not use these generators.
+- **`protocol/`** holds the series of both datasets, the realised checks of every window,
+  the script that wrote them once (`make_series.py`) and `r1-controls-protocol.json`,
+  which fixes the runs and the analysis plan.
+- **`tools/test_r1_control_datasets.py`** tests the datasets: counts, families, truths,
+  opaque names, disjoint seeds, the waveforms of the exchangeable generators and the
+  two recovered-transient generators, and the two harness options below.
+
+### Added: two harness options and a dataset option
+
+- **`--max-idx K`** in `tools/run_frontier_experiment.py` keeps the windows whose index
+  is below K.
+- **`--skip-failed LEDGER`** in the same script does not re-run calls that failed in an
+  earlier attempt.
+- **`build_guard_signals(master_seed, n, dataset_id="original-180")`** in
+  `tools/run_fp_guard_experiment.py` takes the dataset whose signals it builds; the
+  detectors and constants are unchanged.
+
+### Added: the analysis of the runs
+
+- **`analysis/r1/`** holds the scripts that turn the long-format records of the runs on
+  the new datasets into tables and figures: the run inventory, the model-free comparators
+  on the new datasets, the kind-control and held-out analyses with their intervals and
+  paired tests, the session anchors and two figures. `analysis/r1/README.md` gives the
+  order of the commands.
+- **`analysis/r1/posthoc/`** holds post-hoc analyses of the published data (cost-sensitive
+  reading, label policies and a check of the model rationales), with their own README.
+  No script makes a model call.
+
 ## 1.1.1 (2026-11-05)
 
 **What stays the same.**
